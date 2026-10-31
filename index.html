@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Power Dialer</title>
+<link rel="icon" id="fav" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%236a45ff'/%3E%3Cstop offset='1' stop-color='%231b1050'/%3E%3C/linearGradient%3E%3ClinearGradient id='n' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%237ff0aa'/%3E%3Cstop offset='1' stop-color='%2320a85f'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff2a6'/%3E%3Cstop offset='1' stop-color='%23f2a900'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23b)'/%3E%3Crect x='5' y='14' width='54' height='30' rx='5' fill='%23167a46' transform='rotate(-9 32 29)'/%3E%3Crect x='5' y='15' width='54' height='30' rx='5' fill='url(%23n)' stroke='%23d8ffe8' stroke-width='1.6'/%3E%3Ccircle cx='32' cy='30' r='10.5' fill='url(%23c)' stroke='%23fff6bd' stroke-width='1.6'/%3E%3Cpath d='M36.2 25.6c-1.1-1.5-3-2.3-5-2.3-2.8 0-4.9 1.4-4.9 3.6 0 5 10.6 2.5 10.6 7.9 0 2.4-2.2 4-5.2 4-2.3 0-4.3-.9-5.4-2.5M31.2 20.6v2.7M31.2 38.4v2.7' fill='none' stroke='%238a5700' stroke-width='2.6' stroke-linecap='round'/%3E%3Cg fill='%231a7f48' fill-opacity='.65'%3E%3Ccircle cx='11.5' cy='22' r='2'/%3E%3Ccircle cx='52.5' cy='22' r='2'/%3E%3Ccircle cx='11.5' cy='38' r='2'/%3E%3Ccircle cx='52.5' cy='38' r='2'/%3E%3C/g%3E%3Ccircle cx='32' cy='48' r='13' fill='%23fff' stroke='%23c9ffe0' stroke-width='1'/%3E%3Cpath fill='%2318a35a' transform='translate(21.8 37.8) scale(.85)' d='M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#111318;--pn:#191c23;--pn2:#21252e;--ln:#2a2f3a;--fg:#eceef3;--mu:#8b93a4;--ac:#6aa5ff;--go:#34c47c;--wn:#f2a93b;--rd:#e5575c}
+@media(prefers-color-scheme:light){:root{--bg:#f3f4f7;--pn:#fff;--pn2:#f0f2f6;--ln:#dde1e9;--fg:#171a21;--mu:#646c7c;--ac:#2f6bdb;--go:#1f9d5f;--wn:#c27a0a;--rd:#cf3a40}}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,textarea{font:inherit;color:inherit}
+kbd{font:600 11px ui-monospace,Menlo,monospace;padding:1px 6px;border-radius:5px;background:color-mix(in srgb,currentColor 14%,transparent);opacity:.85}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+a{color:var(--ac);text-decoration:none}a:hover{text-decoration:underline}
+#stage{--w:1016px}#stage.np{--w:720px}
+#hud,.top,.bar,.layout{max-width:var(--w);margin-left:auto;margin-right:auto}
+#hud{padding:14px 20px 0;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.xp{position:relative;height:24px;border-radius:99px;background:var(--pn2);border:1px solid var(--ln);overflow:hidden}
+.xp i{position:absolute;inset:0 auto 0 0;width:0;border-radius:99px;background:linear-gradient(90deg,#2fbf71,#7be495 60%,#f2d04b);transition:width .5s cubic-bezier(.3,1.3,.5,1)}
+.xp b{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;font-weight:700;letter-spacing:.05em;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 1px 3px #0008}
+.xp.pop{animation:glow 1.4s ease-out}
+@keyframes glow{0%{box-shadow:0 0 0 0 #f2d04bcc}30%{box-shadow:0 0 30px 8px #f2d04b}60%{box-shadow:0 0 22px 5px #7be495}100%{box-shadow:0 0 0 0 #f2d04b00}}
+#tempo{font-size:13px;color:var(--mu);white-space:nowrap;transition:color .4s,opacity .4s;font-variant-numeric:tabular-nums;height:18px;line-height:18px;text-align:center}
+#tempo.hot{color:var(--go);font-weight:650}#tempo.low{opacity:.4}
+.top{display:flex;align-items:center;gap:12px;padding:12px 20px}
+.sp{flex:1}
+.btn{height:34px;padding:0 12px;border:1px solid var(--ln);background:var(--pn);border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{border-color:var(--mu)}.btn.pri{background:var(--ac);border-color:var(--ac);color:#fff}.btn.wide{width:100%;justify-content:center;height:42px}
+.tag{padding:1px 9px;border-radius:99px;background:var(--pn2);border:1px solid var(--ln);font-size:13px}
+.tag.ok{color:var(--go)}.tag.no{color:var(--wn)}.tag.x{cursor:pointer}
+#sv,#sy{font-size:12px;color:var(--mu);white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}#sv.ok::before,#sv.er::before,#sy.ok::before,#sy.er::before{content:"";display:inline-block;width:7px;height:7px;border-radius:9px;margin-right:6px;background:var(--go)}
+#sv.er,#sy.er{color:var(--rd);cursor:pointer}#sv.er::before,#sy.er::before{background:var(--rd)}
+@media(max-width:760px){#sv.ok,#sy.ok{display:none}}
+.bar{padding:9px 16px;margin-bottom:8px;border-radius:10px;display:flex;gap:12px;align-items:center;font-weight:550;background:color-mix(in srgb,var(--wn) 18%,var(--bg));color:var(--wn)}
+.bar .btn{margin-left:auto;color:var(--fg)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;padding:6px 20px 40px;align-items:start}
+#stage.np .layout{grid-template-columns:minmax(0,1fr)}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:16px;padding:24px}
+.biz{font-size:26px;font-weight:650;letter-spacing:-.015em;line-height:1.2;margin:0 0 6px}
+.sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--mu)}
+.cs{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--mu);font-size:13px}
+.lnk{border:0;background:none;color:var(--ac);cursor:pointer;padding:0}.lnk:hover{text-decoration:underline}
+.spoil{filter:blur(6px);cursor:pointer;user-select:none;transition:filter .25s;border-radius:6px}.spoil.on{filter:none;cursor:default;user-select:text}
+.dialrow{display:flex;align-items:center;gap:16px;margin:20px 0 14px;flex-wrap:wrap}
+.num{font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.dial{height:50px;padding:0 24px;border:0;border-radius:12px;background:var(--go);color:#fff;font-weight:650;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.dial:hover{filter:brightness(1.08)}.dial:active{transform:scale(.98)}.dial.on{background:var(--pn2);color:var(--fg);border:1px solid var(--ln)}
+.timer{font-size:22px;font-variant-numeric:tabular-nums;color:var(--mu)}.timer.on{color:var(--fg)}
+.meta{color:var(--mu);font-size:14px;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+.ver{margin:6px 0 0;color:var(--mu);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fld{display:grid;grid-template-columns:1fr 200px;gap:10px;margin:16px 0}
+@media(max-width:600px){.fld{grid-template-columns:1fr}}
+textarea,input[type=text]{width:100%;background:var(--pn2);border:1px solid var(--ln);border-radius:10px;padding:9px 12px}
+#notes{height:78px;resize:none}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.st{--c:#888;display:flex;gap:10px;align-items:center;text-align:left;width:100%;min-height:46px;padding:8px 12px;border-radius:11px;cursor:pointer;line-height:1.2;background:color-mix(in srgb,var(--c) 15%,var(--pn));border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.st:hover{background:color-mix(in srgb,var(--c) 27%,var(--pn))}.st:active{transform:scale(.985)}.st.on{outline:2px solid var(--c)}
+.st kbd{flex:none;min-width:22px;text-align:center}
+.st.more{justify-content:center;height:100%}
+.pw{position:relative}
+.pop{position:absolute;z-index:20;right:0;top:calc(100% + 6px);width:min(430px,92vw);background:var(--pn);border:1px solid var(--ln);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:5px;box-shadow:0 12px 40px #0006}
+.pop.up{top:auto;bottom:calc(100% + 6px)}.pop .st{min-height:38px;font-size:14px}
+.pop .mi{height:36px;border:0;background:none;text-align:left;border-radius:8px;padding:0 10px;cursor:pointer}.pop .mi:hover{background:var(--pn2)}
+.acts{display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap}
+.nx{margin-left:auto;color:var(--mu);font-size:13px}
+.hint{text-align:center;color:var(--mu);font-size:12px;margin-top:14px}
+.pad{position:sticky;top:12px;background:var(--pn);border:1px solid var(--ln);border-radius:16px;padding:14px 14px 12px}
+.pad label{display:block;color:var(--mu);font-size:12px;margin:0 0 8px 2px}
+#pad{height:150px;max-height:60vh;resize:none;font-size:14px;line-height:1.5;overflow:auto;background:transparent;border-color:transparent;padding:6px 8px;margin:0 -2px;width:calc(100% + 4px);transition:background .2s,border-color .2s}
+#pad:hover{border-color:var(--ln)}#pad:focus{background:var(--pn2);border-color:var(--ln);outline:0}
+@media(max-width:1080px){#stage:not(.np) .layout{grid-template-columns:minmax(0,1fr)}#stage:not(.np) .pad{position:fixed;right:14px;top:110px;width:300px;z-index:15;box-shadow:0 12px 40px #0006}}
+.empty{text-align:center;padding:60px 20px}.empty h2{margin:0 0 8px}.empty p{color:var(--mu)}
+.drop{width:min(480px,calc(100% - 32px));margin:14vh auto 0;padding:34px 28px;background:var(--pn);border:1px solid var(--ln);border-radius:20px;text-align:center}
+.drop h1{margin:0 0 8px;font-size:28px;letter-spacing:-.02em}.drop p{color:var(--mu);margin:0 0 22px}
+.rcs{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;text-align:left}
+.rc{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;padding:11px 14px;border:1px solid var(--ln);background:var(--pn2);border-radius:11px;cursor:pointer}
+.rc:hover{border-color:var(--ac)}.rc .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc .op{flex:none;color:var(--ac);font-size:13px}
+.ov{position:fixed;inset:0;background:#0009;display:flex;justify-content:center;align-items:flex-start;padding:9vh 16px;z-index:30}
+.md{width:min(620px,100%);max-height:80vh;display:flex;flex-direction:column;background:var(--pn);border:1px solid var(--ln);border-radius:16px;overflow:hidden}
+.md>input{border-radius:0;border:0;border-bottom:1px solid var(--ln);padding:16px 18px;font-size:16px;background:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px 4px}
+.cp{padding:3px 10px;border-radius:99px;border:1px solid var(--ln);background:var(--pn2);cursor:pointer;font-size:13px}.cp.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#ml{overflow:auto;padding:6px}
+.mr{display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:none;border-radius:9px;cursor:pointer}
+.mr:hover,.mr.fs{background:var(--pn2)}.mr.now{box-shadow:inset 3px 0 0 var(--go)}.mr.dn{opacity:.6}.mr.dn:hover{opacity:1}
+.mr .r1{display:flex;justify-content:space-between;align-items:center;gap:12px}.mr .r1 b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mr .r2{display:flex;gap:8px;color:var(--mu);font-size:12.5px;margin-top:1px;min-width:0}.mr .r2 span{flex:none}
+.mr .r2 em{font-style:normal;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb{--c:#8b93a4;flex:none;max-width:260px;font-size:11.5px;padding:1px 9px;border-radius:99px;background:color-mix(in srgb,var(--c) 18%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.sb .x{font-style:normal;cursor:pointer;opacity:.6}.sb .x:hover{opacity:1}
+.mf{padding:10px 16px;border-top:1px solid var(--ln);color:var(--mu);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mf .fl{display:flex;gap:16px;flex-wrap:wrap}
+.cfg{padding:20px;gap:8px}.cfg h3{margin:0 0 6px}.cfg label{color:var(--mu);font-size:13px;margin-top:6px}
+.cfg input[type=text]{width:100%}.cfg .tgl{display:flex;gap:8px;align-items:center;color:var(--fg);font-size:14px}
+.cfr{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}#cr{font-size:13px}#cr.ok{color:var(--go)}#cr.er{color:var(--rd)}
+.cfg .mf{border:0;padding:12px 0 0}
+#toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,20px);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:9px;opacity:0;pointer-events:none;transition:.18s;z-index:70}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#cv{position:fixed;inset:0;pointer-events:none;z-index:50}
+body.win::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:45;box-shadow:inset 0 0 110px 20px #2fd47acc,inset 0 0 50px 4px #f2d04baa;animation:fl .7s ease-out forwards}
+@keyframes fl{from{opacity:1}to{opacity:0}}
+.shake{animation:shk .8s}
+@keyframes shk{10%,50%,90%{transform:translate(-9px,3px)}30%,70%{transform:translate(9px,-4px)}}
+#big{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:60;font-size:clamp(34px,9vw,104px);font-weight:900;letter-spacing:-.02em;text-align:center;color:#fff;text-shadow:0 0 34px #f2d04b,0 6px 0 #c9871a;opacity:0;padding:20px}
+#big.on{animation:bg 3.4s ease-out forwards}
+@keyframes bg{0%{opacity:0;transform:scale(.4) rotate(-4deg)}10%{opacity:1;transform:scale(1.12) rotate(2deg)}18%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.shake,body.win::after{animation:none}}
+.top>:not(.sp){flex:none}.top>#sv,.top>#sy{flex:0 1 auto}
+.bar.er{background:color-mix(in srgb,var(--rd) 16%,var(--bg));color:var(--rd)}.bar.er .btn+.btn{margin-left:0}.bar.er>span{color:var(--fg)}.bar.er b{color:var(--rd)}
+.cfg{overflow:auto;max-height:88vh}
+.ch{display:flex;justify-content:space-between;align-items:center}
+.mu{color:var(--mu);font-size:13px;margin:0}
+.stp{background:var(--pn2);border:1px solid var(--ln);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.stp>b{font-size:15px}.stp .row{display:flex;gap:8px;flex-wrap:wrap}.stp .row input{flex:1;min-width:180px}
+.stp ol{margin:0;padding-left:20px;color:var(--mu);font-size:13px;display:flex;flex-direction:column;gap:4px}.stp ol b{color:var(--fg)}
+.i{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--mu);color:var(--mu);font:600 11px/1 system-ui;cursor:help;position:relative;margin-left:6px;vertical-align:middle}
+.i:hover,.i:focus{color:var(--fg);border-color:var(--fg);outline:0}
+#tip{position:fixed;left:0;top:0;z-index:90;max-width:260px;padding:8px 10px;border-radius:9px;background:var(--fg);color:var(--bg);font:400 12.5px/1.4 -apple-system,system-ui,sans-serif;pointer-events:none;box-shadow:0 8px 24px #0005;opacity:0;transition:opacity .12s}#tip.on{opacity:1}
+#cr .big{font-size:17px;font-weight:650;color:var(--go)}#cr .warn{color:var(--wn);margin-top:4px;font-size:13px}
+.dt{border:1px solid var(--ln);border-radius:12px;padding:10px 14px}.dt summary{cursor:pointer;font-weight:550}.dt[open] summary{margin-bottom:8px}
+.mrw{display:grid;grid-template-columns:minmax(0,1fr) 20px minmax(0,1.3fr);gap:8px;align-items:center;margin:6px 0;font-size:13px}
+.mb{--c:#888;padding:4px 9px;border-radius:8px;background:color-mix(in srgb,var(--c) 18%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrw input{padding:6px 9px;font-size:13px}
+.dt dl{margin:0;font-size:13px}.dt dt{font-weight:600;margin-top:10px}.dt dd{margin:2px 0 0;color:var(--mu)}
+.dz{border:2px dashed var(--ln);border-radius:14px;padding:26px 16px;display:flex;flex-direction:column;gap:4px;align-items:center;cursor:pointer;color:var(--mu);transition:.15s}
+.dz b{color:var(--fg);font-size:16px}.dz:hover,.dz.hot{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,transparent)}
+#gh{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;background:#fff;opacity:.6;box-shadow:0 0 8px #fff;border-radius:2px;display:none;transition:left .25s linear;z-index:2}
+.xp.ahead i{box-shadow:0 0 16px #34c47c;filter:saturate(1.5) brightness(1.15)}.xp.behind i{filter:saturate(.45) brightness(.75)}
+.xp.heat i{animation:pls .7s ease-in-out infinite alternate}@keyframes pls{to{filter:brightness(1.4) saturate(1.3)}}
+.ghost{overflow:hidden;z-index:46!important;margin:0!important}
+.stamp{position:absolute;left:50%;top:42%;padding:6px 26px;border:7px solid var(--c);border-radius:14px;color:var(--c);font:900 clamp(34px,7vw,68px)/1.1 ui-monospace,Menlo,monospace;letter-spacing:.08em;white-space:nowrap;text-shadow:0 0 18px color-mix(in srgb,var(--c) 50%,transparent);transform:translate(-50%,-50%) rotate(-12deg);opacity:0;animation:stp .34s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes stp{0%{opacity:0;transform:translate(-50%,-50%) rotate(-12deg) scale(2.6)}60%{opacity:1;transform:translate(-50%,-50%) rotate(-12deg) scale(.95)}100%{opacity:.95;transform:translate(-50%,-50%) rotate(-12deg) scale(1)}}
+.x-down{animation:xd .5s .34s cubic-bezier(.5,0,1,.6) forwards}@keyframes xd{to{transform:translateY(110vh) rotate(6deg);opacity:.3}}
+.x-right{animation:xr .5s .34s cubic-bezier(.4,0,.2,1) forwards}@keyframes xr{to{transform:translateX(120vw) rotate(4deg)}}
+.x-slash{animation:xs .45s .3s cubic-bezier(.5,0,1,.5) forwards}@keyframes xs{to{transform:translate(-120vw,30vh) rotate(-14deg)}}
+.x-fade{animation:xf .4s .3s forwards}@keyframes xf{to{opacity:0;transform:scale(.97)}}
+.x-crumple{animation:xc .6s .3s ease-in forwards}@keyframes xc{to{transform:translate(35vw,60vh) scale(.05) rotate(540deg);border-radius:50%}}
+.x-burn{animation:xb .8s .3s ease-in forwards}@keyframes xb{30%{filter:sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.4);box-shadow:0 0 60px 10px #ff7a1a}100%{filter:sepia(1) saturate(6) hue-rotate(-30deg) brightness(.2);opacity:0;transform:scale(.92) translateY(20px)}}
+.card.enter{animation:ent .3s ease-out}@keyframes ent{from{opacity:0;transform:translateX(-46px)}to{opacity:1;transform:none}}
+.st.win:hover{animation:trem .22s infinite;box-shadow:0 0 22px color-mix(in srgb,var(--c) 75%,transparent)}
+@keyframes trem{0%,100%{transform:translate(0,0)}25%{transform:translate(-1px,1px) rotate(-.3deg)}75%{transform:translate(1px,-1px) rotate(.3deg)}}
+#frz{position:fixed;inset:0;z-index:44;pointer-events:none;opacity:0;background:rgba(0,0,0,.74)}#frz.on{animation:fz .7s ease-out}
+@keyframes fz{0%{opacity:0}12%{opacity:1}75%{opacity:1}100%{opacity:0}}
+#wave{position:fixed;width:80px;height:80px;border-radius:50%;border:4px solid var(--c);pointer-events:none;z-index:47;opacity:0;transform:translate(-50%,-50%) scale(0)}
+#wave.on{animation:wv .7s ease-out}@keyframes wv{0%{opacity:.9;transform:translate(-50%,-50%) scale(0)}100%{opacity:0;transform:translate(-50%,-50%) scale(18)}}
+.hit{position:fixed;z-index:60;pointer-events:none;font:800 22px system-ui,sans-serif;transform:translate(-50%,-50%);animation:ht .9s ease-out forwards;text-shadow:0 2px 8px #0008}
+@keyframes ht{to{transform:translate(-50%,-150px);opacity:0}}
+</style></head><body>
+<div id="stage"><div id="hud"><div class="xp" id="xp"><i id="xpf"></i><u id="gh"></u><b id="xpt">0/20</b></div><div id="tempo"></div></div><div id="app"></div></div>
+<canvas id="cv"></canvas><div id="big"></div><div id="frz"></div><div id="wave"></div><div id="tip"></div><div id="toast"></div>
+<script type="text/plain" id="gs">// Power Dialer → Google Sheets (версия 2). Вставь целиком в Расширения → Apps Script.
+const SECRET = 'ПРИДУМАЙ-СВОЁ-СЛОВО';
+const VERSION = 2;
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    const d = JSON.parse(e.postData.contents);
+    if (d.secret !== SECRET) return out({ ok: false, code: 'secret', err: 'secret' });
+    const ss = SpreadsheetApp.getActive();
+    const hint = String(d.file || '').replace(/\.csv$/i, '').replace(/\s*\(\d+\)\s*$/, '').trim();
+    let sh = null;
+    ss.getSheets().forEach(s => {
+      const n = s.getName();
+      if (hint.endsWith(n) && (!sh || n.length > sh.getName().length)) sh = s;
+    });
+    if (!sh) return out({ ok: false, perm: true, code: 'tab', err: 'нет вкладки для: ' + hint });
+    const info = { doc: ss.getName(), tab: sh.getName(), v: VERSION };
+    if (d.ping) return out(Object.assign({ ok: true }, info));
+
+    lock.waitLock(20000);
+    const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(x => String(x).trim().toLowerCase());
+    const col = n => head.indexOf(n.toLowerCase()) + 1;
+    const pc = col('phone');
+    if (!pc) return out({ ok: false, perm: true, code: 'phone', err: 'в таблице нет колонки Phone' });
+    const last = sh.getLastRow();
+    const key = String(d.phone).replace(/\D/g, '').slice(-10);
+    const phones = last > 1 ? sh.getRange(2, pc, last - 1, 1).getDisplayValues() : [];
+    const hits = [];
+    phones.forEach((r, i) => { if (String(r[0]).replace(/\D/g, '').slice(-10) === key) hits.push(i + 2); });
+    if (!hits.length) return out({ ok: false, perm: true, code: 'row', err: 'номер не найден: ' + d.phone });
+    let row = hits.indexOf(d.row) >= 0 ? d.row : hits[0];
+    const bc = col('business');
+    if (hits.length > 1 && hits.indexOf(d.row) < 0 && bc) {
+      const m = hits.filter(r => String(sh.getRange(r, bc).getValue()).trim() === String(d.biz).trim());
+      if (m.length) row = m[0];
+    }
+    const set = d.set || {};
+    // сначала проверяем статус по выпадающему списку, чтобы не записывать половину данных
+    const rc = col('result');
+    if (rc && set.Result) {
+      const rule = sh.getRange(row, rc).getDataValidation();
+      if (rule && rule.getCriteriaType() === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+        const list = rule.getCriteriaValues()[0];
+        if (list.indexOf(set.Result) < 0) {
+          return out({ ok: false, perm: true, code: 'validation', err: 'нет в списке: ' + set.Result });
+        }
+      }
+    }
+    Object.keys(set).forEach(k => {
+      const c = col(k);
+      if (!c) return;
+      let v = set[k];
+      if (k.toLowerCase() === 'date engaged' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const p = v.split('-');
+        v = new Date(+p[0], +p[1] - 1, +p[2]);
+      }
+      sh.getRange(row, c).setValue(v);
+    });
+    SpreadsheetApp.flush();
+    return out(Object.assign({ ok: true, row: row }, info));
+  } catch (err) {
+    const msg = String(err && err.message || err);
+    const validation = /проверк\S* данных|data validation/i.test(msg);
+    return out({ ok: false, perm: validation, code: validation ? 'validation' : 'other', err: msg });
+  } finally {
+    try { lock.releaseLock(); } catch (x) {}
+  }
+}
+
+function out(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Необязательно: запусти один раз на НОВОЙ вкладке без списка статусов, чтобы получить список с цветами.
+// В твоей основной таблице список уже есть, там запускать ничего не нужно.
+const COLORS = {
+  'GATEKEEPER НЕ ПРОПУСТИЛ': ['#b3261e', '#ffffff'],
+  'DM Pitched & Hung up': ['#c98a2b', '#000000'],
+  'OWNER HUNG UP/NOT INTERESTED': ['#d9822b', '#ffffff'],
+  'Автоответчик (leaved vm)': ['#f6cfc7', '#7a1f13'],
+  'Автоответчик/Нет ответа': ['#f4cdb0', '#7a3a13'],
+  'Автоответчик (сразу перенаправляет) или просто не перезванивать': ['#e0602a', '#ffffff'],
+  'Menu (=not owner mobile number)': ['#f7e3a0', '#5a4500'],
+  'Не соединяет': ['#2f5d73', '#ffffff'],
+  'Номер не рабочий': ['#6b3a12', '#ffffff'],
+  'Непонятная хуйня': ['#444444', '#ffffff'],
+  'Call back': ['#ddd0f0', '#3d2a73'],
+  'CALL BOOKED': ['#2e7d4f', '#ffffff'],
+  'Follow up in future': ['#5b3a9b', '#ffffff'],
+  'Not called': ['#e6e6e6', '#000000'],
+  'Другое': ['#f5e06b', '#000000'],
+  'CONDUCTED DISCOVERY CALL': ['#2e7d4f', '#ffffff']
+};
+
+function setupResultColumn() {
+  const sh = SpreadsheetApp.getActiveSheet();
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(x => String(x).trim().toLowerCase());
+  const c = head.indexOf('result') + 1;
+  if (!c) throw new Error('Нет колонки Result');
+  const rng = sh.getRange(2, c, Math.max(sh.getMaxRows() - 1, 1), 1);
+  const names = Object.keys(COLORS);
+  rng.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(names, true).setAllowInvalid(true).build());
+  const rules = sh.getConditionalFormatRules().filter(r => !r.getRanges().some(x => x.getColumn() === c));
+  names.forEach(n => rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo(n).setBackground(COLORS[n][0]).setFontColor(COLORS[n][1]).setRanges([rng]).build()));
+  sh.setConditionalFormatRules(rules);
+}
+</script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// [значение, которое пишется в таблицу; цвет]. Первые 6 на главном экране (клавиши 1-6), остальные в «Ещё статусы».
+const ST=[["Автоответчик: Были гудки","#d9a07a"],["Автоответчик: Не перезванивать","#e5603b"],["Owner hung up в начале","#f76808"],["Owner pitched & Hang Up","#f5a524"],["CALL BOOKED","#30a46c"],["GATEKEEPER","#e5484d"],["Другое","#e8d44d"],["Автоответчик (leaved vm)","#e5826e"],["Menu (=not owner mobile number)","#e6c84c"],["Не соединяет","#3a7a96"],["Номер не рабочий","#9a5b2e"],["Непонятная хуйня","#7d8492"],["Call back","#a58be0"],["Follow up in future","#7c5cd6"],["CONDUCTED DISCOVERY CALL","#1f9d62"]];
+const PRIM=6,WIN=[4,14];
+const KL="1234567890QWERT",KC=[..."1234567890"].map(d=>"Digit"+d).concat([..."QWERT"].map(c=>"Key"+c));
+const SHEET_VALUES=["GATEKEEPER НЕ ПРОПУСТИЛ","DM Pitched & Hung up","OWNER HUNG UP/NOT INTERESTED","Автоответчик (leaved vm)","Автоответчик/Нет ответа","Автоответчик (сразу перенаправляет) или просто не перезванивать","Menu (=not owner mobile number)","Не соединяет","Номер не рабочий","Непонятная хуйня","Call back","CALL BOOKED","Follow up in future","Not called","Другое","CONDUCTED DISCOVERY CALL"];
+// Название кнопки → точное значение из выпадающего списка таблицы. Если кнопки здесь нет, пишется её название как есть.
+// Менять можно здесь или в окне ⋯ → Google Sheets → «Какие значения уходят в таблицу».
+const SHEET={"Автоответчик: Были гудки":"Автоответчик/Нет ответа","Автоответчик: Не перезванивать":"Автоответчик (сразу перенаправляет) или просто не перезванивать","Owner hung up в начале":"OWNER HUNG UP/NOT INTERESTED","Owner pitched & Hang Up":"DM Pitched & Hung up","GATEKEEPER":"GATEKEEPER НЕ ПРОПУСТИЛ"};
+const val=i=>(P.map&&P.map[ST[i][0]])||SHEET[ST[i][0]]||ST[i][0];
+const sidx=v=>{let i=ST.findIndex((s,k)=>val(k)==v);if(i<0)i=ST.findIndex(s=>s[0]==v||v.startsWith(s[0]));return i};
+const scol=v=>{const i=sidx(v);return i<0?"#8b93a4":ST[i][1]};
+// часовые пояса: IANA-зоны сами переключают летнее/зимнее время
+const TZ={};
+"CT NJ DE MD DC GA FL NC SC VA WV OH PA NY MA ME NH VT RI MI IN KY".split(" ").forEach(s=>TZ[s]="America/New_York");
+"AL AR IL IA LA MN MS MO OK WI KS TX ND SD NE TN".split(" ").forEach(s=>TZ[s]="America/Chicago");
+"MT WY CO NM UT ID".split(" ").forEach(s=>TZ[s]="America/Denver");TZ.AZ="America/Phoenix";
+"CA WA OR NV".split(" ").forEach(s=>TZ[s]="America/Los_Angeles");TZ.AK="America/Anchorage";TZ.HI="Pacific/Honolulu";
+// штаты с двумя зонами: уточняем по первым 3 цифрам ZIP из адреса
+const CT=[["TN",[373,374,376,377,378,379],"America/New_York"],["KY",[420,421,422,423,424,427],"America/Chicago"],["FL",[324,325],"America/Chicago"],["TX",[798,799,885],"America/Denver"],["IN",[463,464,476,477],"America/Chicago"]];
+
+//CSV-START (сохраняет формат файла: разделитель, переносы строк, кавычки)
+function parse(t,sep){const r=[];let row=[],c="",q=false;
+ for(let i=0;i<t.length;i++){const ch=t[i];
+  if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+  else if(ch=='"')q=true;else if(ch==sep){row.push(c);c=""}
+  else if(ch=="\n"){row.push(c);r.push(row);row=[];c=""}else if(ch!="\r")c+=ch}
+ if(c||row.length){row.push(c);r.push(row)}
+ return r.filter(x=>x.length>1||x[0]!=="")}
+function ser(h,rows,sep,nl,tail){const re=new RegExp('["\\r\\n'+(sep=="\t"?"\\t":sep)+']');
+ const q=v=>re.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+ return [h,...rows].map(r=>r.map(q).join(sep)).join(nl)+(tail?nl:"")}
+//CSV-END
+
+function today(){return new Date().toLocaleDateString("en-CA")}
+let S={h:[],L:[],d:",",nl:"\r\n",tail:false,name:"",start:0,f:{type:"",state:"",tz:""},tk:0,paused:false,auto:true,only:true,more:0,menu:0,modal:0,cfg:0};
+let P={files:{},pad:"I'm based in Naperville, that's just outside of Chicago (but as you can probably tell...)",padOpen:true,sheets:{}};
+try{Object.assign(P,JSON.parse(localStorage.getItem("pd2")||"{}"))}catch(e){}
+const sp=()=>{try{localStorage.setItem("pd2",JSON.stringify(P))}catch(e){}};
+S.auto=P.auto!==false;S.only=P.only!==false;P.sheets=Object.assign({url:"",token:"",on:false},P.sheets);
+let FH=null,recent=[],curL=null,nextL=null,hist=[],hc=-1,revR=null,revA=null,calling=false,t0=0,pauseSec=0,saved=null,saveErr="",M={},wB=false,wD=false,ps=0,ixc={},tick=0,noUnload=0,pend=[];
+let spStart=0,sprint=0,tot=0,tFirst=0,times=[],pausedTotal=0,pStart=0,dset=new Set();
+try{const s=JSON.parse(localStorage.getItem("pd2s")||"null");if(s&&s.d==today()){tot=s.tot|0;sprint=s.sprint|0;tFirst=s.tFirst|0;times=s.times||[];dset=new Set(s.dset||[])}}catch(e){}
+const sesSave=()=>{try{localStorage.setItem("pd2s",JSON.stringify({d:today(),tot,sprint,tFirst,times,dset:[...dset]}))}catch(e){}};
+
+const kv=(m,k,v)=>new Promise((ok,no)=>{const r=indexedDB.open("pd",1);r.onupgradeneeded=()=>r.result.createObjectStore("k");
+ r.onsuccess=()=>{const s=r.result.transaction("k","readwrite").objectStore("k"),q=m=="get"?s.get(k):s.put(v,k);q.onsuccess=()=>ok(q.result);q.onerror=no};r.onerror=no});
+const ix=n=>{if(!(n in ixc))ixc[n]=S.h.findIndex(x=>x.trim().toLowerCase()==n.toLowerCase());return ixc[n]};
+const get=(l,n)=>{const i=ix(n);return i<0?"":(l.v[i]||"")};
+const res=l=>{const v=get(l,"Result").trim();return v.toLowerCase()=="not called"?"":v};
+const fmt=s=>{s=Math.floor(s);return(s/60|0)+":"+String(s%60).padStart(2,"0")};
+const set=(s,t)=>{const e=$(s);if(e)e.textContent=t};
+const url=u=>/^https?:/i.test(u)?u:"http://"+u;
+function toast(t){const e=$("#toast");e.textContent=t;e.className="show";setTimeout(()=>e.className="",2600)}
+function ph(l){const d=get(l,"Phone").replace(/\D/g,"");if(d.length==10)return"+1"+d;if(d.length==11&&d[0]=="1")return"+"+d;return""}
+function zone(l){if(l.zc!==undefined)return l.zc;const a=get(l,"Adress")||get(l,"Address"),m=a.match(/\b([A-Z]{2})\s+(\d{5})\b/);
+ const st=m&&TZ[m[1]]?m[1]:get(l,"State").trim().toUpperCase();let z=TZ[st];if(!z)return l.zc=null;
+ if(m&&m[1]==st){const z3=+m[2].slice(0,3),o=CT.find(c=>c[0]==st&&c[1].includes(z3));if(o)z=o[2]}
+ return l.zc={z,st}}
+function lt(l){const q=zone(l);if(!q)return"";const d=new Date(),h=+new Intl.DateTimeFormat("en-US",{timeZone:q.z,hour:"numeric",hour12:false}).format(d)%24;
+ const nm=new Intl.DateTimeFormat("en-US",{timeZone:q.z,timeZoneName:"short"}).formatToParts(d).find(p=>p.type=="timeZoneName").value;
+ return`<span class="tag">${q.st}</span><span class="tag ${h>=9&&h<17?"ok":"no"}">у них ${d.toLocaleTimeString("en-US",{timeZone:q.z,hour:"numeric",minute:"2-digit"})} ${nm}</span>`}
+const lstate=l=>{const z=zone(l);return z?z.st:get(l,"State").trim().toUpperCase()};
+const TZN={"America/New_York":"Eastern","America/Chicago":"Central","America/Denver":"Mountain","America/Phoenix":"Mountain","America/Los_Angeles":"Pacific"};
+const tzk=l=>{const z=zone(l);return z?(TZN[z.z]||"Other"):""};
+const match=(l,f)=>(!f.type||get(l,"Type of company").trim()==f.type)&&(!f.state||lstate(l)==f.state)&&(!f.tz||tzk(l)==f.tz);
+
+// ---- очередь и история (навигация назад/вперёд ничего не меняет в данных) ----
+function queue(){const n=S.L.length,st=S.start,q=[];
+ for(let i=0;i<n;i++){const l=S.L[i];if(!ph(l)||(S.only&&res(l))||!match(l,S.f))continue;q.push(i)}
+ return q.sort((a,b)=>S.L[a].s-S.L[b].s||((a-st+n)%n)-((b-st+n)%n))}
+function reinit(){hist=[];hc=-1;calling=false;const q=queue();if(q.length){hist=[S.L[q[0]]];hc=0}}
+function advance(){if(hc<hist.length-1){hc++;return false}
+ const q=queue(),k=q.findIndex(i=>S.L[i]!==curL);hist.push(k<0?null:S.L[q[k]]);hc=hist.length-1;
+ if(hist.length>300){hist.shift();hc--}return k>=0}
+function back(){if(hc<=0){toast("Это первый лид сессии");return}hc--;calling=false;S.more=0;render()}
+
+// ---- файл: открыть и безопасно перезаписывать тот же самый ----
+function load(text,name){const f=text.split("\n")[0];
+ const d=(f.match(/\t/g)||[]).length>(f.match(/,/g)||[]).length?"\t":",",r=parse(text,d);
+ if(r.length<2||!r[0].some(x=>x.trim().toLowerCase()=="phone"))throw new Error("в файле нет колонки Phone или лидов");
+ S.d=d;S.nl=text.includes("\r\n")?"\r\n":"\n";S.tail=/\n$/.test(text);
+ S.h=r[0];ixc={};S.L=r.slice(1).map(x=>({v:S.h.map((_,i)=>x[i]||""),s:0}));S.name=name;
+ ["Date Engaged","Result","Notes","Callback?"].forEach(n=>{if(ix(n)<0){S.h.push(n);S.L.forEach(l=>l.v.push(""));ixc={}}});
+ S.L.forEach(l=>{l.n0=get(l,"Notes");l.c0=get(l,"Callback?")});
+ const p=P.files[name]||{};S.start=Math.min(p.start||0,S.L.length-1);S.f={type:p.type||"",state:p.state||"",tz:p.tz||""};
+ saved=null;saveErr="";reinit()}
+async function addRecent(h){try{let r=(await kv("get","rc"))||[];const k=await Promise.all(r.map(x=>x.isSameEntry(h).catch(()=>false)));r=r.filter((x,i)=>!k[i]);r.unshift(h);r=r.slice(0,8);await kv("put","rc",r);recent=r}catch(e){}}
+async function openH(h){try{if(await h.requestPermission({mode:"readwrite"})!="granted"){toast("Нужен доступ к файлу на запись");return}
+ const f=await h.getFile();load(await f.text(),h.name);FH=h;addRecent(h);render();pump()}catch(e){toast("Не удалось открыть: "+e.message)}}
+async function pick(){try{const[h]=await showOpenFilePicker({types:[{description:"CSV",accept:{"text/csv":[".csv"]}}]});openH(h)}catch(e){}}
+async function persist(){clearTimeout(ps);ps=0;if(!FH)return;wD=true;if(wB)return;wB=true;
+ try{while(wD){wD=false;const w=await FH.createWritable();await w.write(ser(S.h,S.L.map(l=>l.v),S.d,S.nl,S.tail));await w.close()}saved=new Date();saveErr=""}catch(e){saveErr=e.message||"ошибка"}
+ wB=false;svShow()}
+const persistSoon=()=>{clearTimeout(ps);const l=curL;ps=setTimeout(()=>{persist();sync(l,0)},1200)};
+async function flush(){await persist();while(wB)await new Promise(r=>setTimeout(r,40))}
+async function switchBase(){S.menu=0;try{await flush()}catch(e){}S.L=[];FH=null;hist=[];hc=-1;render()}
+function svShow(){const e=$("#sv");if(!e)return;e.className=saveErr?"er":saved?"ok":"";e.textContent=saveErr?"Не сохранено. Нажми, чтобы повторить":saved?"Сохранено "+saved.toLocaleTimeString("ru-RU"):"Файл открыт"}
+addEventListener("beforeunload",e=>{if(Date.now()<noUnload)return;if(wB||wD||ps)e.preventDefault()});
+function copyText(t,ok){const fb=()=>{const e=document.createElement("textarea");e.value=t;document.body.appendChild(e);e.select();document.execCommand("copy");e.remove();ok()};navigator.clipboard?navigator.clipboard.writeText(t).then(ok,fb):fb()}
+function cp(){copyText(ser(S.h,S.L.map(l=>l.v),"\t","\n",0),()=>toast("Скопировано, вставь в таблицу в A1"))}
+
+// ---- синхронизация с Google Sheets (через Apps Script) ----
+const GS_VER=2;
+let SQ=[],sqBusy=0,sqErr="",sqT=0,sqBlind=0,sqFail=0,sqMsg=null,sqInfo=null;
+try{SQ=JSON.parse(localStorage.getItem("pd2q")||"[]")}catch(e){}
+const sqSave=()=>{try{localStorage.setItem("pd2q",JSON.stringify(SQ))}catch(e){}};
+const tabAuto=()=>S.name.replace(/\.csv$/i,"").replace(/\s*\(\d+\)\s*$/,"");
+const tabHint=()=>(P.files[S.name]||{}).tab||S.name;
+function sync(l,withRes){const c=P.sheets;if(!c.on||!c.url||!l||!ph(l))return;const s={};
+ if(withRes){s.Result=get(l,"Result");s["Date Engaged"]=get(l,"Date Engaged")}
+ if(get(l,"Notes")!==l.n0)s.Notes=get(l,"Notes");if(get(l,"Callback?")!==l.c0)s["Callback?"]=get(l,"Callback?");
+ if(!Object.keys(s).length)return;
+ const file=tabHint(),phone=ph(l),o=SQ.find(x=>x.file==file&&x.phone==phone);
+ if(o){Object.assign(o.set,s)}else SQ.push({file,phone,biz:get(l,"Business"),row:S.L.indexOf(l)+2,set:s});
+ sqSave();pump();sqShow()}
+async function post(obj){const c=P.sheets,ac=new AbortController(),tm=setTimeout(()=>ac.abort(),25000),o={method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({secret:c.token,...obj}),signal:ac.signal};
+ try{try{const r=await fetch(c.url,o);return await r.json()}
+  catch(e){if(!(e instanceof TypeError))throw e;await fetch(c.url,{...o,mode:"no-cors"});return{ok:true,blind:1}}}
+ finally{clearTimeout(tm)}}
+function human(r,op){const e=String(r&&r.err||""),who=op?" («"+(op.biz||op.phone)+"»"+(op.set&&op.set.Result?", статус «"+op.set.Result+"»":"")+")":"";
+ if(r&&(r.code=="validation"||/проверк\S* данных|data validation/i.test(e)))return["Ошибка: Статус в дайлере не совпадает с выпадающим списком в таблице"+who,"Открой ⋯ → Google Sheets → «Какие значения уходят в таблицу» и впиши значение точно как в списке таблицы."];
+ if(r&&r.code=="secret")return["Неверное секретное слово","Слово в дайлере и в скрипте должно совпадать. Если менял слово в скрипте, создай новую версию развёртывания."];
+ if(r&&r.code=="tab")return["Не нашёл вкладку в таблице","Впиши название вкладки вручную: ⋯ → Google Sheets → «Вкладка»."];
+ if(r&&r.code=="row")return["Этого номера нет в таблице"+who,"Эта запись пропущена. Проверь, что номер есть в колонке Phone этой вкладки."];
+ return["Ошибка Google Sheets: "+e.slice(0,120),"Открой ⋯ → Google Sheets и нажми «Проверить связь»."]}
+function sqBanner(){const e=$("#sqb");if(!e)return;if(!sqMsg){e.innerHTML="";return}
+ e.innerHTML=`<div class="bar er"><span><b>${esc(sqMsg[0])}</b><br><span style="font-weight:400">${esc(sqMsg[1])}</span></span><button class="btn" onclick="cfgOpen()">Что делать</button><button class="btn" onclick="sqMsg=null;sqBanner()">Закрыть</button></div>`}
+async function pump(){const c=P.sheets;if(sqBusy||!SQ.length||!c.on||!c.url)return;sqBusy=1;
+ while(SQ.length){const op=SQ[0];
+  try{const r=await post(op);
+   if(r.ok){if(r.blind)sqBlind=1;else sqInfo=r;SQ.shift();sqSave();sqErr="";if(sqMsg&&sqMsg[2]=="tr"){sqMsg=null;sqBanner()}}
+   else if(r.perm||r.code=="validation"||/проверк\S* данных|data validation/i.test(String(r.err||""))){SQ.shift();sqSave();sqFail++;sqMsg=human(r,op);sqBanner()}
+   else{sqErr=r.code=="secret"?"secret":(r.err||"ошибка");sqMsg=[...human(r,op),"tr"];sqBanner();break}}
+  catch(e){sqErr="нет связи";break}
+  sqShow()}
+ sqBusy=0;sqShow();clearTimeout(sqT);if(SQ.length)sqT=setTimeout(pump,sqErr=="secret"?60000:8000)}
+function sqShow(){const e=$("#sy");if(!e)return;const c=P.sheets;if(!c.on){e.textContent="";e.className="";e.title="";return}
+ e.className=sqErr?"er":SQ.length?"":"ok";
+ e.textContent=sqErr?"Sheets: ошибка, нажми":SQ.length?"Sheets: отправка "+SQ.length:"Sheets"+(sqFail?" · пропущено "+sqFail:"");
+ e.title=sqErr?"Нажми, чтобы повторить отправку":sqInfo?"Данные уходят в файл «"+sqInfo.doc+"», вкладка «"+sqInfo.tab+"»":"Синхронизация включена"}
+function cfgOpen(){S.cfg=1;S.menu=0;render()}
+function cfgClose(){S.cfg=0;render();pump()}
+function tabSet(v){const p=P.files[S.name]||(P.files[S.name]={});p.tab=v.trim();sp()}
+function setMap(i,v){(P.map=P.map||{})[ST[i][0]]=v.trim();sp()}
+function resetMap(){P.map={};sp();render()}
+function rndSecret(){const a=new Uint8Array(20),A="abcdefghjkmnpqrstuvwxyz23456789";crypto.getRandomValues(a);const t=[...a].map(x=>A[x%A.length]).join("");P.sheets.token=t;sp();$("#cs").value=t;toast("Слово придумано. Теперь скопируй код")}
+function copyGs(){const t=(P.sheets.token||"").replace(/['"\\\s]/g,"");if(!t){toast("Сначала придумай секретное слово (шаг 1)");return}
+ copyText($("#gs").textContent.replace("ПРИДУМАЙ-СВОЁ-СЛОВО",()=>t),()=>toast("Код скопирован вместе с твоим секретным словом"))}
+async function cfgTest(){const c=P.sheets,e=$("#cr");
+ if(!c.token){e.className="er";e.innerHTML="<b>Нет секретного слова.</b> Заполни шаг 1.";return}
+ if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(c.url)){e.className="er";e.innerHTML="<b>Ссылка выглядит неправильно.</b><br>Она должна начинаться с https://script.google.com/ и оканчиваться на /exec (шаг 3).";return}
+ e.className="";e.textContent="Проверяю…";
+ try{const r=await post({file:tabHint(),ping:1});
+  if(r.blind){e.className="er";e.innerHTML="<b>Не удалось прочитать ответ Google.</b><br>Скорее всего, в развёртывании стоит доступ не «Все (Anyone)». Создай развёртывание заново."}
+  else if(r.ok){c.ok={doc:r.doc,tab:r.tab,url:c.url};sp();sqInfo=r;e.className="ok";
+   e.innerHTML=`<div class="big">Подключено к файлу: ${esc(r.doc)}</div><div class="big">Вкладка: ${esc(r.tab)}</div>${(r.v|0)<GS_VER?'<div class="warn">В таблице старая версия скрипта. Вставь новый код и создай новую версию развёртывания.</div>':""}`;sqShow()}
+  else{const h=human(r);e.className="er";e.innerHTML=`<b>${esc(h[0])}</b><br>${esc(h[1])}`}}
+ catch(x){e.className="er";e.innerHTML=x instanceof SyntaxError?"<b>Google вернул не ответ скрипта.</b><br>Обычно это страница входа: у развёртывания должен быть доступ «Все (Anyone)».":"<b>Нет связи с Google.</b><br>Проверь интернет и что ссылка скопирована целиком."}}
+function cfgHtml(){if(!S.cfg)return"";const c=P.sheets,ok=c.ok&&c.ok.url==c.url?c.ok:null,tab=(P.files[S.name]||{}).tab||"";
+ const i=t=>`<span class="i" tabindex="0" data-t="${esc(t)}">i</span>`;
+ return`<div class="ov" onclick="if(event.target==this)cfgClose()"><div class="md cfg">
+ <div class="ch"><h3>Подключение к Google Таблице</h3><a href="#" onclick="cfgClose();return false">Закрыть</a></div>
+ <p class="mu">Дайлер сам записывает статусы и заметки в твою таблицу. Настроить нужно один раз для каждой таблицы.</p>
+ <label class="tgl"><input type="checkbox" ${c.on?"checked":""} onchange="P.sheets.on=this.checked;sp();sqShow()"> Отправлять данные в таблицу${i("Если выключить, всё по-прежнему сохраняется в CSV на компьютере, просто в таблицу ничего не уходит.")}</label>
+ <div class="stp"><b>Шаг 1. Секретное слово${i("Это как пароль. Он нужен, чтобы никто чужой не смог записать что-то в твою таблицу. Никому его не показывай.")}</b>
+  <div class="row"><input id="cs" type="text" value="${esc(c.token)}" placeholder="любое длинное слово" oninput="P.sheets.token=this.value.trim();sp()"><button class="btn" onclick="rndSecret()">Придумать за меня</button></div></div>
+ <div class="stp"><b>Шаг 2. Вставь код в таблицу</b><div class="row"><button class="btn pri" onclick="copyGs()">Скопировать код</button></div>
+  <ol><li>Открой свою таблицу, меню <b>Расширения → Apps Script</b>.</li>
+  <li>Удали всё, что там есть, вставь код (⌘V) и нажми значок дискеты.</li>
+  <li>Справа вверху <b>Развернуть (Deploy) → Новое развертывание</b>, шестерёнка рядом с «Тип» → <b>Веб-приложение</b>.</li>
+  <li><b>Выполнять от имени: Я (Me)</b>. <b>У кого есть доступ: Все (Anyone)</b>${i("«Все» нужно, чтобы дайлер мог отправлять данные без входа в Google. Защищает секретное слово. Скрипт ничего не отдаёт наружу, он только записывает статусы, заметки и дату.")}. Нажми «Развернуть».</li>
+  <li>Google спросит разрешение: <b>Авторизовать доступ → твой аккаунт → Advanced → Go to … (unsafe) → Allow</b>. Это твой собственный скрипт, предупреждение нормальное.</li>
+  <li>Скопируй <b>URL веб-приложения</b>, он оканчивается на /exec.</li></ol></div>
+ <div class="stp"><b>Шаг 3. Вставь ссылку${i("Длинная ссылка, которая оканчивается на /exec. Её показывает Google после нажатия «Развернуть».")}</b>
+  <input type="text" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec" oninput="P.sheets.url=this.value.trim();sp()"></div>
+ <div class="stp"><b>Шаг 4. Проверь</b><div class="row"><button class="btn pri" onclick="cfgTest()">Проверить связь</button></div>
+  <div id="cr" class="${ok?"ok":""}">${ok?`<div class="big">Подключено к файлу: ${esc(ok.doc)}</div><div class="big">Вкладка: ${esc(ok.tab)}</div>`:""}</div></div>
+ <details class="dt"><summary>Вкладка (обычно ничего менять не нужно)</summary><p class="mu">Вкладка определяется по названию CSV-файла. Впиши её вручную, только если переименовал файл${i("Google называет файл так: «Название таблицы - Название вкладки.csv». Дайлер находит вкладку по концу имени.")}</p>
+  <input type="text" value="${esc(tab)}" placeholder="${esc(tabAuto())}" oninput="tabSet(this.value)"></details>
+ <details class="dt"><summary>Какие значения уходят в таблицу</summary><p class="mu">Слева кнопка в дайлере (её название не меняется), справа то, что записывается в таблицу. Значение должно совпадать с выпадающим списком в таблице до буквы${i("Нажми на поле справа и выбери из подсказок, там все значения твоего списка.")}</p>
+  ${ST.map((x,k)=>`<div class="mrw"><span class="mb" style="--c:${x[1]}" title="${esc(x[0])}">${esc(x[0])}</span><span>→</span><input type="text" list="svl" value="${esc(val(k))}" oninput="setMap(${k},this.value)"></div>`).join("")}
+  <datalist id="svl">${SHEET_VALUES.map(v=>`<option value="${esc(v)}">`).join("")}</datalist><button class="btn" onclick="resetMap()">Вернуть как было</button></details>
+ <details class="dt"><summary>Что-то не работает?</summary><dl>
+  <dt>«Статус в дайлере не совпадает с выпадающим списком»</dt><dd>Открой «Какие значения уходят в таблицу» и впиши значение точно как в списке таблицы. Запись с ошибкой пропущена, повтори статус у этого лида.</dd>
+  <dt>«Неверное секретное слово»</dt><dd>Слово в дайлере и в скрипте должно совпадать. Если менял слово в скрипте, нужно Развернуть → Управление развёртываниями → карандаш → Новая версия → Развернуть.</dd>
+  <dt>«Не нашёл вкладку»</dt><dd>В названии файла нет названия вкладки. Впиши вкладку вручную.</dd>
+  <dt>«Этого номера нет в таблице»</dt><dd>Лид удалён из таблицы или номер там другой. Запись пропущена.</dd>
+  <dt>«Нет связи» или ничего не происходит</dt><dd>Проверь ссылку (оканчивается на /exec) и доступ «Все (Anyone)». Нажми «Проверить связь».</dd>
+  <dt>Поправил код, но ничего не изменилось</dt><dd>После любой правки скрипта нужна новая версия развёртывания (см. выше).</dd></dl></details>
+ </div></div>`}
+
+// ---- геймификация ----
+const cv=$("#cv"),cx=cv.getContext("2d");let pt=[],raf=0;
+const fit=()=>{cv.width=innerWidth;cv.height=innerHeight};fit();addEventListener("resize",fit);
+function spawn(n,x,y,o){if(!cx)return;for(let i=0;i<n;i++){const a=o.fan?(o.ang??-Math.PI/2)+(Math.random()-.5)*o.fan:Math.random()*6.283,v=(o.v||6)*(.35+Math.random());
+ pt.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:o.r||5,c:"hsl("+(o.h??Math.random()*360)+",90%,60%)",life:o.life||90,g:o.g??.16,rot:Math.random()*6,sq:o.sq})}
+ if(!raf)raf=requestAnimationFrame(loop)}
+function loop(){cx.clearRect(0,0,cv.width,cv.height);pt=pt.filter(p=>p.life>0&&p.y<cv.height+40);
+ for(const p of pt){p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.life--;p.rot+=.2;cx.globalAlpha=Math.min(1,p.life/30);cx.fillStyle=p.c;
+  if(p.sq){cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillRect(-p.r,-p.r/2,p.r*2,p.r);cx.restore()}else{cx.beginPath();cx.arc(p.x,p.y,p.r,0,6.283);cx.fill()}}
+ cx.globalAlpha=1;raf=pt.length?requestAnimationFrame(loop):0;if(!raf)cx.clearRect(0,0,cv.width,cv.height)}
+const aNow=()=>Date.now()-pausedTotal-(S.paused?Date.now()-pStart:0);
+function hud(){const p=sprint/20,f=$("#xpf");f.style.width=p*100+"%";f.style.background="linear-gradient(90deg,hsl("+(215-p*185)+",85%,50%),hsl("+(235-p*215)+",92%,58%))";$("#xp").classList.toggle("heat",sprint>=17);set("#xpt",sprint+"/20");tempo()}
+function tempo(){const e=$("#tempo");if(tot<5){e.textContent="";e.className="";return}
+ const W=6e5,n=aNow();times=times.filter(x=>x.t>n-W);const el=Math.min(W,Math.max(n-tFirst,3e5)),r=Math.round(times.length/(el/36e5));
+ e.textContent="Темп: "+r+" зв/час"+(r>45?" 🔥":"");e.className=r>45?"hot":r<30?"low":""}
+function replay(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);if(ms)setTimeout(()=>el.classList.remove(cls),ms)}
+const flash=()=>replay(document.body,"win",750);
+function sprintFx(){snd("reload");replay($("#xp"),"pop",1500);const r=$("#xp").getBoundingClientRect();spawn(80,r.left+r.width/2,r.top+12,{fan:2.8,v:10,sq:1,life:120});setTimeout(hud,1500)}
+function mega(n){snd("jackpot");const big=$("#big");big.textContent=n+" CALLS CRUSHED!";replay(big,"on");replay($("#stage"),"shake",850);
+ spawn(120,0,innerHeight,{fan:1.1,ang:-1.0,v:17,sq:1,life:170});spawn(120,innerWidth,innerHeight,{fan:1.1,ang:-2.14,v:17,sq:1,life:170});
+ for(let i=0;i<8;i++)setTimeout(()=>spawn(80,innerWidth*(.15+Math.random()*.7),innerHeight*(.15+Math.random()*.4),{v:8,h:Math.random()*360,g:.07,r:3,life:90}),i*300);
+ setTimeout(()=>spawn(130,innerWidth/2,innerHeight*.35,{fan:6.3,v:12,sq:1,life:140}),600);setTimeout(hud,1500)}
+// эффекты откладываются до возврата в окно браузера (Zoom забирает фокус)
+const later=(fx,def)=>{if(def)pend.push(...fx);else fx.forEach(f=>f())};
+addEventListener("focus",()=>{if(pend.length){const f=pend.splice(0);setTimeout(()=>f.forEach(x=>x()),250)}});
+function tally(l){const p=ph(l);tot++;sprint++;if(sprint===1)spStart=aNow();if(!tFirst)tFirst=aNow();times.push({t:aNow(),p});dset.add(p);hud();
+ const n=tot,fx=[];if(sprint>=20){const d=aNow()-spStart;if(!P.best||d<P.best){P.best=d;sp()}}if(n%100==0){sprint=0;fx.push(()=>mega(n))}else if(sprint>=20){sprint=0;fx.push(sprintFx)}
+ sesSave();return fx}
+function untally(p){if(sprint>0)sprint--;else if(tot>0)sprint=19;tot=Math.max(0,tot-1);times=times.filter(x=>x.p!==p);dset.delete(p);hud();sesSave()}
+
+// ---- звук (синтез WebAudio, файлы не нужны), эффекты, подсказки ----
+const RM=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
+let VOL=P.vol??.5,MUTE=!!P.mute,AC=null,NB=null;
+const ac=()=>{try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state=="suspended")AC.resume()}catch(e){AC=null}return AC};
+function tone(f,t,d,ty,g,f2){const a=ac();if(!a)return;const T=a.currentTime+t,o=a.createOscillator(),v=a.createGain();o.type=ty||"sine";o.frequency.setValueAtTime(f,T);if(f2)o.frequency.exponentialRampToValueAtTime(f2,T+d);
+ v.gain.setValueAtTime(.0001,T);v.gain.exponentialRampToValueAtTime(Math.max(.0002,g*VOL),T+.006);v.gain.exponentialRampToValueAtTime(.0001,T+d);o.connect(v);v.connect(a.destination);o.start(T);o.stop(T+d+.03)}
+function noise(t,d,g,fc,q){const a=ac();if(!a)return;if(!NB){NB=a.createBuffer(1,a.sampleRate*2,a.sampleRate);const b=NB.getChannelData(0);for(let i=0;i<b.length;i++)b[i]=Math.random()*2-1}
+ const T=a.currentTime+t,s=a.createBufferSource(),f=a.createBiquadFilter(),v=a.createGain();s.buffer=NB;f.type="bandpass";f.frequency.value=fc;f.Q.value=q||1;
+ v.gain.setValueAtTime(Math.max(.0002,g*VOL),T);v.gain.exponentialRampToValueAtTime(.0001,T+d);s.connect(f);f.connect(v);v.connect(a.destination);s.start(T,Math.random());s.stop(T+d+.03)}
+const SND={
+ tick(){noise(0,.04,.25,3000,1);tone(180,0,.05,"square",.12,90)},
+ whoosh(){noise(0,.22,.16,900,.4)},
+ whip(){noise(0,.16,.4,3500,.7);tone(1400,0,.14,"sawtooth",.18,300)},
+ stamp(){tone(80,0,.2,"sine",.9,40);noise(0,.06,.5,700,.7)},
+ ching(){noise(0,.05,.3,6000,.8);tone(1568,.02,.7,"sine",.35);tone(2349,.02,.8,"sine",.25);tone(3136,.05,.6,"triangle",.12);[.18,.26,.33,.4].forEach((t,i)=>{tone(2600+i*180,t,.12,"triangle",.14);noise(t,.03,.12,7000,2)})},
+ chime(){tone(988,0,.35,"sine",.3);tone(1319,.09,.4,"sine",.25);tone(1760,.18,.6,"sine",.2)},
+ disc(){tone(659,0,.25,"triangle",.28);tone(880,.1,.25,"triangle",.28);tone(1175,.2,.5,"triangle",.28);noise(.2,.08,.1,6000,2)},
+ burn(){for(let i=0;i<14;i++)noise(i*.05+Math.random()*.03,.03,.25,2000+Math.random()*3000,2);noise(0,.7,.1,500,.4)},
+ crumple(){for(let i=0;i<10;i++)noise(i*.04,.03+.02*Math.random(),.3,1500+Math.random()*2500,3)},
+ reload(){noise(0,.06,.4,1800,3);tone(220,0,.07,"square",.25,120);noise(.08,.14,.1,900,.6);noise(.26,.06,.4,2600,3);tone(330,.26,.07,"square",.25,160)},
+ jackpot(){[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,i*.07,.25,"triangle",.25));SND.ching()}};
+const snd=n=>{if(MUTE)return;try{SND[n]&&SND[n]()}catch(e){}};
+function sndT(){MUTE=!MUTE;P.mute=MUTE;sp();S.menu=0;render();snd("tick")}
+function volT(){const v=[.25,.5,.75,1];VOL=v[(v.indexOf(VOL)+1)%4];P.vol=VOL;sp();S.menu=0;render();snd("tick")}
+// статус -> [штамп, цвет, как уходит карточка, звук]
+const FXT=[["VOICEMAIL","#d9a07a","down","whoosh"],["SKIP","#e5603b","down","whoosh"],["HUNG UP","#f76808","crumple","crumple"],["PITCHED","#f5a524","right","chime"],["SECURED","#34d17a","right","ching"],["BLOCKED","#e5484d","slash","whip"],["NOTED","#e8d44d","fade","tick"],["VM LEFT","#e5826e","down","whoosh"],["MENU","#e6c84c","down","whoosh"],["NO CONNECT","#6aa5c4","burn","burn"],["TRASH","#b9793a","burn","burn"],["???","#9aa0ad","burn","burn"],["CALLBACK","#a58be0","right","tick"],["FOLLOW-UP","#7c5cd6","right","chime"],["DISCOVERY","#4aa3ff","right","disc"]];
+const GOOD=[3,4,12,13,14];
+let lastXY={x:innerWidth/2,y:innerHeight/2,t:0};
+addEventListener("mousemove",e=>{lastXY={x:e.clientX,y:e.clientY,t:Date.now()}},{passive:true});
+function ptr(){if(Date.now()-lastXY.t<5000)return lastXY;const c=$(".card");if(c){const r=c.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}return{x:innerWidth/2,y:innerHeight/2}}
+function replay(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);if(ms)setTimeout(()=>el.classList.remove(cls),ms)}
+function exitFx(k){const c=$(".card");if(!c||RM)return;const r=c.getBoundingClientRect(),f=FXT[k],cl=c.cloneNode(true);
+ cl.querySelectorAll("[id]").forEach(e=>e.removeAttribute("id"));cl.className="card ghost x-"+f[2];
+ Object.assign(cl.style,{position:"fixed",left:r.left+"px",top:r.top+"px",width:r.width+"px",height:r.height+"px",pointerEvents:"none"});
+ const st=document.createElement("div");st.className="stamp";st.textContent=f[0];st.style.setProperty("--c",f[1]);cl.appendChild(st);document.body.appendChild(cl);setTimeout(()=>cl.remove(),1000);
+ if(f[2]=="burn")spawn(46,r.left+r.width/2,r.bottom-10,{fan:2.6,v:5,h:25,g:-.04,r:2.5,life:60})}
+function enterFx(){const c=$(".card");if(c&&!RM)replay(c,"enter")}
+function stepFx(k){const f=FXT[k],p=ptr(),g=GOOD.includes(k),e=document.createElement("div");
+ if(k==4){snd("stamp");setTimeout(()=>snd("ching"),120)}else snd(f[3]);
+ e.className="hit";e.textContent=k==4?"+💸":k==14?"+🎯":g?"HIT!":k==5?"BLOCK":"SKIP";e.style.cssText="left:"+p.x+"px;top:"+p.y+"px;color:"+(g?"#ffd54a":"#9aa0ad");document.body.appendChild(e);setTimeout(()=>e.remove(),950)}
+function winFx(k){flash();const p=ptr(),c=FXT[k][1];$("#frz").style.setProperty("--c",c);replay($("#frz"),"on",720);
+ const w=$("#wave");w.style.cssText="left:"+p.x+"px;top:"+p.y+"px;--c:"+c;replay(w,"on",800);
+ if(!RM)replay($("#stage"),"shake",k==4?850:500);
+ spawn(k==4?60:36,p.x,p.y,{v:k==4?11:8,sq:1,h:k==4?145:215,life:70,g:.18});if(k==4)spawn(40,p.x,p.y,{v:9,sq:1,h:48,life:70,g:.18});favBook(k)}
+const ICON_SVG="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='b' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#6a45ff'/><stop offset='1' stop-color='#1b1050'/></linearGradient><linearGradient id='n' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#7ff0aa'/><stop offset='1' stop-color='#20a85f'/></linearGradient><linearGradient id='c' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff2a6'/><stop offset='1' stop-color='#f2a900'/></linearGradient></defs><rect width='64' height='64' rx='15' fill='url(#b)'/><rect x='5' y='14' width='54' height='30' rx='5' fill='#167a46' transform='rotate(-9 32 29)'/><rect x='5' y='15' width='54' height='30' rx='5' fill='url(#n)' stroke='#d8ffe8' stroke-width='1.6'/><circle cx='32' cy='30' r='10.5' fill='url(#c)' stroke='#fff6bd' stroke-width='1.6'/><path d='M36.2 25.6c-1.1-1.5-3-2.3-5-2.3-2.8 0-4.9 1.4-4.9 3.6 0 5 10.6 2.5 10.6 7.9 0 2.4-2.2 4-5.2 4-2.3 0-4.3-.9-5.4-2.5M31.2 20.6v2.7M31.2 38.4v2.7' fill='none' stroke='#8a5700' stroke-width='2.6' stroke-linecap='round'/><g fill='#1a7f48' fill-opacity='.65'><circle cx='11.5' cy='22' r='2'/><circle cx='52.5' cy='22' r='2'/><circle cx='11.5' cy='38' r='2'/><circle cx='52.5' cy='38' r='2'/></g><circle cx='32' cy='48' r='13' fill='#fff' stroke='#c9ffe0' stroke-width='1'/><path fill='#18a35a' transform='translate(21.8 37.8) scale(.85)' d='M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z'/></svg>";
+const favHref=b=>"data:image/svg+xml,"+encodeURIComponent(b?ICON_SVG.replace("</svg>",b+"</svg>"):ICON_SVG);
+let favT=0;
+function favBook(k){const l=$("#fav");if(!l)return;l.href=favHref("<circle cx='51' cy='13' r='11' fill='#34d17a' stroke='#fff' stroke-width='3'/>");document.title=(k==14?"[🎯 DISCOVERY]":"[🔥 BOOKED]")+" Power Dialer";
+ clearTimeout(favT);favT=setTimeout(()=>{l.href=favHref("");document.title="Power Dialer"},90000)}
+function ghostTick(){const g=$("#gh"),x=$("#xp");if(!g||!x)return;if(!P.best||sprint<1){g.style.display="none";x.classList.remove("ahead","behind");return}
+ const gp=Math.min(20,20*(aNow()-spStart)/P.best);g.style.display="block";g.style.left=gp/20*100+"%";x.classList.toggle("ahead",sprint>=gp);x.classList.toggle("behind",sprint<gp)}
+(()=>{const tip=$("#tip");let cur=null;
+ const show=el=>{cur=el;tip.textContent=el.dataset.t;tip.classList.add("on");const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2)),y=r.bottom+8;if(y+h>innerHeight-8)y=r.top-h-8;tip.style.left=x+"px";tip.style.top=Math.max(8,y)+"px"};
+ const hide=()=>{cur=null;tip.classList.remove("on")};
+ document.addEventListener("mouseover",e=>{const el=e.target.closest&&e.target.closest("[data-t]");if(el&&el!==cur)show(el);else if(!el&&cur)hide()});
+ document.addEventListener("focusin",e=>{const el=e.target.closest&&e.target.closest("[data-t]");if(el)show(el)});
+ document.addEventListener("focusout",hide);addEventListener("scroll",hide,true)})();
+
+// ---- действия ----
+function dial(){const l=curL;if(!l||!ph(l))return;calling=true;t0=Date.now();S.more=S.menu=0;noUnload=Date.now()+3000;
+ const a=document.createElement("a");a.href="zoomphonecall://"+ph(l);document.body.appendChild(a);a.click();a.remove();render()}
+function setRes(k){const l=curL;if(!l)return;const had=res(l);
+ if(had==val(k)){clr(l);return}
+ l.v[ix("Result")]=val(k);l.v[ix("Date Engaged")]=today();l.s=++S.tk;calling=false;S.more=0;
+ persist();sync(l,1);
+ const fx=[];if(!had)fx.push(...tally(l));
+ if(WIN.includes(k))winFx(k);
+ stepFx(k);exitFx(k);
+ const fresh=advance();render();enterFx();
+ if(fresh&&S.auto&&!S.paused&&curL){later(fx,true);dial()}else later(fx,false)}
+function skip(){if(!curL)return;calling=false;curL.s=++S.tk;persist();sync(curL,0);advance();render()}
+function clr(l){if(!l||!res(l))return;l.v[ix("Result")]="";l.v[ix("Date Engaged")]="";persist();sync(l,1);
+ const p=ph(l);if(dset.has(p))untally(p);toast("Статус убран");if(S.modal)mlist();else render()}
+const clrCur=()=>{S.more=0;clr(curL)};
+function pause(){S.paused=!S.paused;pauseSec=0;if(S.paused)pStart=Date.now();else pausedTotal+=Date.now()-pStart;render();
+ if(!S.paused&&S.auto&&curL&&!calling&&!res(curL))dial()}
+function tg(k){const v=!S[k];S.more=S.menu=0;S[k]=v;render()}
+function autoT(){S.auto=!S.auto;P.auto=S.auto;sp();S.menu=0;render()}
+function onlyT(){S.only=!S.only;P.only=S.only;sp();S.menu=0;reinit();render()}
+function padT(){P.padOpen=!P.padOpen;sp();S.menu=0;render()}
+function padFit(){const e=$("#pad");if(!e)return;e.style.height="auto";e.style.height=Math.max(150,e.scrollHeight+4)+"px"}
+function saveScope(){const p=P.files[S.name]||(P.files[S.name]={});p.start=S.start;p.type=S.f.type;p.state=S.f.state;p.tz=S.f.tz;sp()}
+function mopen(){S.modal=1;S.more=S.menu=0;M={q:"",type:S.f.type,state:S.f.state,tz:S.f.tz,hide:0,off:0,n:400,first:1};render();$("#mq").focus()}
+function mclose(){S.modal=0;render()}
+function mc(b){const k=b.dataset.k;M[k]=M[k]==b.dataset.v?"":b.dataset.v;M.off=0;M.n=400;mlist()}
+function pickLead(i){S.start=i;S.f={type:M.type,state:M.state,tz:M.tz};S.L.forEach(x=>x.s=0);saveScope();S.modal=0;calling=false;
+ hist.splice(hc+1);hist.push(S.L[i]);hc=hist.length-1;render()}
+function startSlice(clear){S.start=0;S.f=clear?{type:"",state:"",tz:""}:{type:M.type,state:M.state,tz:M.tz};S.L.forEach(x=>x.s=0);saveScope();S.modal=0;reinit();render()}
+function mlist(){const all=[];S.L.forEach((l,i)=>{if(ph(l))all.push(i)});
+ const cnt=f=>{const m={};all.forEach(i=>{const v=f(S.L[i]);if(v)m[v]=(m[v]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0])};
+ const q=M.q.toLowerCase(),filt=M.q||M.type||M.state||M.tz||M.hide;
+ const rs=all.filter(i=>{const l=S.L[i];return(!M.hide||!res(l))&&match(l,M)&&(!q||[get(l,"Business"),get(l,"Phone"),get(l,"Type of company"),get(l,"Notes"),get(l,"Result")].join(" ").toLowerCase().includes(q))});
+ const first=M.first;M.first=0;const cur=S.L.indexOf(curL);
+ if(first){const p=rs.indexOf(cur);if(p>0)M.off=Math.max(0,p-120)}
+ const chip=(k,v)=>`<button class="cp${M[k]==v?" on":""}" data-k="${k}" data-v="${esc(v)}" onclick="mc(this)">${esc(v)}</button>`;
+ $("#mc").innerHTML=`<button class="cp${M.hide?" on":""}" onclick="M.hide=!M.hide;M.off=0;M.n=400;mlist()">Скрыть обработанных</button>`
+  +["Eastern","Central","Mountain","Pacific"].filter(v=>all.some(i=>tzk(S.L[i])==v)).map(v=>chip("tz",v)).join("")
+  +cnt(lstate).map(v=>chip("state",v)).join("")+cnt(l=>get(l,"Type of company").trim()).map(v=>chip("type",v)).join("");
+ const rows=rs.slice(M.off,M.off+M.n).map((i,k)=>{const l=S.L[i],r=res(l),nt=get(l,"Notes").trim().replace(/\s+/g," ");
+  return`<div role="button" tabindex="0" class="mr${r?" dn":""}${i==cur?" now":""}${filt&&!k&&!M.off?" fs":""}" onclick="pickLead(${i})"><div class="r1"><b>${esc(get(l,"Business"))}</b>${r?`<span class="sb" style="--c:${scol(r)}">${esc(r)}<i class="x" title="Убрать статус" onclick="event.stopPropagation();clr(S.L[${i}])">✕</i></span>`:""}</div><div class="r2"><span>${esc(get(l,"Type of company"))} · ${esc(lstate(l))}</span>${nt?`<em>${esc(nt)}</em>`:""}</div></div>`}).join("");
+ const more=t=>`<button class="mr" onclick="${t}"><div class="r2">`,up=M.off>0?more("const d=Math.min(400,M.off);M.off-=d;M.n+=d;mlist()")+"Показать выше</div></button>":"",dn=rs.length>M.off+M.n?more("M.n+=400;mlist()")+"Показать ниже</div></button>":"";
+ $("#ml").innerHTML=rows?up+rows+dn:'<p style="padding:14px;color:var(--mu)">Ничего не найдено</p>';
+ $("#mf").innerHTML=`<span>${filt?"Enter выбирает первого":"Клик по лиду: очередь пойдёт дальше от него"}</span><span class="fl">${(M.type||M.state||M.tz)?`<a href="#" onclick="startSlice(0);return false">Звонить только по выбранным фильтрам</a>`:""}<a href="#" onclick="startSlice(1);return false">Сбросить фильтры и начать сначала</a></span>`;
+ if(first){const e=$(".mr.now");if(e)e.scrollIntoView({block:"center"})}}
+
+// ---- интерфейс ----
+function render(){
+ const root=$("#app"),has=S.L.length>0;
+ $("#hud").style.display=has?"":"none";$("#stage").className=P.padOpen&&has?"":"np";
+ if(!has){const ok="showOpenFilePicker"in window;
+  root.innerHTML=`<div class="drop"><h1>Power Dialer</h1><p>Выбери базу. Результаты пишутся прямо в тот же файл, без копий.</p>
+  ${recent.length?`<div class="rcs">${recent.map((h,i)=>`<button class="rc" title="${esc(h.name)}" onclick="openH(recent[${i}])"><span class="nm">${esc(h.name.replace(/\.csv$/i,""))}</span><span class="op">Открыть</span></button>`).join("")}</div>`:""}
+  ${ok?`<div class="dz" id="dz" onclick="pick()"><b>Перетащи сюда CSV-файл</b><span>или нажми, чтобы выбрать</span></div>`:"<p>Запись в файл работает только в Chrome, Edge, Brave и Arc. В этом браузере она недоступна.</p>"}</div>`;return}
+ if(hc<0)reinit();
+ curL=hist[hc]||null;const l=curL;
+ if(hc<hist.length-1)nextL=hist[hc+1];else{const q=queue(),k=q.findIndex(i=>S.L[i]!==l);nextL=k<0?null:S.L[q[k]]}
+ const NI=ix("Notes"),CI=ix("Callback?"),r=l?res(l):"";
+ const sb=i=>`<button class="st${r==val(i)?" on":""}${WIN.includes(i)?" win":""}" style="--c:${ST[i][1]}" onclick="setRes(${i})"><kbd>${KL[i]}</kbd>${esc(ST[i][0])}</button>`;
+ const scope=(S.f.type||S.f.state||S.f.tz)?`<span class="tag x" title="Сбросить фильтры" onclick="startSlice(1)">${esc([S.f.tz,S.f.state,S.f.type].filter(Boolean).join(" · "))} ✕</span>`:"";
+ const bar=S.paused?`<div class="bar">Пауза <span id="ps">${fmt(pauseSec)}</span><span style="font-weight:400">авто-набор выключен</span><button class="btn" onclick="pause()">Продолжить <kbd>P</kbd></button></div>`:"";
+ let body;
+ if(l){const lk=(t,u)=>u?`<a href="${esc(url(u))}" target="_blank" rel="noopener">${t}</a>`:"",em=get(l,"Email");
+  const sps=(t,k)=>{const on=(k=="r"?revR:revA)===l;return`<span class="spoil${on?" on":""}" ${on?"":`title="Показать" onclick="rev${k=="r"?"R":"A"}=curL;render()"`}>${t}</span>`},adr=get(l,"Adress")||get(l,"Address"),rw=get(l,"Reviews");
+  body=`<div class="card"><h1 class="biz">${esc(get(l,"Business")||"Без названия")}</h1>
+  <div class="sub">${esc(get(l,"Type of company"))}${lt(l)}${rw?sps(esc(rw)+" отзывов","r"):""}</div>
+  ${r?`<div class="cs">Статус сейчас <span class="sb" style="--c:${scol(r)}">${esc(r)}</span><button class="lnk" onclick="clrCur()">Убрать</button></div>`:""}
+  <div class="dialrow"><span class="num">${esc(get(l,"Phone"))}</span>
+  <button class="dial${calling?" on":""}" onclick="dial()">${calling?"Набрать ещё раз":"Позвонить"} <kbd>Space</kbd></button>
+  <span class="timer${calling?" on":""}" id="ct">${calling?fmt((Date.now()-t0)/1000):"0:00"}</span></div>
+  <div class="meta">${adr?sps(esc(adr),"a"):""}${lk("Сайт",get(l,"Website"))}${lk("Карта",get(l,"Google Maps link"))}${em?`<a href="mailto:${esc(em)}">${esc(em)}</a>`:""}</div>
+  ${get(l,"Verification")?`<p class="ver">${esc(get(l,"Verification"))}</p>`:""}
+  <div class="fld"><textarea id="notes" placeholder="Заметки (N)" oninput="curL.v[${NI}]=this.value;persistSoon()">${esc(l.v[NI])}</textarea>
+  <input type="text" placeholder="Когда перезвонить" value="${esc(l.v[CI])}" oninput="curL.v[${CI}]=this.value;persistSoon()"></div>
+  <div class="grid">${[0,1,2,3,4,5].map(sb).join("")}
+  <button class="st" style="--c:#8b93a4" onclick="skip()" title="Лид вернётся позже в очереди, ничего не меняется"><kbd>S</kbd>Отложить</button>
+  <div class="pw"><button class="st more" style="--c:#8b93a4" onclick="tg('more')">Ещё статусы <kbd>M</kbd></button>${S.more?`<div class="pop up">${ST.map((s,i)=>i>=PRIM?sb(i):"").join("")}${r?`<button class="mi" onclick="clrCur()">Убрать статус <kbd>X</kbd></button>`:""}</div>`:""}</div></div>
+  <div class="acts"><button class="btn" onclick="back()" title="Вернуться к предыдущему лиду. Данные не меняются">← Прошлый лид <kbd>Z</kbd></button><button class="btn" onclick="pause()">Пауза <kbd>P</kbd></button>
+  <span class="nx">${nextL?"Дальше: "+esc(get(nextL,"Business")):""}</span></div></div>
+  <div class="hint">Space звонить · 1–6 статус · S отложить · M остальные · X убрать статус · / выбрать лида · Z прошлый лид · P пауза</div>`}
+ else body=`<div class="card empty"><h2>Очередь пуста</h2><p>С такими фильтрами лидов без статуса не осталось.</p><button class="btn pri" onclick="mopen()">Выбрать другого лида</button> <button class="btn" onclick="startSlice(1)">Сбросить фильтры</button>${hc>0?` <button class="btn" onclick="back()">← Прошлый лид</button>`:""}</div>`;
+ const c=P.sheets;
+ root.innerHTML=`<div class="top"><button class="btn" onclick="mopen()">Выбрать лида <kbd>/</kbd></button>${scope}<span class="sp"></span>
+ <span id="sy"></span><span id="sv"></span><button class="btn" onclick="padT()">Шпаргалка <kbd>T</kbd></button>
+ <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button><button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="switchBase()">Сменить базу…</button></div>`:""}</div></div>
+ <div id="sqb"></div>${bar}<div class="layout"><div>${body}</div>${P.padOpen?`<aside class="pad"><label for="pad">Шпаргалка, сохраняется сама</label><textarea id="pad" spellcheck="false" oninput="P.pad=this.value;sp();padFit()">${esc(P.pad)}</textarea></aside>`:""}</div>
+ ${S.modal?`<div class="ov" onclick="if(event.target==this)mclose()"><div class="md"><input id="mq" type="text" placeholder="Поиск по названию, номеру, типу, заметкам" oninput="M.q=this.value;M.off=0;M.n=400;mlist()"><div class="chips" id="mc"></div><div id="ml"></div><div class="mf" id="mf"></div></div></div>`:""}
+ ${cfgHtml()}`;
+ if(S.modal)mlist();svShow();sqShow();sqBanner();padFit();
+}
+document.addEventListener("click",e=>{if(e.target.id=="sv"&&saveErr)persist();if(e.target.id=="sy"&&sqErr){sqErr="";pump()}
+ if((S.more||S.menu)&&!e.target.closest(".pw")){S.more=S.menu=0;render()}});
+addEventListener("keydown",e=>{
+ const c=e.code,t=e.target.tagName;
+ if(c=="KeyK"&&e.metaKey){e.preventDefault();if(S.L.length&&!S.cfg)mopen();return}
+ if(S.cfg){if(c=="Escape")cfgClose();return}
+ if(S.modal){if(c=="Escape")mclose();else if(c=="Enter"&&t=="INPUT"){const b=$(".mr.fs");b&&b.click()}return}
+ if(t=="INPUT"||t=="TEXTAREA"){if(c=="Escape")e.target.blur();return}
+ if(e.metaKey||e.ctrlKey||e.altKey||e.repeat||!S.L.length)return;
+ if(c=="Space"||c=="Enter"){e.preventDefault();dial()}
+ else if(c=="Slash"){e.preventDefault();mopen()}
+ else if(c=="KeyP")pause();else if(c=="KeyS")skip();else if(c=="KeyZ")back();else if(c=="KeyT")padT();else if(c=="KeyX")clrCur();
+ else if(c=="KeyN"){e.preventDefault();const n=$("#notes");n&&n.focus()}
+ else if(c=="KeyM")tg("more");
+ else if(c=="Escape"){S.more=S.menu=0;render()}
+ else{const i=KC.indexOf(c);if(i>=0&&curL)setRes(i)}});
+addEventListener("dragover",e=>{e.preventDefault();const z=$("#dz");if(z)z.classList.add("hot")});addEventListener("dragleave",()=>{const z=$("#dz");if(z)z.classList.remove("hot")});
+addEventListener("drop",async e=>{e.preventDefault();const it=e.dataTransfer.items[0];
+ if(it&&it.getAsFileSystemHandle){const h=await it.getAsFileSystemHandle();if(h&&h.kind=="file")openH(h)}});
+setInterval(()=>{if(S.paused){pauseSec++;set("#ps",fmt(pauseSec))}set("#ct",calling?fmt((Date.now()-t0)/1000):"0:00");if(++tick%5==0)tempo()},1000);
+setInterval(ghostTick,250);
+render();hud();
+kv("get","rc").then(async r=>{recent=r||[];if(!recent.length){const h=await kv("get","fh").catch(()=>0);if(h)recent=[h]}if(!S.L.length)render()}).catch(()=>{});
+</script></body></html>

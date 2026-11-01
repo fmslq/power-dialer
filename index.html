@@ -178,23 +178,87 @@ body.win::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:45
 <canvas id="cv"></canvas><div id="big"></div><div id="frz"></div><div id="ban"></div><div id="wave"></div><div id="tip"></div><div id="toast"></div>
 <script type="text/plain" id="gs">// Power Dialer → Google Sheets (версия 2). Вставь целиком в Расширения → Apps Script.
 const SECRET = 'ПРИДУМАЙ-СВОЁ-СЛОВО';
-const VERSION = 2;
+const VERSION = 4;
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     const d = JSON.parse(e.postData.contents);
     if (d.secret !== SECRET) return out({ ok: false, code: 'secret', err: 'secret' });
-    const ss = SpreadsheetApp.getActive();
+    // Таблица выбирается ссылкой (d.sid), либо это таблица, к которой привязан скрипт.
+    const ss = d.sid ? SpreadsheetApp.openById(d.sid) : SpreadsheetApp.getActive();
+    if (!ss) return out(d.ping ? { ok: true, v: VERSION, standalone: true } : { ok: false, perm: true, code: 'other', err: 'нет таблицы: открой таблицу по ссылке в дайлере' });
     const hint = String(d.file || '').replace(/\.csv$/i, '').replace(/\s*\(\d+\)\s*$/, '').trim();
     let sh = null;
-    ss.getSheets().forEach(s => {
-      const n = s.getName();
-      if (hint.endsWith(n) && (!sh || n.length > sh.getName().length)) sh = s;
-    });
+    if (d.sid) {
+      const g = String(d.gid || '');
+      sh = ss.getSheets().filter(s => String(s.getSheetId()) === g)[0] || ss.getSheets()[0];
+    } else {
+      ss.getSheets().forEach(s => {
+        const n = s.getName();
+        if (hint.endsWith(n) && (!sh || n.length > sh.getName().length)) sh = s;
+      });
+    }
     if (!sh) return out({ ok: false, perm: true, code: 'tab', err: 'нет вкладки для: ' + hint });
-    const info = { doc: ss.getName(), tab: sh.getName(), v: VERSION };
+    const info = { doc: ss.getName(), tab: sh.getName(), gid: String(sh.getSheetId()), v: VERSION };
     if (d.ping) return out(Object.assign({ ok: true }, info));
+
+    if (d.archive) {
+      const nm = 'Deleted Power Dialer Leads';
+      const a = ss.getSheetByName(nm) || ss.insertSheet(nm);
+      const head = ['Deleted at', 'Source tab'].concat(d.head || []);
+      const w = Math.max.apply(null, [head.length].concat((d.rows || []).map(r => r.length + 2)));
+      const pad = r => { r = r.slice(); while (r.length < w) r.push(''); return r; };
+      const props = PropertiesService.getScriptProperties();
+      const pkey = 'ah_' + ss.getId(), hj = head.join('|');
+      const lines = [];
+      if (a.getLastRow() === 0 || props.getProperty(pkey) !== hj) { lines.push(pad(head)); props.setProperty(pkey, hj); }
+      (d.rows || []).forEach(r => lines.push(pad([d.at || '', sh.getName()].concat(r))));
+      const rg = a.getRange(a.getLastRow() + 1, 1, lines.length, w);
+      rg.setNumberFormat('@');
+      rg.setValues(lines);
+      return out({ ok: true, n: (d.rows || []).length });
+    }
+
+    if (d.full) {
+      let lc = Math.max(sh.getLastColumn(), 1);
+      const h = sh.getRange(1, 1, 1, lc).getValues()[0].map(x => String(x).trim());
+      ['Date Engaged', 'Result', 'Notes', 'Callback?'].forEach(n => {
+        if (h.map(x => x.toLowerCase()).indexOf(n.toLowerCase()) < 0) { lc++; sh.getRange(1, lc).setValue(n); h.push(n); }
+      });
+      const lr = sh.getLastRow();
+      const disp = lr > 1 ? sh.getRange(2, 1, lr - 1, lc).getDisplayValues() : [];
+      const di = h.map(x => x.toLowerCase()).indexOf('date engaged');
+      const dv = (lr > 1 && di >= 0) ? sh.getRange(2, di + 1, lr - 1, 1).getValues() : [];
+      const tz = ss.getSpreadsheetTimeZone();
+      const rows = [];
+      disp.forEach((row, k) => {
+        if (!row.some(x => x !== '')) return;
+        if (di >= 0) { const v = dv[k][0]; row[di] = v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v); }
+        rows.push({ r: k + 2, c: row });
+      });
+      return out(Object.assign({ ok: true, head: h, rows: rows }, info));
+    }
+
+    if (d.read) {
+      const lc = sh.getLastColumn(), lr = sh.getLastRow();
+      const h = sh.getRange(1, 1, 1, lc).getValues()[0].map(x => String(x).trim().toLowerCase());
+      const ci = n => h.indexOf(n);
+      const pi = ci('phone');
+      if (pi < 0) return out({ ok: false, perm: true, code: 'phone', err: 'в таблице нет колонки Phone' });
+      const tz = ss.getSpreadsheetTimeZone();
+      const vals = lr > 1 ? sh.getRange(2, 1, lr - 1, lc).getValues() : [];
+      const s = (row, i) => i < 0 ? null : String(row[i]);
+      const rows = vals.map((row, k) => {
+        const p = String(row[pi]).replace(/\D/g, '').slice(-10);
+        if (p.length !== 10) return null;
+        const di = ci('date engaged');
+        let dt = di < 0 ? null : row[di];
+        if (dt instanceof Date) dt = Utilities.formatDate(dt, tz, 'yyyy-MM-dd'); else if (dt !== null) dt = String(dt);
+        return { r: k + 2, p: p, res: s(row, ci('result')), dt: dt, nt: s(row, ci('notes')), cb: s(row, ci('callback?')) };
+      }).filter(Boolean);
+      return out(Object.assign({ ok: true, rows: rows }, info));
+    }
 
     lock.waitLock(20000);
     const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(x => String(x).trim().toLowerCase());
@@ -245,6 +309,9 @@ function doPost(e) {
     try { lock.releaseLock(); } catch (x) {}
   }
 }
+
+// Запусти один раз (кнопка «Выполнить»), чтобы выдать скрипту доступ к таблицам.
+function authorize() { return String(SpreadsheetApp.getActive() ? 'ok' : 'ok'); }
 
 function out(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
@@ -326,7 +393,7 @@ let S={h:[],L:[],d:",",nl:"\r\n",tail:false,name:"",start:0,f:{type:"",state:"",
 let P={files:{},pad:"",padOpen:true,sheets:{}};
 try{Object.assign(P,JSON.parse(localStorage.getItem("pd2")||"{}"))}catch(e){}
 const sp=()=>{try{localStorage.setItem("pd2",JSON.stringify(P))}catch(e){}};
-S.auto=P.auto!==false;S.only=P.only!==false;P.sheets=Object.assign({url:"",token:"",on:false},P.sheets);
+S.auto=P.auto!==false;S.only=P.only!==false;P.sheets=Object.assign({url:"",token:"",on:false},P.sheets);P.srcs=P.srcs||[];
 let FH=null,recent=[],curL=null,nextL=null,hist=[],hc=-1,revR=null,revA=null,calling=false,t0=0,pauseSec=0,saved=null,saveErr="",M={},wB=false,wD=false,ps=0,ixc={},tick=0,noUnload=0,pend=[];
 let spStart=0,sprint=0,tot=0,tFirst=0,times=[],pausedTotal=0,pStart=0,dset=new Set();
 try{const s=JSON.parse(localStorage.getItem("pd2s")||"null");if(s&&s.d==today()){tot=s.tot|0;sprint=s.sprint|0;tFirst=s.tFirst|0;times=s.times||[];dset=new Set(s.dset||[])}}catch(e){}
@@ -365,7 +432,7 @@ function advance(){if(hc<hist.length-1){hc++;return false}
 function back(){if(hc<=0){toast("Это первый лид сессии");return}hc--;calling=false;S.more=0;render()}
 
 // ---- файл: открыть и безопасно перезаписывать тот же самый ----
-function load(text,name){const f=text.split("\n")[0];
+function load(text,name){S.src=null;const f=text.split("\n")[0];
  const d=(f.match(/\t/g)||[]).length>(f.match(/,/g)||[]).length?"\t":",",r=parse(text,d);
  if(r.length<2||!r[0].some(x=>x.trim().toLowerCase()=="phone"))throw new Error("в файле нет колонки Phone или лидов");
  S.d=d;S.nl=text.includes("\r\n")?"\r\n":"\n";S.tail=/\n$/.test(text);
@@ -376,32 +443,36 @@ function load(text,name){const f=text.split("\n")[0];
  saved=null;saveErr="";reinit()}
 async function addRecent(h){try{let r=(await kv("get","rc"))||[];const k=await Promise.all(r.map(x=>x.isSameEntry(h).catch(()=>false)));r=r.filter((x,i)=>!k[i]);r.unshift(h);r=r.slice(0,8);await kv("put","rc",r);recent=r}catch(e){}}
 async function openH(h){try{if(await h.requestPermission({mode:"readwrite"})!="granted"){toast("Нужен доступ к файлу на запись");return}
- const f=await h.getFile();load(await f.text(),h.name);FH=h;addRecent(h);render();pump()}catch(e){toast("Не удалось открыть: "+e.message)}}
+ const f=await h.getFile();load(await f.text(),h.name);FH=h;addRecent(h);render();pump();setTimeout(pull,1500)}catch(e){toast("Не удалось открыть: "+e.message)}}
 async function pick(){try{const[h]=await showOpenFilePicker({types:[{description:"CSV",accept:{"text/csv":[".csv"]}}]});openH(h)}catch(e){}}
-async function persist(){clearTimeout(ps);ps=0;if(!FH)return;wD=true;if(wB)return;wB=true;
+async function persist(){clearTimeout(ps);ps=0;if(!FH){if(S.src)bkSoon();return}wD=true;if(wB)return;wB=true;
  try{while(wD){wD=false;const w=await FH.createWritable();await w.write(ser(S.h,S.L.map(l=>l.v),S.d,S.nl,S.tail));await w.close()}saved=new Date();saveErr=""}catch(e){saveErr=e.message||"ошибка"}
  wB=false;svShow()}
 const persistSoon=()=>{clearTimeout(ps);const l=curL;ps=setTimeout(()=>{persist();sync(l,0)},1200)};
 async function flush(){await persist();while(wB)await new Promise(r=>setTimeout(r,40))}
-async function switchBase(){S.menu=0;try{await flush()}catch(e){}S.L=[];FH=null;hist=[];hc=-1;render()}
-function svShow(){const e=$("#sv");if(!e)return;e.className=saveErr?"er":saved?"ok":"";e.textContent=saveErr?"Не сохранено. Нажми, чтобы повторить":saved?"Сохранено "+saved.toLocaleTimeString("ru-RU"):"Файл открыт"}
+async function switchBase(){S.menu=0;try{await flush()}catch(e){}S.L=[];S.src=null;FH=null;hist=[];hc=-1;render()}
+function svShow(){const e=$("#sv");if(!e)return;
+ if(S.src){if(!BK){e.className="er";e.textContent="Нет резервной копии. Нажми";return}
+  if(bkNeed){e.className="er";e.textContent="Копия: нажми, чтобы разрешить";return}
+  e.className=saveErr?"er":saved?"ok":"";e.textContent=saveErr?"Копия не сохранена. Нажми":saved?"Копия "+saved.toLocaleTimeString("ru-RU"):"Таблица открыта";return}
+e.className=saveErr?"er":saved?"ok":"";e.textContent=saveErr?"Не сохранено. Нажми, чтобы повторить":saved?"Сохранено "+saved.toLocaleTimeString("ru-RU"):"Файл открыт"}
 addEventListener("beforeunload",e=>{if(Date.now()<noUnload)return;if(wB||wD||ps)e.preventDefault()});
 function copyText(t,ok){const fb=()=>{const e=document.createElement("textarea");e.value=t;document.body.appendChild(e);e.select();document.execCommand("copy");e.remove();ok()};navigator.clipboard?navigator.clipboard.writeText(t).then(ok,fb):fb()}
 function cp(){copyText(ser(S.h,S.L.map(l=>l.v),"\t","\n",0),()=>toast("Скопировано, вставь в таблицу в A1"))}
 
 // ---- синхронизация с Google Sheets (через Apps Script) ----
-const GS_VER=2;
+const GS_VER=4;
 let SQ=[],sqBusy=0,sqErr="",sqT=0,sqBlind=0,sqFail=0,sqMsg=null,sqInfo=null;
 try{SQ=JSON.parse(localStorage.getItem("pd2q")||"[]")}catch(e){}
 const sqSave=()=>{try{localStorage.setItem("pd2q",JSON.stringify(SQ))}catch(e){}};
 const tabAuto=()=>S.name.replace(/\.csv$/i,"").replace(/\s*\(\d+\)\s*$/,"");
-const tabHint=()=>(P.files[S.name]||{}).tab||S.name;
+const tabHint=()=>S.src?"sheet:"+S.src.id+":"+S.src.gid:(P.files[S.name]||{}).tab||S.name;
 function sync(l,withRes){const c=P.sheets;if(!c.on||!c.url||!l||!ph(l))return;const s={};
  if(withRes){s.Result=get(l,"Result");s["Date Engaged"]=get(l,"Date Engaged")}
  if(get(l,"Notes")!==l.n0)s.Notes=get(l,"Notes");if(get(l,"Callback?")!==l.c0)s["Callback?"]=get(l,"Callback?");
  if(!Object.keys(s).length)return;
  const file=tabHint(),phone=ph(l),o=SQ.find(x=>x.file==file&&x.phone==phone);
- if(o){Object.assign(o.set,s)}else SQ.push({file,phone,biz:get(l,"Business"),row:S.L.indexOf(l)+2,set:s});
+ if(o){Object.assign(o.set,s)}else SQ.push({file,phone,biz:get(l,"Business"),row:l.r||S.L.indexOf(l)+2,set:s,...(S.src?{sid:S.src.id,gid:S.src.gid}:{})});
  sqSave();pump();sqShow()}
 async function post(obj){const c=P.sheets,ac=new AbortController(),tm=setTimeout(()=>ac.abort(),25000),o={method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({secret:c.token,...obj}),signal:ac.signal};
  try{try{const r=await fetch(c.url,o);return await r.json()}
@@ -440,10 +511,10 @@ async function cfgTest(){const c=P.sheets,e=$("#cr");
  if(!c.token){e.className="er";e.innerHTML="<b>Нет секретного слова.</b> Заполни шаг 1.";return}
  if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(c.url)){e.className="er";e.innerHTML="<b>Ссылка выглядит неправильно.</b><br>Она должна начинаться с https://script.google.com/ и оканчиваться на /exec (шаг 3).";return}
  e.className="";e.textContent="Проверяю…";
- try{const r=await post({file:tabHint(),ping:1});
+ try{const r=await post(S.src?{sid:S.src.id,gid:S.src.gid,file:"x",ping:1}:{file:tabHint(),ping:1});
   if(r.blind){e.className="er";e.innerHTML="<b>Не удалось прочитать ответ Google.</b><br>Скорее всего, в развёртывании стоит доступ не «Все (Anyone)». Создай развёртывание заново."}
   else if(r.ok){c.ok={doc:r.doc,tab:r.tab,url:c.url};sp();sqInfo=r;e.className="ok";
-   e.innerHTML=`<div class="big">Подключено к файлу: ${esc(r.doc)}</div><div class="big">Вкладка: ${esc(r.tab)}</div>${(r.v|0)<GS_VER?'<div class="warn">В таблице старая версия скрипта. Вставь новый код и создай новую версию развёртывания.</div>':""}`;sqShow()}
+   e.innerHTML=`<div class="big">Подключено к файлу: ${esc(r.doc||"общий скрипт")}</div><div class="big">Вкладка: ${esc(r.tab||"—")}</div>${(r.v|0)<GS_VER?'<div class="warn">В таблице старая версия скрипта. Вставь новый код и создай новую версию развёртывания.</div>':""}`;sqShow()}
   else{const h=human(r);e.className="er";e.innerHTML=`<b>${esc(h[0])}</b><br>${esc(h[1])}`}}
  catch(x){e.className="er";e.innerHTML=x instanceof SyntaxError?"<b>Google вернул не ответ скрипта.</b><br>Обычно это страница входа: у развёртывания должен быть доступ «Все (Anyone)».":"<b>Нет связи с Google.</b><br>Проверь интернет и что ссылка скопирована целиком."}}
 function cfgHtml(){if(!S.cfg)return"";const c=P.sheets,ok=c.ok&&c.ok.url==c.url?c.ok:null,tab=(P.files[S.name]||{}).tab||"";
@@ -464,7 +535,7 @@ function cfgHtml(){if(!S.cfg)return"";const c=P.sheets,ok=c.ok&&c.ok.url==c.url?
  <div class="stp"><b>Шаг 3. Вставь ссылку${i("Длинная ссылка, которая оканчивается на /exec. Её показывает Google после нажатия «Развернуть».")}</b>
   <input type="text" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec" oninput="P.sheets.url=this.value.trim();sp()"></div>
  <div class="stp"><b>Шаг 4. Проверь</b><div class="row"><button class="btn pri" onclick="cfgTest()">Проверить связь</button></div>
-  <div id="cr" class="${ok?"ok":""}">${ok?`<div class="big">Подключено к файлу: ${esc(ok.doc)}</div><div class="big">Вкладка: ${esc(ok.tab)}</div>`:""}</div></div>
+  <div id="cr" class="${ok?"ok":""}">${ok?`<div class="big">Подключено к файлу: ${esc(ok.doc||"общий скрипт")}</div><div class="big">Вкладка: ${esc(ok.tab||"—")}</div>`:""}</div></div>
  <details class="dt"><summary>Вкладка (обычно ничего менять не нужно)</summary><p class="mu">Вкладка определяется по названию CSV-файла. Впиши её вручную, только если переименовал файл${i("Google называет файл так: «Название таблицы - Название вкладки.csv». Дайлер находит вкладку по концу имени.")}</p>
   <input type="text" value="${esc(tab)}" placeholder="${esc(tabAuto())}" oninput="tabSet(this.value)"></details>
  <details class="dt"><summary>Какие значения уходят в таблицу</summary><p class="mu">Слева кнопка в дайлере (её название не меняется), справа то, что записывается в таблицу. Значение должно совпадать с выпадающим списком в таблице до буквы${i("Нажми на поле справа и выбери из подсказок, там все значения твоего списка.")}</p>
@@ -478,6 +549,103 @@ function cfgHtml(){if(!S.cfg)return"";const c=P.sheets,ok=c.ok&&c.ok.url==c.url?
   <dt>«Нет связи» или ничего не происходит</dt><dd>Проверь ссылку (оканчивается на /exec) и доступ «Все (Anyone)». Нажми «Проверить связь».</dd>
   <dt>Поправил код, но ничего не изменилось</dt><dd>После любой правки скрипта нужна новая версия развёртывания (см. выше).</dd></dl></details>
  </div></div>`}
+
+
+// ---- обратная синхронизация: правки в таблице попадают в дайлер ----
+let syBusy=0,syOld=0,syLast=0;
+const pk=l=>get(l,"Phone").replace(/\D/g,"").slice(-10);
+const nl2=s=>String(s||"").replace(/\r\n/g,"\n");
+async function pull(manual){const c=P.sheets;if(!c.on||!c.url||!S.L.length||syBusy)return;if(syOld&&!manual)return;
+ if(SQ.length||ps||wB||wD||sqBusy){if(manual)toast("Сначала дождись отправки в таблицу");return}
+ syBusy=1;syLast=Date.now();
+ try{const r=await post(S.src?{sid:S.src.id,gid:S.src.gid,file:"x",read:1,full:1}:{file:tabHint(),read:1});
+  if(r.blind)return;
+  if(S.src?!r.head:!r.rows){if(r.ok||r.code=="row"){syOld=1;sqMsg=["В таблице старая версия скрипта","Вставь новый код (⋯ → Google Sheets, шаг 2) и создай новую версию развёртывания. Тогда правки из таблицы будут попадать в дайлер."];sqBanner()}else if(manual){const h=human(r);toast(h[0])}return}
+  syOld=0;
+  if(SQ.length||ps||wB||wD)return;
+  const n=S.src?reconcile(r):applyPull(r.rows);if(manual)toast(n?"Из таблицы обновлено: "+n:"В таблице ничего нового")}
+ catch(e){if(manual)toast("Нет связи с таблицей")}
+ finally{syBusy=0}}
+function applyPull(rows){const by={};S.L.forEach((l,i)=>{const k=pk(l);if(k.length==10)(by[k]=by[k]||[]).push(i)});
+ const used=new Set(),typing=/^(TEXTAREA|INPUT)$/.test(document.activeElement&&document.activeElement.tagName);let n=0,redraw=0;
+ for(const x of rows){const a=by[x.p];if(!a)continue;
+  const i=a.includes(x.r-2)&&!used.has(x.r-2)?x.r-2:a.find(j=>!used.has(j));if(i==null)continue;used.add(i);
+  const l=S.L[i],isCur=l===curL;let ch=0;
+  if(x.res!==null){const nv=x.res.trim().toLowerCase()=="not called"?"":x.res,old=res(l);
+   if(nv.trim()!==old.trim()){l.v[ix("Result")]=nv;ch=1}
+   if(x.dt!==null&&(x.dt===""||/^\d{4}-\d{2}-\d{2}$/.test(x.dt))&&x.dt!==get(l,"Date Engaged")&&(ch||x.dt===get(l,"Date Engaged")||true)){if(ix("Date Engaged")>=0){l.v[ix("Date Engaged")]=x.dt;ch=1}}}
+  if(x.nt!==null&&nl2(x.nt)!==nl2(get(l,"Notes"))&&!(isCur&&typing)){l.v[ix("Notes")]=x.nt;l.n0=x.nt;ch=1}
+  if(x.cb!==null&&nl2(x.cb)!==nl2(get(l,"Callback?"))&&!(isCur&&typing)){l.v[ix("Callback?")]=x.cb;l.c0=x.cb;ch=1}
+  if(ch){n++;if(isCur)redraw=1}}
+ if(n){persist();if(S.modal)mlist();if(redraw&&!typing)render()}
+ return n}
+setInterval(()=>{if(!document.hidden)pull()},45000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-syLast>8000)pull()});
+
+
+// ---- режим «таблица главная»: база читается прямо из Google Таблицы по ссылке ----
+let BK=null,bkT=0,bkNeed=0,SA=[];
+try{SA=JSON.parse(localStorage.getItem("pd2a")||"[]")}catch(e){}
+const saSave=()=>{try{localStorage.setItem("pd2a",JSON.stringify(SA))}catch(e){}};
+function parseSheetUrl(u){const m=String(u).match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return null;const g=String(u).match(/[#&?]gid=(\d+)/);return{id:m[1],gid:g?g[1]:""}}
+function openSheetUrl(){const e=$("#su"),s=e&&parseSheetUrl(e.value);if(!s){toast("Это не ссылка на Google Таблицу");return}openSheet(s)}
+async function openSheet(src){const c=P.sheets;if(!c.url||!c.token){toast("Сначала подключи скрипт: ⋯ → Google Sheets");cfgOpen();return}
+ toast("Загружаю таблицу…");
+ try{const r=await post({sid:src.id,gid:src.gid,file:"x",read:1,full:1});
+  if(r.blind){toast("Google не вернул ответ. У развёртывания должен быть доступ «Все (Anyone)»");return}
+  if(!r.ok){toast(human(r)[0]);return}
+  if(!r.head){toast("В скрипте старая версия. Вставь новый код: ⋯ → Google Sheets");return}
+  if(r.head.findIndex(x=>x.trim().toLowerCase()=="phone")<0){toast("В таблице нет колонки Phone");return}
+  c.on=true;sp();
+  S.src={id:src.id,gid:r.gid};S.d=",";S.nl="\n";S.tail=true;S.h=r.head;ixc={};
+  S.L=r.rows.map(x=>({v:S.h.map((_,i)=>x.c[i]||""),s:0,r:x.r}));S.name=r.doc+" · "+r.tab;
+  S.L.forEach(l=>{l.n0=get(l,"Notes");l.c0=get(l,"Callback?")});
+  FH=null;const p=P.files[S.name]||{};S.start=Math.min(p.start||0,Math.max(S.L.length-1,0));S.f={type:p.type||"",state:p.state||"",tz:p.tz||""};
+  saved=null;saveErr="";reinit();
+  P.srcs=[{id:src.id,gid:r.gid,name:S.name},...P.srcs.filter(x=>!(x.id==src.id&&x.gid==r.gid))].slice(0,8);sp();
+  render();pump();bkSoon(1)}
+ catch(e){toast(e instanceof SyntaxError?"Google вернул не ответ скрипта. Проверь доступ «Все (Anyone)»":"Нет связи с Google")}}
+function reconcile(r){const typing=/^(TEXTAREA|INPUT)$/.test(document.activeElement&&document.activeElement.tagName);
+ const oldH=S.h,newH=r.head,hl=newH.map(x=>x.trim().toLowerCase()),pI=hl.indexOf("phone"),bI=hl.indexOf("business");if(pI<0)return 0;
+ const oN=oldH.findIndex(x=>x.trim().toLowerCase()=="notes"),oC=oldH.findIndex(x=>x.trim().toLowerCase()=="callback?");
+ const pkO=l=>get(l,"Phone").replace(/\D/g,"").slice(-10),oldBy={};
+ S.L.forEach(l=>{l._b=get(l,"Business");const k=pkO(l);if(k.length==10)(oldBy[k]=oldBy[k]||[]).push(l)});
+ const rows=r.rows.map(x=>({r:x.r,v:newH.map((_,i)=>x.c[i]||"")})),used=new Set(),pairs=[];
+ rows.forEach(x=>{const k=(x.v[pI]||"").replace(/\D/g,"").slice(-10);let m=null;
+  if(k.length==10&&oldBy[k]){m=oldBy[k].find(l=>!used.has(l)&&l.r===x.r)||oldBy[k].find(l=>!used.has(l)&&bI>=0&&l._b===x.v[bI])||oldBy[k].find(l=>!used.has(l))||null;if(m)used.add(m)}
+  pairs.push([x,m])});
+ const withPh=S.L.filter(l=>pkO(l).length==10),removed=withPh.filter(l=>!used.has(l));
+ if(removed.length&&(!rows.length||(withPh.length>=10&&removed.length>=withPh.length/2))){const sig=removed.length+":"+rows.length;
+  if(S.recSkip===sig)return 0;
+  if(!confirm("В таблице пропало "+removed.length+" из "+withPh.length+" лидов. Убрать их из дайлера? Они сохранятся в архиве (вкладка Deleted Power Dialer Leads).")){S.recSkip=sig;return 0}}
+ S.h=newH.slice();ixc={};const nI=ix("Notes"),cI=ix("Callback?");let upd=0,add=0;const nl=[];
+ pairs.forEach(([x,m])=>{let v=x.v;
+  if(m){const prot=m===curL&&typing;if(prot){v=v.slice();if(nI>=0&&oN>=0)v[nI]=m.v[oN]||"";if(cI>=0&&oC>=0)v[cI]=m.v[oC]||""}
+   if(m.v.join("\u0001")!==v.join("\u0001"))upd++;
+   m.v=v;m.r=x.r;delete m.zc;if(!prot){m.n0=nI>=0?v[nI]:"";m.c0=cI>=0?v[cI]:""}}
+  else{add++;m={v,s:0,r:x.r,n0:nI>=0?v[nI]:"",c0:cI>=0?v[cI]:""}}
+  nl.push(m)});
+ S.L=nl;const keep=new Set(nl),cur=curL;hist=hist.filter(l=>l&&keep.has(l));hc=cur&&keep.has(cur)?hist.lastIndexOf(cur):-1;
+ if(hc<0){calling=false;reinit()}
+ S.start=Math.max(0,Math.min(S.start,nl.length-1));
+ if(removed.length){const at=new Date().toISOString(),ent=removed.map(l=>({at,tab:S.name,head:oldH,v:l.v}));
+  kv("get","del").then(a=>kv("put","del",(a||[]).concat(ent).slice(-5000))).catch(()=>{});
+  SA.push({sid:S.src.id,gid:S.src.gid,at,head:oldH,rows:removed.map(l=>l.v)});saSave();sendArch()}
+ if(add||removed.length)toast("Таблица: +"+add+" новых, −"+removed.length+" убрано");
+ if(add||upd||removed.length){persist();if(S.modal)mlist();if(!typing)render()}
+ return add+upd+removed.length}
+async function sendArch(){if(!SA.length||!P.sheets.on||!P.sheets.url)return;const b=SA[0];
+ try{const r=await post({sid:b.sid,gid:b.gid,file:"x",archive:1,at:b.at,head:b.head,rows:b.rows});if(r&&r.ok){SA.shift();saSave();if(SA.length)sendArch()}}catch(e){}}
+setInterval(sendArch,120000);
+async function bkPick(){try{BK=await showDirectoryPicker({mode:"readwrite"});await kv("put","bk",BK);bkNeed=0;toast("Папка для резервных копий выбрана");bkSoon(1);render()}catch(e){}}
+async function bkAsk(){try{if(BK&&await BK.requestPermission({mode:"readwrite"})=="granted"){bkNeed=0;bkSoon(1)}}catch(e){}}
+function bkSoon(now){if(!S.src)return;clearTimeout(bkT);bkT=setTimeout(bkWrite,now?300:20000)}
+async function bkWrite(){if(!BK||!S.src){svShow();return}
+ try{if(await BK.queryPermission({mode:"readwrite"})!="granted"){bkNeed=1;svShow();return}
+  const nm=(S.name||"table").replace(/[\\\/:*?"<>|]/g,"_")+".csv",fh=await BK.getFileHandle(nm,{create:true}),w=await fh.createWritable();
+  await w.write(ser(S.h,S.L.map(l=>l.v),",","\n",1));await w.close();saved=new Date();saveErr="";bkNeed=0}
+ catch(e){saveErr=e.message||"ошибка"}svShow()}
+kv("get","bk").then(h=>{BK=h||null;if(BK)BK.queryPermission({mode:"readwrite"}).then(p=>{bkNeed=p!="granted";svShow()}).catch(()=>{})}).catch(()=>{});
 
 // ---- геймификация ----
 const cv=$("#cv"),cx=cv.getContext("2d");let pt=[],raf=0;
@@ -712,7 +880,8 @@ function render(){
  $("#hud").style.display=has?"":"none";$("#stage").className=P.padOpen&&has?"":"np";
  if(!has){const ok="showOpenFilePicker"in window;
   root.innerHTML=`<div class="drop"><img class="lg" src="${ICON_PNG}" alt=""><h1>Power Dialer</h1><p>Выбери базу. Результаты пишутся прямо в тот же файл, без копий.</p>
-  ${recent.length?`<div class="rcs">${recent.map((h,i)=>`<button class="rc" title="${esc(h.name)}" onclick="openH(recent[${i}])"><span class="nm">${esc(h.name.replace(/\.csv$/i,""))}</span><span class="op">Открыть</span></button>`).join("")}</div>`:""}
+  ${(recent.length||P.srcs.length)?`<div class="rcs">${P.srcs.map((s,i)=>`<button class="rc" title="${esc(s.name)}" onclick="openSheet(P.srcs[${i}])"><span class="nm">${esc(s.name)}</span><span class="op">Таблица</span></button>`).join("")}${recent.map((h,i)=>`<button class="rc" title="${esc(h.name)}" onclick="openH(recent[${i}])"><span class="nm">${esc(h.name.replace(/\.csv$/i,""))}</span><span class="op">Открыть</span></button>`).join("")}</div>`:""}
+  <div class="stp" style="text-align:left;margin-bottom:14px"><b>Открыть из Google Таблицы</b><div class="row"><input id="su" type="text" placeholder="Вставь ссылку на таблицу (с нужной вкладкой)" onkeydown="if(event.key=='Enter')openSheetUrl()"><button class="btn pri" onclick="openSheetUrl()">Открыть</button></div></div>
   ${ok?`<div class="dz" id="dz" onclick="pick()"><b>Перетащи сюда CSV-файл</b><span>или нажми, чтобы выбрать</span></div>`:"<p>Запись в файл работает только в Chrome, Edge, Brave и Arc. В этом браузере она недоступна.</p>"}</div>`;return}
  if(hc<0)reinit();
  curL=hist[hc]||null;const l=curL;
@@ -744,13 +913,13 @@ function render(){
  const c=P.sheets;
  root.innerHTML=`<div class="top"><button class="btn" onclick="mopen()">Выбрать лида <kbd>/</kbd></button>${scope}<span class="sp"></span>
  <span id="sy"></span><span id="sv"></span><button class="btn" onclick="padT()">Шпаргалка <kbd>T</kbd></button>
- <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button><button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="zoomT()">Встроенный Zoom: ${P.zoomEmbed?"вкл":"выкл"}</button><button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="guardT()">Возврат из Zoom в браузер: ${P.guard===false?"выкл":"вкл"}</button><button class="mi" onclick="switchBase()">Сменить базу…</button><div class="mu" style="padding:6px 10px">Версия: zoom-3</div></div>`:""}</div></div>
+ <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button>${P.sheets.on?`<button class="mi" onclick="S.menu=0;render();pull(1)">Обновить из таблицы</button>`:""}<button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="zoomT()">Встроенный Zoom: ${P.zoomEmbed?"вкл":"выкл"}</button><button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="guardT()">Возврат из Zoom в браузер: ${P.guard===false?"выкл":"вкл"}</button>${S.src?`<button class="mi" onclick="S.menu=0;bkPick()">Резервная копия: выбрать папку…</button>`:""}<button class="mi" onclick="switchBase()">Сменить базу…</button><div class="mu" style="padding:6px 10px">Версия: sheet-1</div></div>`:""}</div></div>
  <div id="sqb"></div>${bar}<div class="layout"><div>${body}</div>${P.padOpen?`<aside class="pad"><label for="pad">Шпаргалка, сохраняется сама</label><textarea id="pad" spellcheck="false" placeholder="Сюда можно записать свои фразы. Они сохраняются сами" oninput="P.pad=this.value;sp();padFit()">${esc(P.pad)}</textarea></aside>`:""}</div>
  ${S.modal?`<div class="ov" onclick="if(event.target==this)mclose()"><div class="md"><input id="mq" type="text" placeholder="Поиск по названию, номеру, типу, заметкам" oninput="M.q=this.value;M.off=0;M.n=400;mlist()"><div class="chips" id="mc"></div><div id="ml"></div><div class="mf" id="mf"></div></div></div>`:""}
  ${cfgHtml()}`;
  if(S.modal)mlist();svShow();sqShow();sqBanner();padFit();
 }
-document.addEventListener("click",e=>{if(e.target.id=="sv"&&saveErr)persist();if(e.target.id=="sy"&&sqErr){sqErr="";pump()}
+document.addEventListener("click",e=>{if(bkNeed&&BK)bkAsk();if(e.target.id=="sv"){if(S.src){if(!BK)bkPick();else{saveErr="";bkAsk();bkSoon(1)}}else if(saveErr)persist()}if(e.target.id=="sy"&&sqErr){sqErr="";pump()}
  if((S.more||S.menu)&&!e.target.closest(".pw")){S.more=S.menu=0;render()}});
 addEventListener("keydown",e=>{
  const c=e.code,t=e.target.tagName;

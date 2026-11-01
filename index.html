@@ -169,7 +169,7 @@ body.win::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:45
 #ban.on{animation:ban 1.8s ease-out forwards}
 @keyframes ban{0%{opacity:0;transform:translateX(-50%) scale(.4)}12%{opacity:1;transform:translateX(-50%) scale(1.15)}22%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-14px)}}
 #zp{position:fixed;right:14px;bottom:14px;width:362px;height:min(640px,calc(100vh - 28px));z-index:25;background:var(--pn);border:1px solid var(--ln);border-radius:14px;overflow:hidden;box-shadow:0 14px 44px #0007;display:flex;flex-direction:column}
-#zp.min{height:auto;width:230px}#zp.min iframe{display:none}
+#zp.hid{left:-420px;right:auto;bottom:0;opacity:0;pointer-events:none}
 .zh{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--ln);font-size:13px}.zh b{font-weight:600}.zh span{color:var(--mu);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #zp iframe{border:0;flex:1;width:100%;background:#fff;min-height:0}
 .st.sug{outline:2px dashed var(--c);outline-offset:2px}
@@ -629,20 +629,22 @@ const zFrame=()=>$("#zpf");
 const zSet=t=>set("#zt",t);
 function zConfig(){try{zFrame().contentWindow.postMessage({type:"zp-init-config",data:{enableSavingLog:false,enableAutoLog:false,enableContactSearching:false,enableContactMatching:false,enableAISummary:false,disableInactiveTabCallEvent:true}},ZO)}catch(e){}}
 window.onZoomPhoneIframeApiReady=()=>{zReady=true;zConfig();zSet("готов")};
+function zShow(){const p=$("#zp");if(p)p.classList.toggle("hid",!!P.zoomOk&&!zPeek)}
+let zPeek=0;
 function zInit(){let p=$("#zp");
  if(!zOn()){if(p)p.style.display="none";return}
  if(!p){p=document.createElement("div");p.id="zp";
-  p.innerHTML='<div class="zh"><b>Zoom Phone</b><span id="zt">загрузка…</span><button class="lnk" onclick="zMin()" title="Свернуть или развернуть">—</button></div><iframe id="zpf" src="'+ZO+'/integration/phone/embeddablephone/home" allow="clipboard-read; clipboard-write '+ZO+'; microphone; autoplay"></iframe>';
+  p.innerHTML='<div class="zh"><b>Zoom Phone</b><span id="zt">загрузка…</span><button class="lnk" onclick="zPeek=0;P.zoomOk=1;sp();zShow()" title="Спрятать окно">Спрятать</button></div><iframe id="zpf" src="'+ZO+'/integration/phone/embeddablephone/home" allow="clipboard-read; clipboard-write '+ZO+'; microphone; autoplay"></iframe>';
   document.body.appendChild(p);$("#zpf").addEventListener("load",()=>setTimeout(zConfig,600))}
- p.style.display="";p.classList.toggle("min",!!P.zoomMin)}
-function zoomT(){P.zoomEmbed=!P.zoomEmbed;sp();S.menu=0;
+ p.style.display="";zShow()}
+function zoomT(){P.zoomEmbed=!P.zoomEmbed;if(P.zoomEmbed){P.zoomOk=0;zPeek=0}sp();S.menu=0;
  if(P.zoomEmbed&&location.protocol!="https:")toast("Встроенный Zoom работает только на странице https://… (GitHub), не из файла");
  zInit();render()}
-function zMin(){P.zoomMin=!P.zoomMin;sp();S.menu=0;const p=$("#zp");if(p)p.classList.toggle("min",!!P.zoomMin);render()}
+
 function zCopy(){copyText(JSON.stringify(zLog,null,1),()=>toast("Журнал Zoom скопирован"))}
 addEventListener("message",e=>{if(e.origin!==ZO)return;const d=e.data;if(!d||!d.type)return;zReady=true;
  zLog.push({t:new Date().toISOString().slice(11,19),type:d.type,data:d.data});if(zLog.length>40)zLog.shift();
- if(d.type=="zp-call-ringing-event"){zGot=true;zSet("гудки…")}
+ if(d.type=="zp-call-ringing-event"){zGot=true;zSet("гудки…");if(!P.zoomOk){P.zoomOk=1;sp();zShow()}}
  else if(d.type=="zp-call-connected-event"){zGot=true;zSet("на связи")}
  else if(d.type=="zp-call-ended-event"){zSet("завершён: "+((d.data&&d.data.result)||""));calling=false;if(!/INPUT|TEXTAREA/.test(document.activeElement.tagName))render()}
  else if(d.type=="zp-call-log-completed-event"&&d.data){const r=String(d.data.result||""),n=String(d.data.callee&&d.data.callee.number||"").replace(/\D/g,"").slice(-10);
@@ -654,7 +656,7 @@ function guardMark(){if(P.guard===false)return;clearTimeout(gT);if(!document.tit
 function guardT(){P.guard=P.guard===false;sp();S.menu=0;render();toast(P.guard===false?"Защита выключена":"Защита включена (нужен скрипт на Mac)")}
 function dial(){const l=curL;if(!l||!ph(l))return;guardMark();calling=true;t0=Date.now();S.more=S.menu=0;zSug=-1;zGot=false;
  if(zOn()&&zReady){try{zFrame().contentWindow.postMessage({type:"zp-make-call",data:{number:ph(l),autoDial:true}},ZO);
-   clearTimeout(zT);zT=setTimeout(()=>{if(calling&&!zGot)toast("Zoom не подтвердил звонок. Проверь окно Zoom Phone: вход, микрофон")},6000)}catch(e){toast("Не удалось отправить номер в Zoom")}
+   clearTimeout(zT);zT=setTimeout(()=>{if(calling&&!zGot)zPeek=1;zShow();toast("Zoom не подтвердил звонок. Проверь окно Zoom Phone: вход, микрофон")},6000)}catch(e){toast("Не удалось отправить номер в Zoom")}
   render();return}
  if(zOn())toast("Встроенный Zoom ещё не готов, звоню через приложение");
  noUnload=Date.now()+3000;
@@ -742,7 +744,7 @@ function render(){
  const c=P.sheets;
  root.innerHTML=`<div class="top"><button class="btn" onclick="mopen()">Выбрать лида <kbd>/</kbd></button>${scope}<span class="sp"></span>
  <span id="sy"></span><span id="sv"></span><button class="btn" onclick="padT()">Шпаргалка <kbd>T</kbd></button>
- <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button><button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="zoomT()">Встроенный Zoom: ${P.zoomEmbed?"вкл":"выкл"}</button>${P.zoomEmbed?`<button class="mi" onclick="zMin()">Окно Zoom: ${P.zoomMin?"показать":"свернуть"}</button><button class="mi" onclick="zCopy()">Скопировать журнал Zoom</button>`:""}<button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="guardT()">Возврат из Zoom в браузер: ${P.guard===false?"выкл":"вкл"}</button><button class="mi" onclick="switchBase()">Сменить базу…</button><div class="mu" style="padding:6px 10px">Версия: zoom-2</div></div>`:""}</div></div>
+ <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button><button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="zoomT()">Встроенный Zoom: ${P.zoomEmbed?"вкл":"выкл"}</button><button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="guardT()">Возврат из Zoom в браузер: ${P.guard===false?"выкл":"вкл"}</button><button class="mi" onclick="switchBase()">Сменить базу…</button><div class="mu" style="padding:6px 10px">Версия: zoom-3</div></div>`:""}</div></div>
  <div id="sqb"></div>${bar}<div class="layout"><div>${body}</div>${P.padOpen?`<aside class="pad"><label for="pad">Шпаргалка, сохраняется сама</label><textarea id="pad" spellcheck="false" placeholder="Сюда можно записать свои фразы. Они сохраняются сами" oninput="P.pad=this.value;sp();padFit()">${esc(P.pad)}</textarea></aside>`:""}</div>
  ${S.modal?`<div class="ov" onclick="if(event.target==this)mclose()"><div class="md"><input id="mq" type="text" placeholder="Поиск по названию, номеру, типу, заметкам" oninput="M.q=this.value;M.off=0;M.n=400;mlist()"><div class="chips" id="mc"></div><div id="ml"></div><div class="mf" id="mf"></div></div></div>`:""}
  ${cfgHtml()}`;

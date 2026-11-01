@@ -173,6 +173,13 @@ body.win::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:45
 .zh{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--ln);font-size:13px}.zh b{font-weight:600}.zh span{color:var(--mu);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #zp iframe{border:0;flex:1;width:100%;background:#fff;min-height:0}
 .st.sug{outline:2px dashed var(--c);outline-offset:2px}
+
+.pop.mn{width:min(400px,92vw);max-height:calc(100vh - 110px);overflow:auto;gap:2px;padding:6px}
+.pop.mn .mh{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);padding:10px 10px 4px}
+.pop.mn .mh:first-child{padding-top:4px}
+.pop.mn .mi{height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pl{flex:none;font-size:12px;padding:2px 10px;border-radius:99px;background:var(--pn2);border:1px solid var(--ln);color:var(--mu)}
+.pl.on{background:color-mix(in srgb,var(--go) 18%,transparent);border-color:color-mix(in srgb,var(--go) 50%,transparent);color:var(--go)}
 </style></head><body>
 <div id="stage"><div id="hud"><div class="xp" id="xp"><i id="xpf"></i><u id="gh"></u><b id="xpt">0/20</b></div><div id="tempo"></div></div><div id="app"></div></div>
 <canvas id="cv"></canvas><div id="big"></div><div id="frz"></div><div id="ban"></div><div id="wave"></div><div id="tip"></div><div id="toast"></div>
@@ -499,6 +506,7 @@ function sqShow(){const e=$("#sy");if(!e)return;const c=P.sheets;if(!c.on){e.tex
  e.className=sqErr?"er":SQ.length?"":"ok";
  e.textContent=sqErr?"Sheets: ошибка, нажми":SQ.length?"Sheets: отправка "+SQ.length:"Sheets"+(sqFail?" · пропущено "+sqFail:"");
  e.title=sqErr?"Нажми, чтобы повторить отправку":sqInfo?"Данные уходят в файл «"+sqInfo.doc+"», вкладка «"+sqInfo.tab+"»":"Синхронизация включена"}
+const pl=v=>`<span class="pl${v?" on":""}">${v?"вкл":"выкл"}</span>`;
 function cfgOpen(){S.cfg=1;S.menu=0;render()}
 function cfgClose(){S.cfg=0;render();pump()}
 function tabSet(v){const p=P.files[S.name]||(P.files[S.name]={});p.tab=v.trim();sp()}
@@ -593,7 +601,7 @@ async function openSheet(src){const c=P.sheets;if(!c.url||!c.token){toast("Сн�
  toast("Загружаю таблицу…");
  try{const r=await post({sid:src.id,gid:src.gid,file:"x",read:1,full:1});
   if(r.blind){toast("Google не вернул ответ. У развёртывания должен быть доступ «Все (Anyone)»");return}
-  if(!r.ok){toast(human(r)[0]);return}
+  if(!r.ok){toast(r.code=="tab"||r.code=="row"?"Скрипт в таблице старой версии: вставь новый код и выпусти НОВУЮ версию развёртывания (⋯ → Google Sheets)":human(r)[0]);return}
   if(!r.head){toast("В скрипте старая версия. Вставь новый код: ⋯ → Google Sheets");return}
   if(r.head.findIndex(x=>x.trim().toLowerCase()=="phone")<0){toast("В таблице нет колонки Phone");return}
   c.on=true;sp();
@@ -646,6 +654,22 @@ async function bkWrite(){if(!BK||!S.src){svShow();return}
   await w.write(ser(S.h,S.L.map(l=>l.v),",","\n",1));await w.close();saved=new Date();saveErr="";bkNeed=0}
  catch(e){saveErr=e.message||"ошибка"}svShow()}
 kv("get","bk").then(h=>{BK=h||null;if(BK)BK.queryPermission({mode:"readwrite"}).then(p=>{bkNeed=p!="granted";svShow()}).catch(()=>{})}).catch(()=>{});
+
+
+// ---- свои звуки из папки на диске (имя файла = имя звука, например ching.mp3, ching_2.mp3) ----
+let SD=null,AB={},sndNeed=0;
+const SDESC={ching:"CALL BOOKED (кассовый аппарат)",stamp:"удар штампа SECURED",disc:"CONDUCTED DISCOVERY CALL",chime:"Follow up in future",whip:"GATEKEEPER (хлыст)",slash:"GATEKEEPER (разрез)",hangup:"Owner hung up: трубка",crumple:"Owner hung up: бумага мнётся",bin:"Owner hung up: мусорка",sent:"Owner pitched & Hang Up",ringbeep:"Автоответчик: Были гудки",del:"Автоответчик: Не перезванивать",beepsend:"Автоответчик (leaved vm)",dtmf:"Menu",static:"Не соединяет",sit:"Номер не рабочий: тон",burn:"Номер не рабочий: огонь",boing:"Непонятная",ringup:"Call back",tick:"Другое / клики",levelup:"конец двадцатки",fanfare:"каждые 100 звонков",whoosh:"(зарезервировано)",reload:"(зарезервировано)",jackpot:"(зарезервировано)"};
+function sndNames(){copyText("Положи в папку файлы с такими именами (mp3, wav, m4a, ogg). Для вариантов добавь номер: ching_2.mp3, ching_3.mp3, будет играть случайный.\n\n"+Object.keys(SND).map(k=>k+" — "+(SDESC[k]||"")).join("\n"),()=>toast("Список имён звуков скопирован"))}
+async function sndPick(){try{SD=await showDirectoryPicker({mode:"read"});await kv("put","snd",SD);await sndLoad(1)}catch(e){}}
+async function sndLoad(ask){if(!SD)return;
+ try{let p=await SD.queryPermission({mode:"read"});if(p!="granted"&&ask)p=await SD.requestPermission({mode:"read"});if(p!="granted"){sndNeed=1;return}
+  sndNeed=0;const a=ac();if(!a)return;const nb={};let n=0;
+  for await(const [nm,h] of SD.entries()){if(h.kind!="file")continue;const m=nm.match(/^(.+?)(?:[ _-]?(\d+))?\.(mp3|wav|m4a|ogg|aac|flac)$/i);if(!m)continue;const key=m[1].toLowerCase();if(!(key in SND))continue;
+   try{const buf=await a.decodeAudioData(await(await h.getFile()).arrayBuffer());(nb[key]=nb[key]||[]).push(buf);n++}catch(e){}}
+  AB=nb;toast(n?"Звуков из папки: "+n:"В папке нет подходящих файлов. Список имён: ⋯ → Имена звуков")}
+ catch(e){toast("Не удалось прочитать папку со звуками")}}
+function playBuf(buf){const a=ac();if(!a)return;const s=a.createBufferSource(),g=a.createGain();s.buffer=buf;g.gain.value=VOL;s.connect(g);g.connect(a.destination);s.start()}
+kv("get","snd").then(h=>{SD=h||null;if(SD)SD.queryPermission({mode:"read"}).then(p=>{if(p=="granted")sndLoad(0);else sndNeed=1}).catch(()=>{})}).catch(()=>{});
 
 // ---- геймификация ----
 const cv=$("#cv"),cx=cv.getContext("2d");let pt=[],raf=0;
@@ -718,7 +742,7 @@ const SND={
  bin(){tone(130,0,.18,"sine",.7,55);noise(0,.08,.3,500,.8);tone(900,.03,.12,"triangle",.15)},
  levelup(){noise(0,.06,.3,3000,.8);tone(110,0,.22,"sine",.55,50);[523,659,784,1047,1319].forEach((f,i)=>tone(f,.04+i*.07,.3,"triangle",.28));tone(2093,.4,.6,"sine",.18);tone(2637,.48,.7,"sine",.14);for(let i=0;i<6;i++)noise(.35+i*.05,.04,.1,7000,3)},
  fanfare(){noise(0,1.6,.35,7000,.4);tone(90,0,.7,"sine",.9,35);[[262,330,392,523,0],[349,440,523,698,.35],[392,494,587,784,.7]].forEach(([a,b,c,d,t])=>[a,b,c,d].forEach(f=>tone(f,t,t>.5?1.1:.4,"sawtooth",.13)));[1.0,1.15,1.3,1.45,1.6].forEach(t=>{tone(2093,t,.3,"sine",.22);noise(t,.04,.15,7000,2)});setTimeout(()=>SND.ching(),900)}};
-const snd=n=>{if(MUTE)return;try{SND[n]&&SND[n]()}catch(e){}};
+const snd=n=>{if(MUTE)return;try{const b=AB[n];if(b&&b.length){playBuf(b[Math.random()*b.length|0]);return}SND[n]&&SND[n]()}catch(e){}};
 function sndT(){MUTE=!MUTE;P.mute=MUTE;sp();S.menu=0;render();snd("tick")}
 function volT(){const v=[.25,.5,.75,1];VOL=v[(v.indexOf(VOL)+1)%4];P.vol=VOL;sp();S.menu=0;render();snd("tick")}
 // статус -> [штамп, цвет, как уходит карточка, звук]
@@ -913,13 +937,30 @@ function render(){
  const c=P.sheets;
  root.innerHTML=`<div class="top"><button class="btn" onclick="mopen()">Выбрать лида <kbd>/</kbd></button>${scope}<span class="sp"></span>
  <span id="sy"></span><span id="sv"></span><button class="btn" onclick="padT()">Шпаргалка <kbd>T</kbd></button>
- <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop"><button class="mi" onclick="autoT()">Авто-набор следующего: ${S.auto?"вкл":"выкл"}</button><button class="mi" onclick="onlyT()">Очередь: ${S.only?"только без статуса":"все лиды"}</button><button class="mi" onclick="cfgOpen()">Google Sheets…</button>${P.sheets.on?`<button class="mi" onclick="S.menu=0;render();pull(1)">Обновить из таблицы</button>`:""}<button class="mi" onclick="cp()">Копировать таблицу для Sheets</button><button class="mi" onclick="zoomT()">Встроенный Zoom: ${P.zoomEmbed?"вкл":"выкл"}</button><button class="mi" onclick="sndT()">Звук: ${MUTE?"выкл":"вкл"}</button><button class="mi" onclick="volT()">Громкость: ${Math.round(VOL*100)}%</button><button class="mi" onclick="guardT()">Возврат из Zoom в браузер: ${P.guard===false?"выкл":"вкл"}</button>${S.src?`<button class="mi" onclick="S.menu=0;bkPick()">Резервная копия: выбрать папку…</button>`:""}<button class="mi" onclick="switchBase()">Сменить базу…</button><div class="mu" style="padding:6px 10px">Версия: sheet-1</div></div>`:""}</div></div>
+ <div class="pw"><button class="btn" onclick="tg('menu')" aria-label="Меню">⋯</button>${S.menu?`<div class="pop mn">
+ <div class="mh">Звонки</div>
+ <button class="mi" onclick="autoT()" data-t="После статуса дайлер сразу набирает следующего лида"><span>Автонабор следующего</span>${pl(S.auto)}</button>
+ <button class="mi" onclick="onlyT()" data-t="Какие лиды попадают в очередь звонков"><span>В очереди показывать</span><span class="pl on">${S.only?"только без статуса":"всех лидов"}</span></button>
+ <button class="mi" onclick="zoomT()" data-t="Телефон Zoom встроен в страницу: дайлер видит, когда звонок начался и закончился"><span>Встроенный телефон Zoom</span>${pl(P.zoomEmbed)}</button>
+ <button class="mi" onclick="guardT()" data-t="Нужен фоновый скрипт на Mac. После звонка возвращает тебя из приложения Zoom обратно в браузер"><span>Возвращать из Zoom в браузер</span>${pl(P.guard!==false)}</button>
+ <div class="mh">Звук</div>
+ <button class="mi" onclick="sndT()"><span>Звуки</span>${pl(!MUTE)}</button>
+ <button class="mi" onclick="volT()" data-t="Нажимай, чтобы переключить: 25, 50, 75, 100%"><span>Громкость</span><span class="pl on">${Math.round(VOL*100)}%</span></button>
+ <button class="mi" onclick="S.menu=0;sndPick()" data-t="Выбери папку со своими файлами. Если файла нет, играет встроенный звук"><span>Свои звуки из папки…</span>${SD?'<span class="pl on">выбрана</span>':'<span class="pl">нет</span>'}</button>
+ <button class="mi" onclick="S.menu=0;sndNames()" data-t="Копирует список имён файлов, которые дайлер ищет в папке"><span>Какие имена у файлов звуков</span><span class="pl">копировать</span></button>
+ <div class="mh">База и таблица</div>
+ <button class="mi" onclick="cfgOpen()" data-t="Скрипт, ссылка и секретное слово для связи с Google Таблицей"><span>Подключение к Google Таблице…</span><span class="pl ${P.sheets.on?"on":""}">${P.sheets.on?"вкл":"выкл"}</span></button>
+ ${P.sheets.on?`<button class="mi" onclick="S.menu=0;render();pull(1)" data-t="Подтянуть изменения, которые ты сделал прямо в таблице. Это и так происходит раз в 45 секунд"><span>Обновить из таблицы сейчас</span></button>`:""}
+ ${S.src?`<button class="mi" onclick="S.menu=0;bkPick()" data-t="Копия базы в виде CSV сохраняется в выбранную папку на компьютере"><span>Папка для резервных копий…</span></button>`:""}
+ <button class="mi" onclick="cp()" data-t="Копирует всю базу, чтобы вставить в Google Таблицу в ячейку A1"><span>Скопировать базу для Google Таблицы</span></button>
+ <button class="mi" onclick="switchBase()"><span>Открыть другую базу…</span></button>
+ <div class="mu" style="padding:8px 10px 2px">Версия: menu-1</div></div>`:""}</div></div>
  <div id="sqb"></div>${bar}<div class="layout"><div>${body}</div>${P.padOpen?`<aside class="pad"><label for="pad">Шпаргалка, сохраняется сама</label><textarea id="pad" spellcheck="false" placeholder="Сюда можно записать свои фразы. Они сохраняются сами" oninput="P.pad=this.value;sp();padFit()">${esc(P.pad)}</textarea></aside>`:""}</div>
  ${S.modal?`<div class="ov" onclick="if(event.target==this)mclose()"><div class="md"><input id="mq" type="text" placeholder="Поиск по названию, номеру, типу, заметкам" oninput="M.q=this.value;M.off=0;M.n=400;mlist()"><div class="chips" id="mc"></div><div id="ml"></div><div class="mf" id="mf"></div></div></div>`:""}
  ${cfgHtml()}`;
  if(S.modal)mlist();svShow();sqShow();sqBanner();padFit();
 }
-document.addEventListener("click",e=>{if(bkNeed&&BK)bkAsk();if(e.target.id=="sv"){if(S.src){if(!BK)bkPick();else{saveErr="";bkAsk();bkSoon(1)}}else if(saveErr)persist()}if(e.target.id=="sy"&&sqErr){sqErr="";pump()}
+document.addEventListener("click",e=>{if(bkNeed&&BK)bkAsk();if(sndNeed&&SD)sndLoad(1);if(e.target.id=="sv"){if(S.src){if(!BK)bkPick();else{saveErr="";bkAsk();bkSoon(1)}}else if(saveErr)persist()}if(e.target.id=="sy"&&sqErr){sqErr="";pump()}
  if((S.more||S.menu)&&!e.target.closest(".pw")){S.more=S.menu=0;render()}});
 addEventListener("keydown",e=>{
  const c=e.code,t=e.target.tagName;

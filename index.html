@@ -180,7 +180,7 @@ body.win::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:45
 .pop.mn .mi{height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .pl{flex:none;font-size:12px;padding:2px 10px;border-radius:99px;background:var(--pn2);border:1px solid var(--ln);color:var(--mu)}
 .pl.on{background:color-mix(in srgb,var(--go) 18%,transparent);border-color:color-mix(in srgb,var(--go) 50%,transparent);color:var(--go)}
-</style></head><body>
+</style><link rel="stylesheet" href="css/bridge.css"></head><body>
 <div id="stage"><div id="hud"><div class="xp" id="xp"><i id="xpf"></i><u id="gh"></u><b id="xpt">0/20</b></div><div id="tempo"></div></div><div id="app"></div></div>
 <canvas id="cv"></canvas><div id="big"></div><div id="frz"></div><div id="ban"></div><div id="wave"></div><div id="tip"></div><div id="toast"></div>
 <script type="text/plain" id="gs">// Power Dialer → Google Sheets (версия 2). Вставь целиком в Расширения → Apps Script.
@@ -582,11 +582,21 @@ function applyPull(rows){const by={};S.L.forEach((l,i)=>{const k=pk(l);if(k.leng
   if(x.res!==null){const nv=x.res.trim().toLowerCase()=="not called"?"":x.res,old=res(l);
    if(nv.trim()!==old.trim()){l.v[ix("Result")]=nv;ch=1}
    if(x.dt!==null&&(x.dt===""||/^\d{4}-\d{2}-\d{2}$/.test(x.dt))&&x.dt!==get(l,"Date Engaged")&&(ch||x.dt===get(l,"Date Engaged")||true)){if(ix("Date Engaged")>=0){l.v[ix("Date Engaged")]=x.dt;ch=1}}}
-  if(x.nt!==null&&nl2(x.nt)!==nl2(get(l,"Notes"))&&!(isCur&&typing)){l.v[ix("Notes")]=x.nt;l.n0=x.nt;ch=1}
-  if(x.cb!==null&&nl2(x.cb)!==nl2(get(l,"Callback?"))&&!(isCur&&typing)){l.v[ix("Callback?")]=x.cb;l.c0=x.cb;ch=1}
+  if(x.nt!==null&&mergeField(l,"Notes",x.nt,"n0",isCur)){ch=1}
+  if(x.cb!==null&&mergeField(l,"Callback?",x.cb,"c0",isCur)){ch=1}
   if(ch){n++;if(isCur)redraw=1}}
  if(n){persist();if(S.modal)mlist();if(redraw&&!typing)render()}
  return n}
+// Полная синхронизация текстовых полей: трёхсторонняя сверка (base=последнее синхронное, local=у меня, remote=в таблице).
+// Не менял локально -> берём из таблицы даже во время набора; менял только я -> уйдёт в таблицу; менял и там и тут -> объединяем, прежний текст в l.hist.
+function mergeField(l,name,remote,bk,live){const i=ix(name);if(i<0)return false;const local=get(l,name),base=l[bk]==null?"":l[bk];
+ const el=l===curL?(name=="Notes"?document.getElementById("notes"):document.querySelector('[placeholder="Когда перезвонить"]')):null;
+ const put=v=>{l.v[i]=v;if(el&&el.value!==v){const a=document.activeElement===el,s0=el.selectionStart,e0=el.selectionEnd;el.value=v;if(a)try{el.setSelectionRange(Math.min(s0,v.length),Math.min(e0,v.length))}catch(e){}}};
+ if(nl2(remote)===nl2(local)){l[bk]=remote;return false}
+ if(nl2(local)===nl2(base)){put(remote);l[bk]=remote;return true}
+ if(nl2(remote)===nl2(base))return false;
+ (l.hist=l.hist||[]).push({n:name,t:Date.now(),v:local});if(l.hist.length>20)l.hist.shift();
+ const m=nl2(local).includes(nl2(remote))?local:local+"\n⟲ из таблицы: "+remote;put(m);l[bk]=remote;sync(l,0);toast("Заметка менялась и в таблице: объединил");return true}
 setInterval(()=>{if(!document.hidden)pull()},45000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-syLast>8000)pull()});
 
@@ -954,7 +964,7 @@ function render(){
  ${S.src?`<button class="mi" onclick="S.menu=0;bkPick()" data-t="Копия базы в виде CSV сохраняется в выбранную папку на компьютере"><span>Папка для резервных копий…</span></button>`:""}
  <button class="mi" onclick="cp()" data-t="Копирует всю базу, чтобы вставить в Google Таблицу в ячейку A1"><span>Скопировать базу для Google Таблицы</span></button>
  <button class="mi" onclick="switchBase()"><span>Открыть другую базу…</span></button>
- <div class="mu" style="padding:8px 10px 2px">Версия: menu-1</div></div>`:""}</div></div>
+ <div class="mu" style="padding:8px 10px 2px">Версия: ct-1 (игра)</div></div>`:""}</div></div>
  <div id="sqb"></div>${bar}<div class="layout"><div>${body}</div>${P.padOpen?`<aside class="pad"><label for="pad">Шпаргалка, сохраняется сама</label><textarea id="pad" spellcheck="false" placeholder="Сюда можно записать свои фразы. Они сохраняются сами" oninput="P.pad=this.value;sp();padFit()">${esc(P.pad)}</textarea></aside>`:""}</div>
  ${S.modal?`<div class="ov" onclick="if(event.target==this)mclose()"><div class="md"><input id="mq" type="text" placeholder="Поиск по названию, номеру, типу, заметкам" oninput="M.q=this.value;M.off=0;M.n=400;mlist()"><div class="chips" id="mc"></div><div id="ml"></div><div class="mf" id="mf"></div></div></div>`:""}
  ${cfgHtml()}`;
@@ -983,4 +993,4 @@ setInterval(()=>{if(S.paused){pauseSec++;set("#ps",fmt(pauseSec))}set("#ct",call
 setInterval(ghostTick,250);
 render();hud();zInit();
 kv("get","rc").then(async r=>{recent=r||[];if(!recent.length){const h=await kv("get","fh").catch(()=>0);if(h)recent=[h]}if(!S.L.length)render()}).catch(()=>{});
-</script></body></html>
+</script><script type="module" src="js/bridge.js"></script></body></html>

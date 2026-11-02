@@ -1,0 +1,15 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Corporate Takeover — HUD demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=VT323&display=swap"><link rel="stylesheet" href="css/hud.css"></head>
+<body><div id="app"></div><script type="module">
+import {EventBus} from './js/eventbus.js';import {newState,apply,undo,pause,resume} from './js/engine.js';import {ManualProvider} from './js/providers.js';import {statusFlow} from './js/flow.js';
+import {mountHUD} from './js/hud.js';import {resolveKey} from './js/hotkeys.js';import {SaveManager} from './js/save.js';import {AudioController} from './js/audio.js';import {mountScript} from './js/script.js';import {mountDebug} from './js/debug.js';
+const bus=new EventBus(),prov=new ManualProvider(bus),root=SaveManager.load();let S=root.game||newState(Date.now()),paused=false;
+const leads=[['Anderson Pools','Swimming pool contractor','+1 501-838-9095'],['Tidewater Outdoor Living','Concrete contractor','+1 804-247-7652'],['Atlas Concrete','Concrete contractor','+1 757-503-9855']];let li=0;
+const audio=new AudioController(bus);addEventListener('pointerdown',()=>audio.init(),{once:true});const hud=mountHUD(document.getElementById('app'),bus,id=>setStatus(id));
+function setStatus(id){if(paused)return;const lead={name:leads[li][0],phone:leads[li][2]},r=statusFlow(S,id,Date.now(),prov,lead);if(r.ev){bus.emit('status',r.ev);li=(li+1)%leads.length}root.game=S;SaveManager.soon(root)}
+bus.on('pause',()=>{paused?resume(S,Date.now()):pause(S,Date.now());paused=!paused});
+addEventListener('keydown',e=>{const t=document.activeElement.tagName,a=resolveKey({typing:/INPUT|TEXTAREA/.test(t)&&t!=='BUTTON'&&document.activeElement.type!=='range',menu:false},e.code);if(!a)return;e.preventDefault();
+ if(a.a==='blur')document.activeElement.blur();else if(a.a==='status')setStatus(a.id);else if(a.a==='dial')prov.ring(leads[li][2]);else if(a.a==='pause')bus.emit('pause');else if(a.a==='back')undo(S,Date.now())});
+mountScript(document.getElementById('scr'),root,()=>SaveManager.soon(root));mountDebug(document.body,prov,()=>root,SaveManager);
+setInterval(()=>hud.render(S,Date.now(),{name:leads[li][0],cat:leads[li][1],phone:leads[li][2]},-1),250);SaveManager.install(()=>root);
+</script></body></html>

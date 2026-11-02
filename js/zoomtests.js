@@ -1,0 +1,30 @@
+import {EventBus} from './eventbus.js';import {ZoomProvider,ManualProvider} from './providers.js';import {newState,apply} from './engine.js';import {statusFlow,lateLog} from './flow.js';
+const R=[],t=(n,f)=>{try{R.push([n,!!f()])}catch(e){R.push([n+' ('+e.message+')',false])}};
+const iso=ms=>new Date(ms).toISOString(),B=1.7e12,S=1000;
+// ФИКСТУРЫ: форма событий взята из ТЗ 6.7 (реального образца пока нет, синтетика!)
+const ev=(type,id,ms,x={})=>({t:'',type,data:{callId:id,dateTime:iso(B+ms),direction:'outbound',callee:{phoneNumber:'+15018389095'},...x}});
+const mk=()=>{const b=new EventBus(),clk={n:B},p=new ZoomProvider(b,()=>clk.n),log=[];['callRinging','callEnded','callLogged'].forEach(k=>b.on(k,e=>log.push(k)));return{b,p,clk,log}};
+const call=(p,id,ring,end,logAt,dur,res='connected')=>{p.feed(ev('zp-call-ringing-event',id,ring));if(end!=null)p.feed(ev('zp-call-ended-event',id,end,{result:'ended'}));if(logAt!=null){p.clk&&0;p.feed(ev('zp-call-log-completed-event',id,logAt,{callResult:res,duration:dur}))}};
+export function runZoomTests(){R.length=0;
+ t('a) отменённый: ready→ringing→ended→log, duration 0',()=>{const z=mk();z.p.feed({type:'zp-ready'});call(z.p,'a',0,5*S,7*S,0,'canceled');const c=z.p.calls.get('a');return z.p.ready&&c.dur===0&&c.result==='canceled'&&z.log.join()==='callRinging,callEnded,callLogged'});
+ t('b) звонок с ответом 120с: верифицирован, бонус 2 интервала',()=>{const z=mk(),s=newState(B);call(z.p,'b',0,130*S,132*S,120);z.clk.n=B+135*S;const r=statusFlow(s,3,B+135*S,z.p,{phone:'+15018389095'});return r.meta.mode==='zoom'&&r.ev.settle.verified==='OK'&&r.ev.settle.bonus.x===7});
+ t('c) лог позже статуса: бонус задним числом',()=>{const z=mk(),s=newState(B);call(z.p,'c',0,130*S,null);const r=statusFlow(s,3,B+131*S,z.p,{});const b=s.xp;z.p.feed(ev('zp-call-log-completed-event','c',133*S,{duration:120}));const l=lateLog(s,'c',120,B+134*S);return !r.ev.settle&&l&&l.bonus.x===7&&s.xp===b+7});
+ t('d) лога нет: без бонуса и без UNVERIFIED',()=>{const z=mk(),s=newState(B);call(z.p,'d',0,60*S,null);const r=statusFlow(s,3,B+62*S,z.p,{});return r.entry.verified===undefined&&!r.ev.settle&&r.entry.mode==='zoom'});
+ t('e) дубликат ringing: одно событие и одно начисление',()=>{const z=mk(),s=newState(B);call(z.p,'e',0,10*S,12*S,0);z.p.feed(ev('zp-call-ringing-event','e',0));z.p.feed(ev('zp-call-ended-event','e',10*S));statusFlow(s,0,B+15*S,z.p,{});statusFlow(s,0,B+30*S,z.p,{});return z.log.filter(x=>x==='callRinging').length===1&&s.undo[0].call==='e'&&s.undo[1].call===null});
+ t('f) не по порядку: ended раньше ringing',()=>{const z=mk();z.p.feed(ev('zp-call-ended-event','f',10*S));z.p.feed(ev('zp-call-ringing-event','f',0));return z.log.join()==='callRinging,callEnded'});
+ t('g) неизвестный тип: не падает, попадает в лог',()=>{const z=mk();z.p.feed(ev('zp-call-teleport-event','g',0));z.p.feed(null);z.p.feed({type:'zp-call-ringing-event',data:null});return z.p.raw.length>=1});
+ t('h) статус без звонка: MANUAL, награда есть',()=>{const z=mk(),s=newState(B);const r=statusFlow(s,0,B+30*S,z.p,{});return r.meta.mode==='manual'&&r.meta.verified==='MANUAL'&&s.xp>0});
+ t('i) статус позже 40 мин после ended: серия горит',()=>{const z=mk(),s=newState(B);statusFlow(s,0,B+20*S,z.p,{});statusFlow(s,0,B+40*S,z.p,{});call(z.p,'i',50*S,60*S,62*S,5);const r=statusFlow(s,0,B+60*S+2500*S,z.p,{});return r.ev.pen==='reset'});
+ t('j) темп набора: ringing через 50с ок, через 90с падение, после TALK 150с ок',()=>{const z=mk(),s=newState(B);for(let i=0;i<4;i++)statusFlow(s,0,B+(i+1)*30*S,z.p,{});const last=B+120*S;call(z.p,'j1',120*S+50*S,170*S+1*S,172*S,0);const a=statusFlow(s,0,last+60*S,z.p,{});
+  call(z.p,'j2',a.ev?120*S+60*S+90*S:0,0,null);const bb=statusFlow(s,0,last+200*S,z.p,{});
+  const s2=newState(B);statusFlow(s2,2,B+30*S,z.p,{});z.p.feed(ev('zp-call-ringing-event','j3',30*S+150*S));z.p.feed(ev('zp-call-ended-event','j3',30*S+160*S));const c=statusFlow(s2,0,B+30*S+170*S,z.p,{});
+  return a.ev.pen===null&&bb.ev.pen==='drop'&&c.ev.pen===null});
+ t('k) здоровье: красный при потере событий -> manual',()=>{const z=mk(),s=newState(B);for(let i=0;i<6;i++)z.p.feed(ev('zp-call-ringing-event','h'+i,i*60*S));z.clk.n=B+900*S;return z.p.health().state==='red'&&statusFlow(s,0,B+900*S,z.p,{}).meta.mode==='manual'});
+ t('l) ManualProvider: «Позвонить» = ringing, темп считается',()=>{const b=new EventBus(),c={n:B},p=new ManualProvider(b,()=>c.n),s=newState(B);statusFlow(s,0,B+30*S,p,{});c.n=B+60*S;p.ring('5018389095');const r=statusFlow(s,0,B+80*S,p,{});return r.meta.mode==='manual-dial'&&r.ev.pen===null});
+ t('m) реальный формат Zoom: без callId, result вместо callResult, длительность из connected→ended',()=>{const z=mk(),s=newState(B);const f=(type,ms,data)=>z.p.feed({type,data:{dateTime:iso(B+ms),callee:{number:'+1 501-838-9095'},...data}});
+  f('zp-call-ringing-event',0);f('zp-call-ringing-event',200);f('zp-call-connected-event',10*S);f('zp-call-ended-event',130*S,{result:'connected'});f('zp-call-log-completed-event',133*S,{result:'connected'});
+  const c=[...z.p.calls.values()];const r=statusFlow(s,3,B+140*S,z.p,{phone:'5018389095'});return c.length===1&&c[0].dur===120&&r.meta.mode==='zoom'&&r.ev.settle.bonus.x===7});
+ t('n) real: не соединилось (voicemail) = 0 сек',()=>{const z=mk();const f=(type,ms,data)=>z.p.feed({type,data:{dateTime:iso(B+ms),callee:{number:'5018389095'},...data}});f('zp-call-ringing-event',0);f('zp-call-ended-event',20*S,{result:'voicemail'});f('zp-call-log-completed-event',22*S,{result:'voicemail'});return [...z.p.calls.values()][0].dur===0});
+ t('o) повторный статус (re): ресурсы меняются, серия и окна нет',()=>{const s=newState(B);statusFlow(s,0,B+30*S,{takeCall:()=>null,bind(){},health:()=>({state:'green'})},{});const st=s.streak,last=s.last;const e=apply(s,4,B+500*S,{re:true});return e.re&&s.streak===st&&s.last===last&&s.ulta===0});
+ return R}
+if(typeof process!=='undefined'&&process.argv[1]&&process.argv[1].endsWith('zoomtests.js')){const r=runZoomTests();r.forEach(([n,ok])=>console.log(ok?'PASS':'FAIL',n));console.log(r.filter(x=>!x[1]).length+' FAIL')}

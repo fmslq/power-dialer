@@ -1,0 +1,9 @@
+import {runTests,runKeyTests,runMusicTests,runMetaTests} from './tests.js';import {CONFIG as C,districtThr} from './config.js';import {runZoomTests} from './zoomtests.js';
+// Debug-панель (клавиша `): здоровье канала Zoom, сырой лог событий, самотесты, экспорт сохранения.
+export function mountDebug(host,prov,getRoot,SaveManager){const d=document.createElement('div');d.id='dbg';d.hidden=true;host.appendChild(d);
+ const render=()=>{const h=prov.health();d.innerHTML=`<b>DEBUG</b> <button id="dr">Самотесты</button> <button id="dc">Копировать журнал Zoom</button> <button id="de">Экспорт сохранения</button> <button id="dk">Дни на район</button><pre>здоровье: ${h.state} · звонков ${h.n} · полных ${(h.share*100|0)}% · лаг ${h.avgLagMs|0}мс</pre><pre id="dout"></pre><pre>${(prov.raw||[]).slice(-12).map(e=>JSON.stringify(e).slice(0,160)).join('\n')||'(событий Zoom пока нет)'}</pre>`;
+  d.querySelector('#dr').onclick=()=>{const r=[...runTests(),...runKeyTests(),...runZoomTests(),...runMusicTests(),...runMetaTests()];d.querySelector('#dout').textContent=r.map(([n,ok])=>(ok?'PASS ':'FAIL ')+n).join('\n')+'\n'+r.filter(x=>!x[1]).length+' FAIL'};
+  d.querySelector('#dk').onclick=()=>{const rows=C.districts.map(x=>`${String(x[0]).padStart(2)} ${x[1].padEnd(16)} порог ${String(districtThr(x[0])).padStart(7)} XP · yield ${x[3]} · при 100 зв/д ≈ ${(districtThr(x[0])/(C.assumedDailyXp)).toFixed(1)} дн · при 150 ≈ ${(districtThr(x[0])/(C.assumedDailyXp*1.57)).toFixed(1)} дн`);d.querySelector('#dout').textContent=rows.join('\n')};
+  d.querySelector('#dc').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(prov.raw||[],null,1));
+  d.querySelector('#de').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(SaveManager.exportJson(getRoot()))};
+ addEventListener('keydown',e=>{if(e.key==='`'){d.hidden=!d.hidden;if(!d.hidden)render()}});setInterval(()=>{if(!d.hidden&&!d.querySelector('#dout').textContent)render()},2000)}

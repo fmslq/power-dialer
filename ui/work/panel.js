@@ -2,12 +2,13 @@
 // Только чтение игрового состояния + три действия: выбор директивы, покупка перка, конец смены. Логика — в core/.
 // Ширина: ≥1180 — колонка 320 px (свёрнута — рейка 56 px); 760–1179 — рейка, открытая панель поверх; <760 — выезжает по кнопке.
 import {NODES} from '../../core/mapstate.js';
-import {blob,routeD} from '../../art/world.js';
+import {cellD,routeD,RIVER} from '../../art/world.js';
 import {icon} from '../../art/icons.js';
 import {CONFIG as C,districtThr} from '../../core/config.js';
 import {DIR,PERKS,dailyMissions,buyPerk} from '../../core/missions.js';
 import {dayKey,dominance,rankOf,nextRank,levelOf,LEVELS,RANKS} from '../../core/stats.js';
 import {ACH} from '../../core/achv.js';
+import {pending,isClaimed,rewardAch,rewardTr,trKey} from '../../core/claim.js';
 import {DIST} from '../../core/meta.js';
 
 export const TABS=[['shift','Смена','shift'],['map','Карта','map'],['base','База','base'],['rank','Ранг','rank'],['dossier','Досье','dossier'],['settings','Настройки','settings'],['trophy','Трофеи','trophy']];
@@ -39,12 +40,12 @@ const banner=(t,title,sub)=>`<div class="cc-ban" id="cc-ban-${t}" style="--a:${A
  <linearGradient id="cm-${t}" x1="0" x2="1"><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset=".7" stop-color="#fff"/></linearGradient><mask id="cmk-${t}"><rect width="288" height="64" fill="url(#cm-${t})"/></mask>
  <rect width="288" height="64" fill="url(#cg-${t})"/></defs><g mask="url(#cmk-${t})">${BAN[t](ACC[t])}</g></svg><div class="t"><b>${esc(title)}</b><span>${esc(sub)}</span></div></div>`;
 
-// ---------- миникарта: та же карта мира R2 в миниатюре (узлы и контуры островов из art/world.js), клик — открыть карту ----------
+// ---------- миникарта: та же карта мира R2 в миниатюре (районы-ячейки города и река из art/world.js), клик — открыть карту ----------
 const miniMap=(G)=>{const cur=G.district;
  return`<button class="cc-mmb" data-go="map" title="Открыть карту мира (⇧G)"><svg class="cc-mm" viewBox="40 0 3540 2400" role="img" aria-label="Карта: район ${cur} из 12">
-  <path d="${routeD()}" class="rt"/>
+  <path d="${RIVER}" class="rv"/><path d="${routeD()}" class="rt"/>
   ${NODES.map(([x,y,R],i)=>{const n=i+1,st=n<cur?'cap':n===cur?'cur':'lock',dc=(DIST[i]||[])[1]||'#888';
-   return`<g class="is ${st}" style="--d:${dc}">${st==='cur'?`<ellipse cx="${x}" cy="${y}" rx="${R*1.7}" ry="${R*1.15}" class="halo"/>`:''}<path d="${blob(x,y,R*1.3,n)}" class="b"/><text x="${x}" y="${y+55}">${st==='lock'?'?':n}</text></g>`}).join('')}</svg></button>`};
+   return`<g class="is ${st}" style="--d:${dc}"><path d="${cellD(n)}" class="b"/>${st==='cur'?`<circle cx="${x}" cy="${y}" r="${R*.7}" class="halo"/>`:''}<text x="${x}" y="${y+55}">${st==='lock'?'?':n}</text></g>`}).join('')}</svg></button>`};
 
 // ---------- эмблема ранга кодом: щит + шевроны по номеру ранга ----------
 const emblem=(i,c)=>`<svg class="cc-emb" viewBox="0 0 64 72" aria-hidden="true"><path d="M32 3l26 9v22c0 17-12 28-26 35C18 62 6 51 6 34V12z" fill="${c}" fill-opacity=".12" stroke="${c}" stroke-width="2"/>
@@ -107,11 +108,23 @@ export function makePanel(o){
    <label class="cc-sl">${icon('music')}<span>Музыка</span><input type="range" min="0" max="100" data-vol="music" value="${Math.round(v.music*100)}" style="--v:${Math.round(v.music*100)}%"></label>
    <p class="cc-note">Музыка заиграет вместе с плеером из папки; громкость уже сохраняется.</p></section>
   <section class="cc-sec"><h4>РАЗДЕЛЫ</h4><div class="cc-secs">${o.secs.map(([k,t])=>`<button class="wk-btn" data-sec="${k}">${esc(t)}</button>`).join('')}</div></section>`};
- const trophyHtml=()=>{const got=o.save.ach||{},tr=(o.save.trophies||[]).slice().reverse(),n=ACH.filter(a=>got[a.id]).length;
-  const ach=ACH.slice().sort((a,b)=>(got[b.id]?1:0)-(got[a.id]?1:0)||(got[b.id]||0)-(got[a.id]||0));
+ const veil=(k,m)=>`<span class="cc-veil" aria-hidden="true"><small>${k}</small><b>Нажми — забрать</b><em>+${money(m)}</em></span>`;
+ const trophyHtml=()=>{const got=o.save.ach||{},tr=(o.save.trophies||[]).slice().reverse(),n=ACH.filter(a=>got[a.id]).length,pd=pending(o.save);
+  const rd=a=>got[a.id]&&!isClaimed(o.save,'a',a.id)?2:got[a.id]?1:0;
+  const ach=ACH.slice().sort((a,b)=>rd(b)-rd(a)||(got[b.id]||0)-(got[a.id]||0));
+  const trc=t=>{const k=trKey(t),ready=!isClaimed(o.save,'t',k),m=rewardTr(t),inner=`<i>${icon('trophy')}</i><b>${esc(t.company)}</b><span>${t.kind==='gold'?'Встреча':'Discovery'} · ${new Date(t.t).toLocaleDateString('ru',{day:'numeric',month:'short'})}${t.state?' · '+esc(t.state):''}</span>`;
+   return ready?`<button class="cc-tr ${t.kind} ready" data-claim="t|${esc(k)}" title="Забрать трофей: +${money(m)}">${inner}${veil(t.kind==='gold'?'НОВЫЙ ТРОФЕЙ':'ТРОФЕЙ DISCOVERY',m)}</button>`:`<div class="cc-tr ${t.kind}" title="${esc(t.company)}">${inner}</div>`};
+  const trs=[...tr.filter(t=>!isClaimed(o.save,'t',trKey(t))),...tr.filter(t=>isClaimed(o.save,'t',trKey(t))).slice(0,12)];
+  const achc=a=>{const g=got[a.id],r=rd(a),m=rewardAch(a),inner=`<i>${g?icon('trophy'):icon('lock')}</i><b>${g?esc(a.n):'???'}</b><span>${esc(a.h)}</span>`;
+   return r===2?`<button class="cc-a r-${a.r} got ready" data-claim="a|${a.id}" title="Забрать: +${money(m)}">${inner}${veil({c:'АЧИВКА',r:'РЕДКАЯ АЧИВКА',l:'ЛЕГЕНДАРНАЯ'}[a.r]||'АЧИВКА',m)}</button>`:
+    `<div class="cc-a r-${a.r} ${g?'got':'lock'}" title="${esc(g?a.n+' — '+a.h+' · забрано +'+money(m):'??? — '+a.h+' · награда +'+money(m))}">${inner}</div>`};
   return banner('trophy','ТРОФЕИ',`Ачивки ${n} из ${ACH.length} · трофеев ${tr.length}`)+
-  `<section class="cc-sec"><h4>ТРОФЕИ <em>встречи и discovery</em></h4>${tr.length?`<div class="cc-trs">${tr.slice(0,12).map(t=>`<div class="cc-tr ${t.kind}" title="${esc(t.company)}"><i>${icon('trophy')}</i><b>${esc(t.company)}</b><span>${t.kind==='gold'?'Встреча':'Discovery'} · ${new Date(t.t).toLocaleDateString('ru',{day:'numeric',month:'short'})}${t.state?' · '+esc(t.state):''}</span></div>`).join('')}</div>${tr.length>12?`<p class="cc-note">и ещё ${tr.length-12}</p>`:''}`:'<p class="cc-note">Первая встреча станет первым трофеем.</p>'}</section>
-  <section class="cc-sec"><h4>АЧИВКИ</h4><div class="cc-ach">${ach.map(a=>{const g=got[a.id];return`<div class="cc-a r-${a.r} ${g?'got':'lock'}" title="${esc(g?a.n+' — '+a.h:'??? — '+a.h)}"><i>${g?icon('trophy'):icon('lock')}</i><b>${g?esc(a.n):'???'}</b><span>${esc(a.h)}</span></div>`}).join('')}</div></section>`};
+  (pd.length?`<section class="cc-sec cc-pend"><p class="cc-pend-t"><b>${pd.length}</b> ${pd.length===1?'награда ждёт':'наград ждут'} — нажми на светящуюся карточку · всего +${money(pd.reduce((s,x)=>s+x.money,0))}</p></section>`:'')+
+  `<section class="cc-sec"><h4>ТРОФЕИ <em>встречи и discovery</em></h4>${tr.length?`<div class="cc-trs">${trs.map(trc).join('')}</div>${tr.length>trs.length?`<p class="cc-note">и ещё ${tr.length-trs.length}</p>`:''}`:'<p class="cc-note">Первая встреча станет первым трофеем.</p>'}</section>
+  <section class="cc-sec"><h4>АЧИВКИ</h4><div class="cc-ach">${ach.map(achc).join('')}</div></section>`};
+ // значок «есть что забрать» на вкладке ТРОФЕИ и на кнопке панели
+ const badge=()=>{const k=pending(o.save).length;[el.querySelector('.cc-tab[data-tab="trophy"]'),document.getElementById('b-cc')].forEach(b=>{if(!b)return;let d=b.querySelector('.cc-badge');
+  if(!k){d&&d.remove();return}if(!d){d=document.createElement('i');d.className='cc-badge';b.appendChild(d)}d.textContent=k>9?'9+':k})};
  const R={shift:shiftHtml,map:mapHtml,base:baseHtml,rank:rankHtml,dossier:dossierHtml,settings:settingsHtml,trophy:trophyHtml};
  const render=(anim)=>{const t=ui.panelTab,box=$('#cc-in');if(!isOpen())return;const st=box.scrollTop;box.innerHTML=R[t]();
   el.style.setProperty('--a',ACC[t]);if(anim){box.classList.remove('sw');void box.offsetWidth;box.classList.add('sw');box.scrollTop=0}else box.scrollTop=st;
@@ -126,7 +139,7 @@ export function makePanel(o){
  const toggle=()=>setOpen(!isOpen());
  const tab=t=>{if(!R[t])return;const same=ui.panelTab===t&&isOpen();ui.panelTab=t;o.persist();if(same&&mode()!=='wide'){setOpen(false);return}if(!isOpen())setOpen(true);else{sync();render(true)}};
  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
-  if(b.dataset.tab)return tab(b.dataset.tab);if(b.id==='cc-tg')return toggle();
+  if(b.dataset.tab)return tab(b.dataset.tab);if(b.dataset.claim){const[k,id]=b.dataset.claim.split('|');return o.claim&&o.claim(k,id,b)}if(b.id==='cc-tg')return toggle();
   if(b.dataset.dir){const dir=o.save.dir;if(!dir||(dir.pick&&day().n>0))return;dir.pick=dir.pick===b.dataset.dir?null:b.dataset.dir;o.persist();render();
    if(dir.pick){const x=DIR.find(q=>q[0]===dir.pick);o.toast('Директива дня: '+(x?x[1]:dir.pick))}return}
   if(b.dataset.perk){const r=buyPerk(o.save,b.dataset.perk);o.toast(r.ok?'Перк куплен':r.why);if(r.ok)o.persist();render();return}
@@ -140,4 +153,4 @@ export function makePanel(o){
  // куда летит награда: во вкладку ТРОФЕИ, если панель открыта, иначе в рейку/кнопку панели
  const target=()=>{const m=mode();if(m==='drawer'&&!isOpen())return null;return el.querySelector('.cc-tab[data-tab="trophy"]')};
  const catchFx=()=>{const t=target();if(t){t.classList.remove('wk-catch');void t.offsetWidth;t.classList.add('wk-catch')}if(isOpen()&&ui.panelTab==='trophy')refresh()};
- return{vol:()=>o.vol.get(),setVol,el,scrim,sync,toggle,tab,refresh,target,catchFx,isOpen,mode,setOpen}}
+ return{badge,vol:()=>o.vol.get(),setVol,el,scrim,sync,toggle,tab,refresh,target,catchFx,isOpen,mode,setOpen}}

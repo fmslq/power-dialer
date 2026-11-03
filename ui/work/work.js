@@ -18,6 +18,13 @@ import {makePanel} from './panel.js';
 import {makeProto} from './proto.js';
 import {makeGameMenu} from './gamemenu.js';
 import {makeMap} from '../map/map.js';
+import {makeStory} from '../story/story.js';
+import {makeArena} from '../boss/arena.js';
+import {makeBase} from '../base/base.js';
+import {claim as claimReward,migrateClaims} from '../../core/claim.js';
+import {makeClaimFx} from './claimfx.js';
+import {bossHp,DIST} from '../../core/meta.js';
+import {bossState} from '../../core/engine.js'; // (windowState — выше)
 import {debugHtml,journalHtml} from './debug.js';
 import {icon} from '../../art/icons.js';
 import {dayKey} from '../../core/stats.js';
@@ -63,7 +70,7 @@ export function startWork(root,{save,au,demo=null}={}){
    <button class="wk-tb" id="b-pick" title="Выбрать лида (/)"><span class="lbl">Выбрать лида</span><span class="lbl-s" aria-hidden="true"></span><kbd>/</kbd></button>
    <div class="wk-sp"></div><div class="wk-tempo" id="tempo"></div><button class="wk-tb" id="b-end" title="Итог смены"><span class="lbl">Закончить смену</span><span class="lbl-s" aria-hidden="true">Конец</span></button>
    <div class="wk-leds" id="leds"></div>
-   <div class="wk-vol" id="vol"><label title="Громкость звуков">${icon('sfx')}<input type="range" min="0" max="100" data-vol="sfx"></label><label title="Громкость музыки">${icon('music')}<input type="range" min="0" max="100" data-vol="music"></label></div>
+   <div class="wk-vol" id="vol"><label title="Громкость звуков">${icon('sfx')}<input type="range" min="0" max="100" data-vol="sfx"></label><label title="Громкость музыки и гула города">${icon('music')}<input type="range" min="0" max="100" data-vol="music"></label></div>
     <button class="wk-tb" id="b-pad" title="Шпаргалка (T)"><span class="lbl">Шпаргалка</span><kbd>T</kbd></button>
    <button class="wk-tb icon" id="b-set" title="Меню (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button></header>
   <section class="wk-hud" id="hud">
@@ -81,8 +88,8 @@ export function startWork(root,{save,au,demo=null}={}){
  <div class="wk-glow" id="glow" aria-hidden="true"><i class="g g0"></i><i class="g g1"></i><i class="g g2"></i><i class="g g3"></i><i class="au a1"></i><i class="au a2"></i><i class="o o1"></i><i class="o o2"></i><i class="o o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
  // ---------- левая панель «Командный центр» ----------
- const CC=makePanel({save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
-  vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;persistGame()}}},
+ const CC=makePanel({claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
+  vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;au&&au.setMusic&&au.setMusic(v);persistGame()}}},
   onLayout:(m,open)=>{const mid=$('#mid');mid.dataset.cc=m+(open?' open':'');if(main.firstChild)padW()}});
  // ползунки в верхней полосе (≥1180; уже — в НАСТРОЙКАХ панели и в меню): те же значения, что в настройках
  const volUi=()=>{const v=CC.vol();document.querySelectorAll('input[data-vol]').forEach(i=>{if(document.activeElement===i)return;const x=Math.round(v[i.dataset.vol]*100);i.value=x;i.style.setProperty('--v',x+'%')})};
@@ -93,10 +100,46 @@ export function startWork(root,{save,au,demo=null}={}){
  // игровое меню (☰ / Esc)
  const GM=makeGameMenu({vol:{get:()=>CC.vol(),set:(k,v)=>CC.setVol(k,v)},
   info:()=>({rank:(RANKS[save.rank??0]||RANKS[0])[1],lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),money:money(ses.G.money),streak:String(ses.G.streak||0)}),
-  run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>CC.tab('base'),journal:()=>openJournal(),debug:()=>openDebug(),export:()=>SM.exportFile(save),
+  run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>BASE.open(),journal:()=>openJournal(),debug:()=>openDebug(),export:()=>SM.exportFile(save),
    home:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[k]?.()});
+ // сюжет (R5): плеер сцен. Сцены не мешают звонить: во время звонка, серии и Overdrive они ждут в очереди (ТЗ §6)
+ const STORY=makeStory({save,persist:persistGame,fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),mode:()=>S.storyMode||'full'});
+ const stMode=()=>S.storyMode||'full';
+ const stSafe=()=>{const w=winNow();return w.state!=='online'&&!(w.od>0)&&(w.state==='idle'||w.state==='lost')};
+ const stQ=()=>{save.story=save.story||{seen:{}};return save.story.queue=save.story.queue||[]};
+ // показать сцены сейчас (если можно) или отложить; mode «Выкл» — сцена сразу считается просмотренной (есть в Журнале)
+ const story=(keys,{force=false,cb}={})=>{keys=[].concat(keys).filter(k=>!STORY.seen(k));if(!keys.length){cb&&cb();return}
+  if(stMode()==='off'){keys.forEach(STORY.mark);cb&&cb();return}
+  if(!force&&!stSafe()){const q=stQ();for(const k of keys)if(!q.includes(k))q.push(k);persistGame();toast('Сюжетная сцена ждёт конца серии: «Журнал» → «История»');cb&&cb();return}
+  STORY.play(keys,cb)};
+ // награды забираются руками (вкладка ТРОФЕИ): завеса → монеты летят в счётчик → сумма прокручивается
+ let mLock=false;if(migrateClaims(save))persistGame();
+ const vis=e=>e&&e.getClientRects().length&&e.getBoundingClientRect().width?e:null;
+ const CFX=makeClaimFx({fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),money,lock:v=>{mLock=v},target:()=>{const m=vis($('#r-m'));if(m){const r=m.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);if(hit&&(hit===m||m.contains(hit)))return m}
+  // счётчик закрыт панелью (узкий экран): временный счётчик сверху по центру
+  const f=document.createElement('div');f.className='wk-m-float';f.innerHTML='<small>деньги</small><b></b>';f.querySelector('b').textContent=money(ses.G.money);document.body.appendChild(f);return f.querySelector('b')}});
+ let claiming=false;
+ const doClaim=async(k,id,card)=>{if(claiming)return;const r=claimReward(save,ses.G,k,id);if(!r.ok){toast(r.why);return}claiming=true;persistGame();
+  try{await CFX(card,r)}catch(e){mLock=false}document.querySelectorAll('.wk-m-float').forEach(f=>{f.classList.add('out');setTimeout(()=>f.remove(),400)});claiming=false;hud();CC.refresh();MAP.refresh&&MAP.refresh()};
+ // база и Чёрный Рынок (R4): полный экран, модальный
+ const BASE=makeBase({mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
+  dark:()=>(save.rank??0)===0&&!!save.wasNobody,onBuy:()=>{hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
+ const stFlush=()=>{const q=stQ();if(!q.length||!stSafe()||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen())return;const k=q.splice(0);persistGame();const ar=k.filter(x=>x.startsWith('arena-')),sc=k.filter(x=>!x.startsWith('arena-'));
+  const go=()=>{if(ar.length){const dd=+ar.at(-1).split('-')[1];if(dd===ses.G.district)arenaIntro(dd);else ar.forEach(x=>STORY.mark('boss-'+x.split('-')[1]))}};if(sc.length)story(sc,{force:true,cb:go});else go()};
+ // первый запуск с сюжетом (save.story.v нет): старому сохранению открываем пройденное (в Журнал), новой игре играем пролог
+ {const st=save.story=save.story||{seen:{},queue:[]},cur=ses.G.district||1,fresh=cur===1&&!(ses.G.lifeXp>0);st.seen=st.seen||{};
+  if(!st.v){st.v=1;if(!fresh){const t=Date.now(),sn=st.seen;sn.prologue=t;for(let k=1;k<cur;k++){sn['intro-'+k]=t;sn['boss-'+k]=t;sn['capture-'+k]=t}sn['intro-'+cur]=t}persistGame()}
+  if(!st.seen.prologue&&fresh&&!demo&&!tester)setTimeout(()=>story(['prologue','intro-1'],{force:true}),900)}
+ // арена босса (R3): полный экран, статусы ставятся как обычно — арена показывает удары
+ const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState});
+ const arenaIntro=dd=>{STORY.mark('boss-'+dd);ARENA.open(dd,{intro:true})};
+ // босс вышел впервые в этом районе: интро сейчас (если можно) или в очередь сцен
+ const bossCheck=()=>{const G=ses.G,dd=G.district,m=save.meta||(save.meta={});m.bossIntro=m.bossIntro||{};if(bossState(G)==='scenery'||m.bossIntro[dd])return;
+  m.bossIntro[dd]=Date.now();persistGame();if(stMode()==='off'){STORY.mark('boss-'+dd);return}
+  if(stSafe()&&!STORY.isOpen())arenaIntro(dd);else{const q=stQ();if(!q.includes('arena-'+dd))q.push('arena-'+dd);toast(`Вышел босс: ${DIST[dd-1][3]}. Арена откроется после серии`,'gold')}};
  // карта мира (R2): полный экран поверх работы, звонок не прерывается
- const MAP=makeMap({save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,
+ const MAP=makeMap({save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),
+  onReveal:(d,cb)=>story(d>1?['capture-'+(d-1),'intro-'+d]:['intro-'+d],{cb}),onOpen:()=>stFlush(),
   info:()=>({lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),xp:ses.G.lifeXp||0,money:money(ses.G.money)})});
  $('#mid').prepend(CC.el);$('#mid').append(CC.scrim);CC.sync();volUi();
  // ---------- Zoom iframe (живой, даже когда спрятан) ----------
@@ -241,7 +284,7 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
   glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(!w.streak)prevStreak=0;
-  $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';$('#r-m').textContent=money(G.money);$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
+  $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';if(!mLock)$('#r-m').textContent=money(G.money);CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
   const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
   $('#day').textContent=`сегодня ${d.ses.tot} · до 20: ${20-d.ses.sprint}`;
   if(d.paused){$('#pause-t').textContent=mmss((t-d.pauseAt)/1000)}
@@ -256,10 +299,10 @@ export function startWork(root,{save,au,demo=null}={}){
   if(f){SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
   if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>J.free(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400'),meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
-  const e=out.ev;if(e){gain(e.x,e.m);if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
+  const e=out.ev;if(e){gain(e.x,e.m);if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
    if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
-  (out.achv||[]).forEach(a=>reward('Ачивка',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей',out.trophy.company,'','l');
+  (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
   if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
   if(e&&!out.blocked)flowPop(e);shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud();CC.refresh();MAP.refresh()});
@@ -288,8 +331,8 @@ export function startWork(root,{save,au,demo=null}={}){
   case'menu':d.P.moreOpen=!d.P.moreOpen;d.sp();placeMore();break;
   case'pad':d.openCheatSheet();break;case'picker':openPicker();break;case'close':if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();else if(d.P.moreOpen){d.P.moreOpen=false;d.sp();placeMore()}else if(CC.isOpen()&&CC.mode()!=='wide')CC.setOpen(false);else GM.open();break;   // как в старом: Esc сперва закрывает «Ещё статусы»
   case'blur':document.activeElement&&document.activeElement.blur();break;case'debug':openDebug();break;case'gmenu':GM.toggle();break;
-  case'map':MAP.toggle();break;case'base':CC.tab(a);break;case'muteMusic':case'nextTrack':toast('Музыка из папки: R2');break}};
- addEventListener('keydown',e=>{if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
+  case'map':MAP.toggle();break;case'base':BASE.toggle();break;case'muteMusic':case'nextTrack':toast('Музыка из папки: R2');break}};
+ addEventListener('keydown',e=>{if(STORY.isOpen()){if(STORY.key(e))e.preventDefault();return}if(ARENA.isOpen()&&ARENA.key(e)){e.preventDefault();return}if(BASE.isOpen()){if(BASE.key(e))e.preventDefault();return}if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
   const modal=ov.classList.contains('open');if(modal&&e.code==='Escape'&&ov.dataset.k!=='gate'){e.preventDefault();closeOv();return}if(modal&&!typing&&ov.dataset.k==='pick'&&e.code==='Enter'){const f=ov.querySelector('.wk-li');if(f){f.click();e.preventDefault()}return}
   const r=resolveKey({typing,menu:!!d.P.moreOpen,suggest:shownSug,world:false,modal,shift:e.shiftKey,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey},e.code);if(!r)return;
   if(e.repeat&&r.a!=='blur')return;e.preventDefault();if(r.a==='status')act('status',r.id);else act(r.a)});
@@ -302,9 +345,11 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#dbg-x').onclick=closeOv;w.querySelectorAll('.dbg-nav button').forEach(b=>b.onclick=()=>openDebug(b.dataset.t));
   w.addEventListener('click',e=>{const b=e.target.closest('[data-b]');if(!b)return;if(b.dataset.b==='zlog')copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)');if(b.dataset.b==='retest')openDebug('test');
    // повтор анимации раскрытия текущего района: прогресс не трогаем, фигурка просто встаёт на соседний район
+   if(b.dataset.b==='arena'){closeOv();ARENA.open(ses.G.district||1,{intro:true});ARENA.demo();return}
+   if(b.dataset.b.startsWith('st-')){const c=ses.G.district||1,k={'st-pro':'prologue','st-cur':'intro-'+c,'st-boss':'boss-'+c,'st-fin':'finale'}[b.dataset.b];closeOv();if(b.dataset.b==='st-jr')STORY.openJournal();else STORY.play(k,null,true);return}
    if(b.dataset.b==='mapdemo'){const c=ses.G.district;closeOv();if(c<2){toast('Раскрывать нечего: открыт только первый район');return}const m=save.map||(save.map={});m.seen=(m.seen||[]).filter(x=>x!==c);m.pos=c-1;MAP.open()}});
   w.querySelectorAll('[data-c]').forEach(i=>i.onchange=()=>{dbgCalc[i.dataset.c]=Math.max(0,+i.value||0);openDebug('bal');const f=ov.querySelector(`[data-c="${i.dataset.c}"]`);if(f)f.focus()})};
- const openJournal=()=>{openOv('jr',journalHtml(save,now()));ov.querySelector('.wk-win').classList.add('dbg-w');$('#jr-x').onclick=closeOv};
+ const openJournal=()=>{openOv('jr',journalHtml(save,now()));ov.querySelector('.wk-win').classList.add('dbg-w');$('#jr-x').onclick=closeOv;$('#jr-story').onclick=()=>{closeOv();STORY.openJournal()}};
  const closeOv=()=>{ov.classList.remove('open');ov.dataset.k='';ov.innerHTML=''};
  ov.addEventListener('mousedown',e=>{if(e.target===ov&&ov.dataset.k!=='gate')closeOv()});
  const gateWin=st=>{const c=st==='connecting';openOv('gate',`<div class="wk-wh"><h3>${c?'ПОДКЛЮЧАЮ ZOOM…':'ZOOM НЕ ПОДКЛЮЧИЛСЯ'}</h3></div><div class="wk-wb">
@@ -352,7 +397,8 @@ export function startWork(root,{save,au,demo=null}={}){
   case'sound':return`<h4>Звуки статусов (как в старом дайлере)</h4>${sw('snd',!P.mute,'Звуки')}
    <div class="wk-opt"><div class="t"><b>Громкость</b></div><input class="ct-slider" id="s-vol" type="range" min="0" max="100" value="${Math.round((P.vol??.5)*100)}" style="width:180px;--v:${Math.round((P.vol??.5)*100)}%"></div>
    ${btn('sdir','Свои звуки из папки…',SFX.getState().files?'Загружено файлов: '+SFX.getState().files:SFX.getState().need?'Нужно разрешение на папку':'','Выбрать…')}${btn('snames','Какие имена у файлов звуков','','Копировать')}
-   <h4>Вид</h4><div class="wk-opt"><div class="t"><b>Эффекты</b><small>Штамп статуса, анимации карточки, сканлайны</small></div><div class="wk-btns">${['off','low','full'].map(v=>`<button class="wk-btn ${S.fx===v?'pri':''}" data-fx="${v}">${{off:'Выкл',low:'Мало',full:'Полно'}[v]}</button>`).join('')}</div></div>`;
+   <h4>Вид</h4><div class="wk-opt"><div class="t"><b>Эффекты</b><small>Штамп статуса, анимации карточки, сканлайны</small></div><div class="wk-btns">${['off','low','full'].map(v=>`<button class="wk-btn ${S.fx===v?'pri':''}" data-fx="${v}">${{off:'Выкл',low:'Мало',full:'Полно'}[v]}</button>`).join('')}</div></div>
+   <div class="wk-opt"><div class="t"><b>Сюжет</b><small>Сцены районов и Гудок. Во время звонка, серии и Overdrive сцены ждут. «Выкл» — сцены сразу попадают в Журнал истории</small></div><div class="wk-btns">${['off','short','full'].map(v=>`<button class="wk-btn ${stMode()===v?'pri':''}" data-stm="${v}">${{off:'Выкл',short:'Коротко',full:'Полно'}[v]}</button>`).join('')}</div></div>`;
   case'map':return`<h4>Что пишется в колонку Result</h4><p class="wk-kv">Кнопка → значение в таблице. Меняй, только если поменял выпадающий список в таблице.</p><div class="wk-map">${d.mapping().map(b=>`<label>${b.key} · ${esc(b.name)}</label><input class="wk-in" data-map="${b.i}" value="${esc(b.value)}">`).join('')}</div>
    <div class="wk-btns" style="margin-top:12px"><button class="wk-btn" data-b="mapreset">Вернуть как было</button></div>`;
   case'game':return`<h4>Игра</h4>${sw('tester',tester,'Режим тестировщика (временно)','Звонки не идут, статусы засчитываются кнопками (каждый звонок = разговор '+Math.round(C.testerCallSec/60)+' мин). В таблицу, файл и копии ничего не пишется, прогресс игры отдельный. Переключение перезагрузит страницу. Удалим перед релизом')}${btn('end','Закончить смену','Итог дня: звонки, разговоры, лучшая серия, выплата за 50+ звонков','Итог')}${btn('export','Скачать сохранение игры','Файл .json, ключ ct1','Скачать')}${btn('menu','Главное меню','','Выйти в меню')}
@@ -360,9 +406,10 @@ export function startWork(root,{save,au,demo=null}={}){
  const openSettings=(s)=>{if(s)sec=s;openOv('set',`<div class="wk-wh"><h3>НАСТРОЙКИ</h3><button class="wk-x" id="s-x" title="Закрыть (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-set"><nav class="wk-nav" id="s-nav"></nav><div class="wk-sec" id="s-sec"></div></div>`);
   $('#s-x').onclick=closeOv;setUi();
   $('#s-nav').onclick=e=>{const b=e.target.closest('[data-s]');if(b){sec=b.dataset.s;setUi()}};
-  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx]');if(!t)return;
+  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm]');if(!t)return;
    if(t.dataset.sw){const k=t.dataset.sw,P=d.P,on=!t.classList.contains('on');({auto:()=>d.setAuto(on),only:()=>d.setOnly(on),hos:()=>d.setPref('hangupOnStatus',on),hsk:()=>d.setPref('hangupOnSkip',on),guard:()=>d.setPref('guard',on),
      zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
+   if(t.dataset.stm){S.storyMode=t.dataset.stm;persistGame();setUi();return}
    if(t.dataset.fx){S.fx=t.dataset.fx;W.classList.toggle('fx-off',S.fx==='off');persistGame();setUi();return}
    const b=t.dataset.b;const A=({zlog:()=>copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)'),zgate:()=>{gateQuiet=true;d.zoom.startGate(15000);setUi()},zcsv:pickZoomCsv,open:()=>{closeOv();openFileDlg()},switch:()=>{closeOv();d.switchBase().then(layout)},ourl:()=>{d.openSheetUrl($('#s-url').value);closeOv()},
      gssave:async()=>{d.setSheets({url:$('#s-gs').value.trim(),token:$('#s-tok').value.trim(),on:true});$('#gs-r').textContent='Проверяю…';const r=await d.testConnection();$('#gs-r').textContent=r&&r.ok?'Связь есть ✓':'Нет связи: '+((r&&(r.error?human(r.error):r.msg))||'?')},
@@ -377,7 +424,7 @@ export function startWork(root,{save,au,demo=null}={}){
   if(!z.ok){r.textContent='Это не история звонков Zoom';return}const out=z.calls.filter(c=>c.dir==='out'),talk=out.filter(c=>c.dur>=60).length;
   r.innerHTML=`Звонков: <b>${z.calls.length}</b> (исходящих ${out.length}) · разговоров от 1 мин: <b>${talk}</b> · самый долгий: <b>${mmss(Math.max(0,...out.map(c=>c.dur)))}</b><br>${viaApp(z.devices)?'⚠ Звонки шли через приложение Zoom ('+esc(z.devices.join(', '))+'): браузер их не видел. Звони через встроенный телефон.':'Звонки через встроенный телефон ✓'}`};i.click()};
  // --- итог смены
- const shiftEnd=()=>{const r=endShift(save,ses.G,now());persistGame();openOv('end',`<div class="wk-wh"><h3>ИТОГ СМЕНЫ</h3><button class="wk-x" id="e-x"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-wb">
+ const shiftEnd=()=>{const r=endShift(save,ses.G,now());persistGame();setTimeout(stFlush,1500);openOv('end',`<div class="wk-wh"><h3>ИТОГ СМЕНЫ</h3><button class="wk-x" id="e-x"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-wb">
    <div class="wk-kv" style="font-size:15px">Звонков: <b>${r.calls}</b> · разговоров: <b>${r.talks}</b> (${r.talkShare}%) · встреч: <b>${r.booked}</b> · discovery: <b>${r.disc}</b><br>Лучшая серия: <b>${r.bestStreak}</b> · Overdrive: <b>${r.od}</b> · время: <b>${r.minutes} мин</b><br>
    За день: <b>${r.xp} XP</b> · <b>${money(r.money)}</b>${r.paid?` · выплата за смену <b>+${money(r.paid)}</b>`:''}${r.lp?` · очки наследия <b>+${r.lp}</b>`:''}${r.again?'<br>Смена сегодня уже закрыта: это повторный итог.':''}
    ${r.yesterday?`<br>Вчера: ${r.yesterday.n} звонков`:''}${r.avg7?` · среднее 7 дней: ${r.avg7.n}`:''}</div>
@@ -396,4 +443,4 @@ export function startWork(root,{save,au,demo=null}={}){
  setInterval(()=>{d.tick();hud()},250);setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au}}

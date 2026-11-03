@@ -6,10 +6,10 @@
 .wm-cam{position:absolute;left:0;top:0;width:3600px;height:2400px;transform-origin:0 0;--inv:1}
 .wm-cam.mv{will-change:transform}
 .wm-w{position:absolute;inset:0;display:block}
-.wm-rt{fill:none;stroke:#e9dcb8;stroke-width:7;stroke-dasharray:3 16;stroke-linecap:round;opacity:.35}
-.wm-rt-done{fill:none;stroke:#fff6d8;stroke-width:8;stroke-linecap:round;opacity:.75}
-.isl{cursor:pointer}.isl .fl text{font:600 13px var(--ct-mono);fill:#e9dcb8;opacity:.8}.isl .fl:not(.on) text{opacity:.45}
-.isl.lk *{fill:#0b1020!important;stroke:none!important}.isl.lk .fl,.isl.lk .pr{display:none}
+.wm-bmp{position:absolute;left:0;top:0;width:3600px;height:2400px;visibility:hidden;pointer-events:none}
+.wm.bmp-ok .wm-cam.mv .wm-bmp{visibility:visible}.wm.bmp-ok .wm-cam.mv .wm-w{visibility:hidden}
+.wm-rt-done{fill:none;stroke:#fff1c2;stroke-width:6;stroke-linecap:round;opacity:.7;pointer-events:none}
+.dz{cursor:pointer}.dst .fl text{font:600 13px var(--ct-mono);fill:#e9dcb8;opacity:.8}.dst .fl:not(.on) text{opacity:.45}
 .wm-fog{position:absolute;left:0;top:0;width:3600px;height:2400px;pointer-events:none}
 .wm-fog.d{opacity:.75;animation:wmDrift 46s ease-in-out infinite alternate}
 @keyframes wmDrift{0%{transform:translate(-26px,8px)}100%{transform:translate(30px,-14px)}}
@@ -17,10 +17,11 @@
 .wm-fx{position:absolute;inset:0;pointer-events:none}
 .wm-e{position:absolute;width:10px;height:10px;margin:-5px;border-radius:50%;background:radial-gradient(circle,#ff6a5a,rgba(255,60,60,0) 70%);opacity:0;animation:wmEmb var(--du) ease-in-out var(--dl) infinite}
 @keyframes wmEmb{0%,100%{opacity:0;transform:translateY(0) scale(.6)}40%{opacity:.85}70%{opacity:.3;transform:translateY(-34px) scale(1)}}
-/* кольцо выбранного района (вне большого SVG, чтобы пульс не перерисовывал мир) */
-.wm-ring{position:absolute;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;box-shadow:0 0 0 3px rgba(255,255,255,.75),0 0 40px 6px rgba(58,215,255,.35),inset 0 0 40px rgba(58,215,255,.18);animation:wmRing 2.4s ease-in-out infinite}
-.wm-ring.lk{box-shadow:0 0 0 3px rgba(255,90,90,.55),0 0 40px 6px rgba(255,60,60,.22)}
-@keyframes wmRing{50%{opacity:.55}}
+/* контур выбранного района — отдельный слой, пульс только прозрачностью (мир не перерисовывается) */
+.wm-so{position:absolute;inset:0;pointer-events:none;animation:wmRing 2.4s ease-in-out infinite}
+.wm-so path{fill:rgba(58,215,255,.05);stroke:#eef3f6;stroke-width:6;stroke-linejoin:round;filter:drop-shadow(0 0 14px rgba(58,215,255,.6))}
+.wm-so path.lk{fill:rgba(255,60,60,.04);stroke:rgba(255,110,110,.7)}
+@keyframes wmRing{50%{opacity:.5}}
 /* маркеры: экранный размер не зависит от зума (--inv) */
 .wm-mk{position:absolute;inset:0;pointer-events:none}
 .wm-m{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;border:0;background:none;color:#fff;cursor:pointer;pointer-events:auto;
@@ -54,8 +55,9 @@
 .wm-r{position:absolute;inset:0;display:none}
 .wm[data-theme="radar"] .wm-w,.wm[data-theme="radar"] .wm-fog.d{display:none}.wm[data-theme="radar"] .wm-r{display:block}
 .wm-r .rr{fill:none;stroke:rgba(57,255,20,.55);stroke-width:5;stroke-dasharray:4 16;stroke-linecap:round}
+.wm-r .rw{fill:none;stroke:rgba(57,255,20,.3);stroke-width:120;stroke-opacity:.12}
 .wm-r .rg{fill:none;stroke:rgba(57,255,20,.1);stroke-width:2}
-.wm-r .ri{cursor:pointer}.wm-r .o{fill:rgba(57,255,20,.07);stroke:#39ff14;stroke-width:5}.wm-r .h{fill:none;stroke:rgba(57,255,20,.45);stroke-width:3;stroke-dasharray:14 10}
+.wm-r .ri{cursor:pointer}.wm-r .o{fill:rgba(57,255,20,.07);stroke:#39ff14;stroke-width:5}.wm-r .h{fill:none;stroke:rgba(57,255,20,.45);stroke-width:3;stroke-dasharray:14 10;pointer-events:none}
 .wm-r .lk .o{fill:rgba(57,255,20,.02);stroke:rgba(57,255,20,.25);stroke-dasharray:6 14}
 .wm-r text{font:500 20px var(--ct-mono);fill:rgba(140,255,120,.55);letter-spacing:.06em}
 .wm[data-theme="radar"] .wm-e{filter:hue-rotate(110deg)}
@@ -65,7 +67,7 @@
 .wm-radar .c{position:absolute;width:42px;height:42px;border:2px solid #39ff14;opacity:.7}.wm-radar .tl{left:14px;top:62px;border-right:0;border-bottom:0}.wm-radar .tr{right:14px;top:62px;border-left:0;border-bottom:0}
 .wm-radar .bl{left:14px;bottom:14px;border-right:0;border-top:0}.wm-radar .br{right:14px;bottom:14px;border-left:0;border-top:0}
 .wm[data-theme="radar"] .wm-m .crest{filter:drop-shadow(0 0 4px rgba(57,255,20,.7))}.wm[data-theme="radar"] .wm-m b{color:#b8ffa8;box-shadow:inset 0 0 0 1px rgba(57,255,20,.45)}
-.wm[data-theme="radar"] .wm-ring{box-shadow:0 0 0 2px #39ff14,0 0 30px rgba(57,255,20,.35)}
+.wm[data-theme="radar"] .wm-so path{stroke:#39ff14;filter:none}
 /* ---------- интерфейс ---------- */
 .wm-top,.wm-goal,.wm-zoom,.wm-sel,.wm-keys,.wm-bl,.wm-list{position:absolute;z-index:3}
 .wm-top{left:0;right:0;top:0;display:flex;align-items:center;gap:18px;padding:12px 18px;background:linear-gradient(180deg,rgba(3,5,9,.92),rgba(3,5,9,0));pointer-events:none}
@@ -137,6 +139,23 @@
  .wm-stats span:nth-child(2){display:none}.wm-zoom{left:12px;top:40%}.wm-list{left:52px;top:150px;bottom:auto;max-height:45%}}
 @media (max-width:520px){.wm-sel{max-height:36%;padding:10px 12px}.wm-sel .wm-shop,.wm-sel .wm-bs{display:none}.wm-ch{padding-bottom:6px;margin-bottom:6px}.wm-ch .crest{width:34px;height:41px}.wm-ch b{font-size:18px}.wm-stats{display:none}.wm-ttl b{font-size:18px}.wm-goal{top:66px;max-width:calc(100% - 20px)}.wm-bl{top:auto;bottom:calc(36% + 18px)}}
 /* без анимаций */
-.wm.rm .wm-fog.d,.wm.rm .wm-e,.wm.rm .wm-ring,.wm.rm .cl-body,.wm.rm .ant,.wm.rm .wm-radar .sw,.wk.fx-off .wm *{animation:none!important}
+.wm.rm .wm-fog.d,.wm.rm .wm-e,.wm.rm .wm-so,.wm.rm .cl-body,.wm.rm .ant,.wm.rm .wm-radar .sw,.wk.fx-off .wm *{animation:none!important}
 .wm.rm .wm-e{opacity:.5}
 @media (prefers-reduced-motion:reduce){.wm,.wm *{animation:none!important;transition:none!important}}
+
+/* кат-сцена захвата района (ТЗ §8 п.8) */
+.wm-ink{position:absolute;inset:0;pointer-events:none}
+.wm-ink .ink{fill:#39ff14;opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(0)}
+.wm-ink .ink-edge{fill:none;stroke:#39ff14;stroke-width:10;opacity:0;filter:drop-shadow(0 0 20px #39ff14)}
+.wm-ink .ink-path{fill:none;stroke:#ffc400;stroke-width:16;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+.wm-ink .ink-flag{opacity:0;transform-box:fill-box;transform-origin:0 100%}
+.wm.cap-go .wm-ink .ink{animation:inkSpread 1.5s cubic-bezier(.2,.7,.2,1) forwards}
+.wm.cap-go .wm-ink .ink-edge{animation:inkEdge 2.2s ease-out forwards}
+.wm.cap-go .wm-ink .ink-path{animation:inkPath .9s 1.2s ease-in-out forwards}
+.wm.cap-go .wm-ink .ink-flag{animation:inkFlag .5s .7s cubic-bezier(.3,1.6,.5,1) forwards}
+.wm.cap-go::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;background:#fff;animation:capFlash .7s ease-out forwards}
+@keyframes inkSpread{0%{transform:scale(0);opacity:.75}70%{opacity:.5}100%{transform:scale(1);opacity:.14}}
+@keyframes inkEdge{0%{opacity:0}30%{opacity:1}100%{opacity:.35}}
+@keyframes inkPath{to{stroke-dashoffset:0}}
+@keyframes inkFlag{from{opacity:0;transform:scale(.2) rotate(-20deg)}to{opacity:1;transform:none}}
+@keyframes capFlash{from{opacity:.55}to{opacity:0}}

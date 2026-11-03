@@ -9,7 +9,7 @@ const $=(s,r=document)=>r.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=
 export function boot(root=document.getElementById('ct-app')){
  document.title=C.tabTitle;
  let save=SM.load(),started=false;const bus=new EventBus(),au=new AudioController(bus);
- const S=()=>save.settings;au.setFlags({soundUi:S().soundUi,hum:S().hum});au.v.sfx=S().sfx;
+ const S=()=>save.settings;au.setFlags({soundUi:S().soundUi,hum:S().hum});au.v.sfx=S().sfx;au.v.music=S().music??.3;
  root.innerHTML=`<div class="ct-stage" id="ct-stage"></div>
   <div class="ct-logo build" id="ct-logo"><h1><span data-t="UPLINK">UPLINK</span><span data-t="SYNDICATE">SYNDICATE</span></h1><div class="tag">${esc(C.subtitle)} // оператор терминала</div></div>
   <div class="ct-start" id="ct-start">НАЖМИ ЛЮБУЮ КЛАВИШУ<small>звук включится после нажатия</small></div>

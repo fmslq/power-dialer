@@ -1,0 +1,87 @@
+/* АРЕНА БОССА (R3). Над картой, под сценами сюжета. */
+.ba{position:fixed;inset:0;z-index:66;background:#020203;color:#eef3f6;font-family:var(--ct-text);overflow:hidden;opacity:0;transition:opacity .35s;--mx:0;--my:0}
+.ba.in{opacity:1}.ba.out{opacity:0}
+.ba-st,.ba-l{position:absolute;inset:0}
+.ba-l{transform:translate(calc(var(--mx)*var(--z)*-12px),calc(var(--my)*var(--z)*-6px));transition:transform .5s ease-out}
+.ba-l .sc-l{position:absolute;left:-4%;top:-4%;width:108%;height:108%}
+.ba-st{filter:brightness(.42) saturate(.75)}
+.ba-light{position:absolute;inset:0;pointer-events:none;background:radial-gradient(38% 55% at 50% 52%,rgba(255,31,61,.26),transparent 70%),linear-gradient(180deg,rgba(0,0,0,.35),transparent 30%,transparent 70%,rgba(0,0,0,.6))}
+.ba.finish .ba-light{background:radial-gradient(38% 55% at 50% 52%,rgba(255,196,0,.3),transparent 70%),linear-gradient(180deg,rgba(0,0,0,.35),transparent 30%,transparent 70%,rgba(0,0,0,.6))}
+.ba-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(110% 90% at 50% 50%,transparent 50%,rgba(0,0,0,.85))}
+.ba-lb{position:absolute;left:0;right:0;height:8vh;background:#000;z-index:4}.ba-lb.t{top:0}.ba-lb.b{bottom:0}
+.ba-boss{position:absolute;left:50%;bottom:9vh;height:74vh;aspect-ratio:460/510;transform:translateX(-50%);z-index:2}
+.ba-boss .bs{width:100%;height:100%;overflow:visible}
+.ba.intro .ba-boss{animation:ba-push 2.2s cubic-bezier(.2,.7,.2,1)}
+@keyframes ba-push{from{transform:translateX(-50%) scale(1.35) translateY(8%);filter:brightness(0)}40%{filter:brightness(.4)}to{transform:translateX(-50%) scale(1);filter:none}}
+.ba.back .ba-boss{animation:ba-back .6s ease-out}@keyframes ba-back{from{opacity:0;transform:translateX(-50%) translateY(4%)}}
+/* idle-риг */
+.bs .b-body{transform-box:fill-box;transform-origin:50% 100%;animation:b-breath 3.2s ease-in-out infinite}
+.bs .b-head{transform-box:fill-box;transform-origin:50% 100%;animation:b-bob 3.2s ease-in-out infinite}
+.bs .b-armL{transform-box:fill-box;transform-origin:80% 0;animation:b-sway 4s ease-in-out infinite}
+.bs .b-armR{transform-box:fill-box;transform-origin:20% 0;animation:b-sway 4s ease-in-out infinite reverse}
+.bs .b-eye{transform-box:fill-box;transform-origin:center;animation:b-blink 4.6s infinite}
+.bs .b-aura{transform-box:fill-box;transform-origin:center;animation:b-aura 3.2s ease-in-out infinite}
+.bs .b-steam{transform-box:fill-box;transform-origin:center;animation:b-steam 2.4s ease-out infinite}.bs .b-steam.s2{animation-delay:-1.2s}
+.bs .b-crown,.bs .b-lan,.bs .b-led,.bs .b-sig,.bs .b-radar{animation:b-flick 1.8s infinite}
+.bs .b-coins{animation:b-float 3s ease-in-out infinite}
+.bs .b-tie,.bs .b-chain,.bs .b-cab{transform-box:fill-box;transform-origin:50% 0;animation:b-sway 2.6s ease-in-out infinite}
+.bs .b-iris{transform:translate(calc(var(--mx,0)*30px),calc(var(--my,0)*20px));transition:transform .3s}
+.bs .b-spark{animation:b-flick .4s steps(2) infinite}
+.bs .b-twin{animation:b-twin 2.2s ease-in-out infinite}
+@keyframes b-breath{50%{transform:scaleY(1.025)}}@keyframes b-bob{50%{transform:translateY(-5px)}}@keyframes b-sway{50%{transform:rotate(3deg)}}
+@keyframes b-blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}@keyframes b-aura{50%{opacity:.7;transform:scale(1.04)}}
+@keyframes b-steam{from{transform:translateY(0) scale(.5);opacity:.4}to{transform:translateY(-80px) scale(1.8);opacity:0}}
+@keyframes b-flick{50%{opacity:.35}}@keyframes b-float{50%{transform:translateY(-14px)}}@keyframes b-twin{50%{transform:translate(160px,0);opacity:.15}}
+/* фазы */
+.bs .ph2,.bs .ph3{display:none}.bs[data-ph="2"] .ph2,.bs[data-ph="3"] .ph2,.bs[data-ph="3"] .ph3{display:inline}.bs[data-ph="2"] .ph1,.bs[data-ph="3"] .ph1{display:none}
+.bs[data-ph="2"] .b-aura{animation-duration:2.2s}.bs[data-ph="3"] .b-aura{animation-duration:1.2s;opacity:1}
+.bs[data-ph="3"] .b-rig{filter:drop-shadow(0 0 10px rgba(255,31,61,.6))}
+.ba.phase .ba-boss{animation:ba-phase .9s ease-out}@keyframes ba-phase{0%{filter:brightness(3)}100%{filter:none}}
+/* реакции */
+.ba-boss.scratch .bs{animation:r-scr .25s}.ba-boss.hit .bs{animation:r-hit .45s}.ba-boss.crit .bs{animation:r-crit .9s}
+.ba-boss.immune::after{content:"";position:absolute;inset:6% 10%;border-radius:50%;border:4px solid #7fd7ff;box-shadow:0 0 40px #7fd7ff,inset 0 0 40px rgba(127,215,255,.4);animation:r-imm .6s ease-out forwards}
+@keyframes r-scr{50%{transform:translateX(4px)}}
+@keyframes r-hit{0%{filter:brightness(2.4)}30%{transform:translateX(18px) rotate(2deg)}100%{transform:none;filter:none}}
+@keyframes r-crit{0%{filter:brightness(4) saturate(0)}25%{transform:translateY(10%) scaleY(.88) rotate(-3deg)}60%{transform:translateY(6%) scaleY(.92)}100%{transform:none;filter:none}}
+@keyframes r-imm{from{opacity:1;transform:scale(.9)}to{opacity:0;transform:scale(1.08)}}
+.ba.shake .ba-st,.ba.shake .ba-boss{animation:ba-shake .35s}@keyframes ba-shake{20%{translate:-8px 4px}40%{translate:7px -5px}60%{translate:-5px 3px}80%{translate:3px -2px}}
+.ba.flash::after{content:"";position:absolute;inset:0;background:#fff;z-index:5;pointer-events:none;animation:ba-fl .4s ease-out forwards}@keyframes ba-fl{from{opacity:.7}to{opacity:0}}
+.ba.stop *{animation-play-state:paused!important}
+.ba-par{position:absolute;left:50%;top:52%;z-index:3;pointer-events:none}
+.ba-par i{position:absolute;width:12px;height:12px;animation:p-fly 1s cubic-bezier(.2,.8,.3,1) forwards}
+.ba-par i.shard{background:var(--c);clip-path:polygon(50% 0,100% 60%,30% 100%)}.ba-par i.coin{border-radius:50%;background:#ffc400;box-shadow:inset -3px -3px 0 #a87a00}
+@keyframes p-fly{to{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0}}
+/* шкала HP */
+.ba-hp{position:absolute;z-index:6;top:calc(8vh + 16px);left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 32px))}
+.ba-nm{display:flex;align-items:center;gap:12px;margin-bottom:8px}.ba-nm .crest{width:40px;height:48px;filter:drop-shadow(0 0 10px rgba(255,31,61,.6))}
+.ba-name{display:block;font:400 clamp(18px,2.4vw,28px)/1 var(--ct-display,'Russo One'),sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.ba-name i{font-style:normal;display:inline-block;white-space:pre}
+.ba.intro .ba-name i{animation:g-in .5s calc(1.2s + var(--i)*40ms) both steps(3)}@keyframes g-in{0%{opacity:0;transform:translate(6px,-4px);color:#ff2bd6}60%{opacity:1;color:#3ad7ff}100%{opacity:1;transform:none}}
+.ba-nm span{font:12px var(--ct-mono);color:#ff8090}
+.ba-bar{position:relative;height:16px;background:#1a0608;border:1px solid #5a1a20;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.ba-fill{position:absolute;inset:0;right:auto;width:calc(var(--hp)*100%);background:linear-gradient(90deg,#8a0a1c,#ff1f3d);transition:width .6s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 14px rgba(255,31,61,.6)}
+.ba-seg{position:absolute;top:0;bottom:0;width:3px;background:#000}
+.ba-fh{display:none;position:absolute;inset:0;align-items:center;justify-content:center;font:700 11px var(--ct-mono);letter-spacing:.08em;color:#111;white-space:nowrap;overflow:hidden}
+.ba-bar.fin{background:#ffc400;border-color:#fff1b0;animation:fh 1s ease-in-out infinite}.ba-bar.fin .ba-fill,.ba-bar.fin .ba-seg{display:none}.ba-bar.fin .ba-fh{display:flex}
+@keyframes fh{50%{box-shadow:0 0 24px #ffc400}}
+.ba-ph{display:block;margin-top:6px;font:11px var(--ct-mono);color:#a8b0ac;text-align:right}
+/* дразнилка */
+.ba-bub{position:absolute;z-index:6;left:calc(50% + min(20vw,260px));top:26vh;max-width:min(340px,40vw);padding:14px 16px;background:#f4eedc;color:#111;font:700 clamp(14px,1.4vw,18px)/1.3 var(--ct-text);
+ border:3px solid #050505;box-shadow:6px 6px 0 #ff1f3d;opacity:0;transform:scale(.6) rotate(-4deg);transform-origin:0 100%;transition:opacity .2s,transform .3s cubic-bezier(.3,1.6,.5,1);pointer-events:none}
+.ba-bub::after{content:"";position:absolute;left:-18px;bottom:10px;border:10px solid transparent;border-right:14px solid #050505}
+.ba-bub.on{opacity:1;transform:none}
+.ba-gk{position:absolute;z-index:6;left:24px;bottom:calc(8vh + 18px);display:flex;gap:12px;align-items:center;max-width:min(520px,calc(100% - 48px));padding:10px 14px;background:rgba(6,10,8,.88);border:1px solid rgba(57,255,20,.25);opacity:0;transform:translateY(12px);transition:.4s}
+.ba-gk p{margin:0;font:500 14px/1.4 var(--ct-text)}.ba-gkp .gk{width:64px;height:auto}.ba.gk-on .ba-gk{opacity:1;transform:none}
+.ba-ft{position:absolute;z-index:6;left:0;right:0;bottom:calc(8vh - 28px);display:flex;justify-content:space-between;padding:0 24px;font:11px var(--ct-mono);color:#8a9690}
+.ba-ft kbd{font:inherit;border:1px solid #3a4440;border-radius:3px;padding:1px 6px;color:#dfe}
+/* смерть: общая + своя по району */
+.ba.dying .ba-boss .bs{animation:r-crit .9s infinite}
+.ba.dead .ba-boss{transition:transform 1.6s cubic-bezier(.5,0,.8,.4),opacity 1.6s,filter 1.6s}
+.ba.dead .ba-boss{opacity:0;transform:translateX(-50%) translateY(14%) scale(.9)}
+.ba.dead[data-d="3"] .ba-boss,.ba.dead[data-d="8"] .ba-boss{filter:blur(8px) brightness(2);transform:translateX(-50%) scale(1.1)}
+.ba.dead[data-d="6"] .ba-boss{filter:brightness(3) contrast(2)}
+.ba.dead[data-d="7"] .ba-boss{transform:translateX(-50%) translateY(22%) scaleY(.6);opacity:.0}
+.ba.dead[data-d="11"] .ba-boss{filter:hue-rotate(-120deg) brightness(1.6)}
+.ba.dead[data-d="12"] .ba-boss{opacity:.25;transform:translateX(-50%);filter:grayscale(1)}
+.ba.rm *,.ba.rm *::before,.ba.rm *::after{animation:none!important;transition:none!important}
+@media (max-width:640px){.ba-bub{left:50%;top:auto;bottom:40vh;transform-origin:50% 100%;max-width:70vw}.ba-bub::after{display:none}.ba-boss{height:56vh;bottom:14vh}.ba-ft span:first-child{display:none}}

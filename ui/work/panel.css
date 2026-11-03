@@ -72,12 +72,13 @@
 .cc-mmb{display:block;width:100%;padding:0;border:0;border-radius:var(--v-r,6px);background:radial-gradient(120% 100% at 20% 90%,#2a1a10,#0b1220 60%,#05060f);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
 .cc-mmb:hover{box-shadow:inset 0 0 0 1px #3ad7ff}
 .cc-mm{display:block;width:100%;height:auto}
+.cc-mm .rv{fill:none;stroke:#12303e;stroke-width:110}
 .cc-mm .rt{fill:none;stroke:rgba(255,255,255,.3);stroke-width:14;stroke-dasharray:8 30;stroke-linecap:round}
-.cc-mm .is .b{fill:#12171b;stroke:var(--d);stroke-width:14}.cc-mm .is .halo{fill:none;stroke:none}
+.cc-mm .is .b{fill:#12171b;stroke:#05070a;stroke-width:12}.cc-mm .is .halo{fill:none;stroke:none}
 .cc-mm .is text{font:600 160px var(--ct-mono);fill:#fff;text-anchor:middle}
 .cc-mm .is.cap .b{fill:color-mix(in srgb,var(--d) 40%,#0b0e11)}
-.cc-mm .is.lock .b{fill:rgba(10,14,30,.7);stroke:color-mix(in srgb,var(--d) 30%,transparent);stroke-dasharray:20 24}.cc-mm .is.lock text{fill:var(--v-mute)}
-.cc-mm .is.cur .b{fill:color-mix(in srgb,var(--d) 28%,#0b0e11);stroke-width:20}
+.cc-mm .is.lock .b{fill:rgba(10,14,30,.85)}.cc-mm .is.lock text{fill:var(--v-mute)}
+.cc-mm .is.cur .b{fill:color-mix(in srgb,var(--d) 30%,#0b0e11);stroke:var(--d);stroke-width:16}
 .cc-mm .is.cur .halo{stroke:var(--d);stroke-width:12;opacity:.6;transform-box:fill-box;transform-origin:center;animation:ccPulse 2.4s ease-out infinite}
 @keyframes ccPulse{from{transform:scale(.7);opacity:.8}to{transform:scale(1.5);opacity:0}}
 /* перки */
@@ -147,3 +148,45 @@
 @container st (max-width:400px){.wk-st{font-size:13.5px}}
 @container st (max-width:350px){.wk-grid{grid-template-columns:1fr!important}}
 .pr-h{flex-wrap:wrap;row-gap:6px}
+/* ===== ЗАБРАТЬ НАГРАДУ: светящиеся карточки под завесой, значок, монеты ===== */
+@property --cc-ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+.cc-pend-t{margin:0;padding:9px 11px;border-radius:8px;font:500 12px/1.35 var(--ct-text);color:#fff;background:linear-gradient(90deg,rgba(255,212,90,.16),rgba(255,43,214,.1));box-shadow:inset 0 0 0 1px rgba(255,212,90,.45);animation:ccPend 2.4s ease-in-out infinite}
+.cc-pend-t b{font:800 15px var(--ct-mono);color:#ffd45a;margin-right:4px}@keyframes ccPend{50%{box-shadow:inset 0 0 0 1px rgba(255,212,90,.9),0 0 18px rgba(255,212,90,.25)}}
+button.cc-a,button.cc-tr{font:inherit;color:inherit;text-align:left;border:0;cursor:pointer;width:100%}
+.cc-a.ready,.cc-tr.ready{position:relative;isolation:isolate;overflow:hidden;min-height:52px;grid-column:1/-1;background:#0d0a12;box-shadow:none;transition:transform .15s}
+.cc-a.ready::before,.cc-tr.ready::before{content:"";position:absolute;inset:-2px;z-index:-2;border-radius:inherit;background:conic-gradient(from var(--cc-ang),#ffd45a,#ff2bd6,#3ad7ff,#39ff14,#ffd45a);animation:ccSpin 2.6s linear infinite}
+.cc-a.ready::after,.cc-tr.ready::after{content:"";position:absolute;inset:2px;z-index:-1;border-radius:6px;background:#0d0a12}
+@keyframes ccSpin{to{--cc-ang:360deg}}
+.cc-a.ready:hover,.cc-tr.ready:hover{transform:translateY(-1px) scale(1.01)}.cc-a.ready:active,.cc-tr.ready:active{transform:scale(.98)}
+:is(.cc-a,.cc-tr) .cc-veil{position:absolute;inset:2px;z-index:2;border-radius:6px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-content:center;column-gap:10px;padding:7px 12px;
+ background:repeating-linear-gradient(135deg,#1c1424 0 8px,#160f1d 8px 16px);overflow:hidden;transform-origin:50% 0}
+.cc-veil::before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.22) 45%,rgba(255,212,90,.28) 50%,transparent 62%);transform:translateX(-110%);animation:ccSheen 2.2s ease-in-out infinite}
+@keyframes ccSheen{55%,100%{transform:translateX(110%)}}
+:is(.cc-a,.cc-tr) .cc-veil small{grid-row:1;grid-column:1;font:800 9.5px/1 var(--ct-mono);letter-spacing:.16em;color:var(--rc,#ffd45a)}.cc-tr :is(.cc-a,.cc-tr) .cc-veil small{grid-row:1;grid-column:1;color:#ffd45a}.cc-tr.platinum :is(.cc-a,.cc-tr) .cc-veil small{grid-row:1;grid-column:1;color:#9fe8ff}
+:is(.cc-a,.cc-tr) .cc-veil b{grid-row:2;grid-column:1;font:700 13px/1.3 var(--ct-text);color:#fff;white-space:nowrap}:is(.cc-a,.cc-tr) .cc-veil em{grid-row:1/3;grid-column:2;align-self:center;font:800 15px/1 var(--ct-mono);font-style:normal;color:#39ff14;text-shadow:0 0 10px rgba(57,255,20,.5)}
+.cc-a.ready.r-l .cc-veil{background:repeating-linear-gradient(135deg,#2a1c08 0 8px,#22160a 8px 16px)}.cc-a.ready.r-r .cc-veil{background:repeating-linear-gradient(135deg,#0c1c26 0 8px,#09161e 8px 16px)}
+/* открытие: завеса срывается вниз, вспышка, медаль подпрыгивает */
+.cc-a.opening,.cc-tr.opening{pointer-events:none}
+.opening .cc-veil{animation:ccDrop .62s cubic-bezier(.5,0,.75,.2) forwards}
+@keyframes ccDrop{0%{transform:none}18%{transform:rotate(-3deg) translateY(-3px)}100%{transform:translateY(140%) rotate(9deg) skewX(-6deg);opacity:0}}
+.opening::before{animation-duration:.6s}
+.opening i{animation:ccMedal .7s .25s cubic-bezier(.2,1.8,.4,1) both}@keyframes ccMedal{0%{transform:scale(.2) rotate(-40deg)}100%{transform:none}}
+.opening b,.opening span{animation:ccIn .4s .35s both}@keyframes ccIn{from{opacity:0;transform:translateY(5px)}}
+.cc-a.opening>i::after,.cc-tr.opening>i::after{content:"";position:absolute;left:50%;top:50%;width:120px;height:120px;margin:-60px;border-radius:50%;pointer-events:none;
+ background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--rc,#ffd45a) 55%,transparent) 0 10deg,transparent 10deg 30deg);mask:radial-gradient(closest-side,#000 30%,transparent);animation:ccRays 1.3s .2s ease-out both}
+.cc-a>i,.cc-tr>i{position:relative}@keyframes ccRays{0%{opacity:0;transform:scale(.3) rotate(0)}30%{opacity:1}100%{opacity:0;transform:scale(1.6) rotate(90deg)}}
+/* значок на вкладке и кнопке панели */
+.cc-badge{position:absolute;right:2px;top:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#ff2bd6;color:#fff;font:800 10px/16px var(--ct-mono);font-style:normal;text-align:center;
+ box-shadow:0 0 0 2px #0b0e10,0 0 12px #ff2bd6;animation:ccBadge 1.6s ease-in-out infinite;pointer-events:none}
+#b-cc{position:relative}@keyframes ccBadge{50%{transform:scale(1.18);box-shadow:0 0 0 2px #0b0e10,0 0 20px #ff2bd6}}
+/* монеты/купюры и счётчик */
+.wk-coin{position:fixed;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;z-index:9999;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.wk-coin.bill{width:40px;height:20px;margin:-10px 0 0 -20px}.wk-coin svg{width:100%;height:100%;display:block}
+.wk-m-hit{animation:wkMHit .28s ease-out}@keyframes wkMHit{40%{transform:scale(1.22);color:#fff;text-shadow:0 0 14px #39ff14}}
+#r-m{display:inline-block;transform-origin:50% 60%}
+.wk-m-plus{position:fixed;z-index:9999;transform:translate(-50%,0);pointer-events:none;font:800 15px var(--ct-mono);color:#39ff14;text-shadow:0 0 10px rgba(57,255,20,.6),0 2px 0 #000;animation:wkPlus 1.5s ease-out forwards}
+@keyframes wkPlus{0%{opacity:0;transform:translate(-50%,-6px) scale(.7)}15%{opacity:1;transform:translate(-50%,0) scale(1.1)}100%{opacity:0;transform:translate(-50%,22px)}}
+@media (prefers-reduced-motion:reduce){.cc-a.ready::before,.cc-tr.ready::before,.cc-veil::before,.cc-badge,.cc-pend-t{animation:none}}
+.wk-m-float{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9998;display:grid;justify-items:center;gap:2px;padding:8px 18px;border-radius:12px;background:#0b0e10;box-shadow:0 0 0 1px rgba(57,255,20,.5),0 10px 30px rgba(0,0,0,.6);animation:wkFl .25s ease-out;transition:opacity .35s}
+.wk-m-float small{font:700 9px/1 var(--ct-mono);letter-spacing:.16em;color:#9fb3a8;text-transform:uppercase}.wk-m-float b{display:inline-block;font:800 22px/1 var(--ct-mono);color:#39ff14}.wk-m-float.out{opacity:0}
+@keyframes wkFl{from{opacity:0;transform:translate(-50%,-10px)}}

@@ -24,10 +24,13 @@ export class AudioController{
   if(e.pen){this.tone(660,.35,'sawtooth',.18,.25);return}
   if(this.clickOn&&!e.re){const p=Math.pow(2,this.series/12)*(1+(Math.random()-.5)*.06);this.tone(1100*p,.05,'square',.11,.7);this.tone(85,.12,'sine',.22,.5);this.tone(2600*p,.09,'triangle',.07)}
   this.classSfx(e)}
- // Тихий гул города (коричневый шум через фильтр, очень тихо). Включается флагом hum, не зависит от музыки.
+ // Тихий гул города (коричневый шум через фильтр). Включается флагом hum; громкость идёт за ползунком «Музыка» (0 — гул молчит).
+ humGain(){return Math.min(.12,.16*(this.v.music??.3))}
+ setMusic(v){this.v.music=v;this.applyAmbient();const c=this.ctx;if(!c)return;if(v<=0){this.hum(false);return}
+  if(this.humN)this.humN.g.gain.setTargetAtTime(this.humGain(),c.currentTime,.25);else if(this.flags.hum)this.hum(true)}
  hum(on){const c=this.ctx;if(!c)return;if(!on||!this.flags.hum){if(this.humN){const t=c.currentTime;this.humN.g.gain.setTargetAtTime(0,t,.4);const n=this.humN;setTimeout(()=>{try{n.s.stop()}catch(e){}},1800);this.humN=null}return}
-  if(this.humN)return;const n=c.sampleRate*4|0,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<n;i++){l=(l+.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}
-  const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;s.loop=true;f.type='lowpass';f.frequency.value=260;g.gain.value=0;s.connect(f).connect(g).connect(c.destination);s.start();g.gain.setTargetAtTime(.05,c.currentTime,1.2);this.humN={s,g}}
+  if(this.humN||this.humGain()<=0)return;const n=c.sampleRate*4|0,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<n;i++){l=(l+.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}
+  const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;s.loop=true;f.type='lowpass';f.frequency.value=260;g.gain.value=0;s.connect(f).connect(g).connect(c.destination);s.start();g.gain.setTargetAtTime(this.humGain(),c.currentTime,1.2);this.humN={s,g}}
  // Необязательный «синтез-эмбиент»: тихий мягкий пад (два чистых синуса + медленный LFO). Ни баса, ни ритма. Включается в Настройках → Музыка.
  applyAmbient(){const on=!!(this.ctx&&this.flags.synthAmbient&&this.v.music>0);
   if(!on){if(this.amb){const{g,os,lfo}=this.amb,t=this.ctx.currentTime;g.gain.cancelScheduledValues(t);g.gain.setTargetAtTime(0,t,.3);setTimeout(()=>{os.forEach(o=>{try{o.stop()}catch(e){}});try{lfo.stop()}catch(e){}},1500);this.amb=null}return}

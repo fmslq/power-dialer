@@ -54,7 +54,9 @@ export function boot(root=document.getElementById('ct-app')){
   ({cont:()=>work(),new:newGame,train:()=>soon('Тренировочный звонок: фаза R3'),map:()=>soon('Карта мира: фаза R2'),base:()=>soon('База: фаза R2'),set:settings,log:()=>soon('Журнал истории: фаза R4'),work:()=>work()})[id]()});
  menu.addEventListener('pointerover',e=>{if(e.target.closest('.ct-key'))hover()});
  // --- старт
- const begin=()=>{if(started)return;started=true;au.init();au.setFlags({hum:S().hum});au.hum(S().hum);open();$('#ct-start').style.display='none';$('#ct-logo').classList.add('small');setTimeout(()=>{menu.classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
+ // ч.6: сначала запускаем анимации (они идут на видеокарте), звук создаём кадром позже — создание AudioContext на Mac может занять десятки мс
+ const begin=()=>{if(started)return;started=true;$('#ct-start').style.display='none';$('#ct-logo').classList.add('small');
+  requestAnimationFrame(()=>setTimeout(()=>{const c=au.init();if(c&&c.state==='suspended'){const r=()=>c.resume();addEventListener('pointerdown',r,{once:true});addEventListener('keydown',r,{once:true})}au.setFlags({hum:S().hum});au.hum(S().hum);open()},0));setTimeout(()=>{menu.classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
  const kd=e=>{if(!started){if(!e.metaKey&&!e.ctrlKey&&e.key!=='Tab'&&!/^F\d/.test(e.key)){e.preventDefault();begin()}return}
   if(e.key==='Escape')close();const ks=[...menu.querySelectorAll('.ct-key')];const i=ks.indexOf(document.activeElement);
   if(e.key==='ArrowDown'){e.preventDefault();ks[(i+1)%ks.length].focus()}if(e.key==='ArrowUp'){e.preventDefault();ks[(i-1+ks.length)%ks.length].focus()}};

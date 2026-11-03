@@ -15,7 +15,7 @@
 .sweep{animation:ctsweep 14s ease-in-out infinite alternate}@keyframes ctsweep{from{transform:rotate(-38deg)}to{transform:rotate(-8deg)}}
 .fogA{animation:ctfog 40s ease-in-out infinite alternate;will-change:transform}@keyframes ctfog{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
 /* логотип */
-.ct-logo{position:absolute;left:0;right:0;top:11%;text-align:center;pointer-events:none;transition:transform .9s var(--ct-ease),top .9s var(--ct-ease)}
+.ct-logo{position:absolute;left:0;right:0;top:11%;text-align:center;pointer-events:none;transform-origin:50% 0;transition:transform .9s var(--ct-ease);will-change:transform}
 .ct-logo h1{margin:0;font:400 clamp(44px,9vw,128px)/.92 var(--ct-stencil);letter-spacing:.06em;color:#eef3ec;text-shadow:0 0 28px rgba(255,43,214,.45),0 3px 0 #000}
 .ct-logo h1 span{display:block;position:relative}
 .ct-logo h1 span:nth-child(2){color:var(--ct-green);text-shadow:0 0 30px rgba(57,255,20,.55),0 3px 0 #000;font-size:.62em;letter-spacing:.22em}
@@ -32,17 +32,18 @@
 @keyframes ctblink{50%{opacity:.25}}
 .ct-start small{display:block;margin-top:10px;font:400 12px var(--ct-mono);letter-spacing:.2em;color:#7a8a78}
 /* меню */
-.ct-menu{position:absolute;left:clamp(16px,5vw,90px);top:50%;width:min(440px,88vw);transform:translate(-120%,-50%);transition:transform .7s var(--ct-ease)}
+.ct-menu{position:absolute;left:clamp(16px,5vw,90px);top:50%;width:min(440px,88vw);transform:translate(-120%,-50%);transition:transform .7s var(--ct-ease);will-change:transform}
 .ct-menu.in{transform:translate(0,-50%)}
-.ct-menu .ct-key{opacity:0;transform:translateX(-40px)}.ct-menu.in .ct-key{opacity:1;transform:none;transition:transform .5s var(--ct-ease) calc(var(--i)*70ms+250ms),opacity .3s calc(var(--i)*70ms+250ms),filter .15s,color .15s}
+.ct-menu .ct-key{opacity:0;transform:translateX(-40px)}.ct-menu.in .ct-key{opacity:1;transform:none;transition:transform .5s var(--ct-ease) calc(var(--i)*70ms+250ms),opacity .3s calc(var(--i)*70ms+250ms),color .15s}
 .ct-menu.in .ct-key:hover:not(:disabled),.ct-menu.in .ct-key:focus-visible{transform:translateX(8px);transition:transform .12s var(--ct-ease)}
 .ct-menu h2{margin:0 0 4px;font:400 13px var(--ct-mono);letter-spacing:.3em;color:var(--ct-green);text-transform:uppercase}
 .ct-save{margin:0 0 16px;padding:10px 12px;font:400 12px/1.5 var(--ct-mono);color:#b8c6b4;background:rgba(0,0,0,.35);border-left:3px solid var(--ct-green)}
 .ct-save b{color:var(--ct-amber);font-weight:500}
 .ct-key small.soon{color:#6a5a2a;border:1px solid #4a3d18;padding:1px 5px;border-radius:2px;font-size:10px}
 .ct-ver{position:absolute;right:18px;bottom:12px;font:400 11px var(--ct-mono);color:#5a6a58;letter-spacing:.1em}
-.ct-logo.small{top:5%;transform:scale(.62);transform-origin:50% 0}
-@media(max-width:760px){.ct-menu{left:50%;margin-left:calc(min(440px,88vw)/-2)}.ct-logo.small{transform:scale(.5)}}
+/* ч.6: уменьшение логотипа только через transform (раньше анимировался top = перерасчёт раскладки каждый кадр) */
+.ct-logo.small{transform:translateY(-6vh) scale(.62)}
+@media(max-width:760px){.ct-menu{left:50%;margin-left:calc(min(440px,88vw)/-2)}.ct-logo.small{transform:translateY(-6vh) scale(.5)}}
 /* сцена-модалка (настройки) */
 .ct-modal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s}
 .ct-modal.open{opacity:1;pointer-events:auto}.ct-modal .ct-panel{width:min(520px,92vw);transform:scale(.92) translateY(16px);transition:transform .45s var(--ct-ease)}.ct-modal.open .ct-panel{transform:none}

@@ -56,6 +56,8 @@ export function cityScene(el){
   <div class="cl fogA">${`<img src="${L.fog}" alt="">`}</div>
   ${img('near',46)}
   ${img('garage',34,`<i class="clamp lamp" style="${P(830+420,GY-10,80,55)}"></i><i class="cdot beacon" style="${P(830+188,GY-115,6,6)};--c:#39ff14;animation-duration:1.6s"></i><b class="csign flick" style="left:${((830+350)/W*100).toFixed(3)}%;top:${((GY-88)/H*100).toFixed(3)}%;transform:translateX(-50%);--c:#3ad7ff;font-size:1.06em;letter-spacing:.25em">UPLINK</b>`,GB)}</div><canvas class="rain"></canvas><div class="vig"></div><div class="scan"></div>`;
+ // ч.6: картинки слоёв декодируются заранее, а не в момент первого показа/сдвига
+ el.querySelectorAll('img').forEach(i=>{try{i.decoding='async';i.decode&&i.decode().catch(()=>{})}catch(e){}});
  const cw=el.querySelector('#cw'),px=[...el.querySelectorAll('.cl[data-d]')];
  // «cover» как у preserveAspectRatio=slice; размер шрифта контейнера = масштаб (вывески в em)
  const cover=()=>{const vw=innerWidth*1.06,vh=innerHeight*1.06,s=Math.max(vw/W,vh/H);cw.style.width=W*s+'px';cw.style.height=H*s+'px';cw.style.left=(innerWidth-W*s)/2+'px';cw.style.top=(innerHeight-H*s)/2+'px';cw.style.fontSize=(16*s)+'px'};

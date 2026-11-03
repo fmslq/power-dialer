@@ -44,40 +44,30 @@ export function startWork(root,{save,au,demo=null}={}){
  SFX.setVol(d.P.vol??.5);SFX.setMute(!!d.P.mute);SFX.onToast(m=>toast(m));if(kv)SFX.sndInit(kv);
  const setTester=on=>{try{on?localStorage.setItem(TESTER_KEY,'1'):localStorage.removeItem(TESTER_KEY)}catch(e){}if(!demo&&!tester)SM.save(save);location.reload()};
  let gateQuiet=false;
- // «Ещё статусы» всплывают НАД кнопкой (как в старом дайлере); position:fixed, чтобы колонку не обрезало
- const placeMore=()=>{const m=$('#more'),b=$('#b-more');if(!m||!b)return;m.classList.toggle('open',!!d.P.moreOpen);if(!d.P.moreOpen)return;const r=b.getBoundingClientRect();
-  m.style.right=Math.max(8,innerWidth-r.right)+'px';m.style.width=Math.max(r.width,300)+'px';const up=r.top-10,down=innerHeight-r.bottom-10;
-  if(up>=Math.min(m.scrollHeight,420)||up>=down){m.style.top='';m.style.bottom=(innerHeight-r.top+6)+'px';m.style.maxHeight=up+'px'}else{m.style.bottom='';m.style.top=(r.bottom+6)+'px';m.style.maxHeight=down+'px'}
-  const c=$('#more-clr');if(c)c.style.display=d.cur&&d.t.res(d.cur)?'':'none'};
- addEventListener('mousedown',e=>{if(d.P.moreOpen&&!e.target.closest('#more,#b-more')){d.P.moreOpen=false;d.sp();placeMore()}});
- addEventListener('resize',()=>placeMore());
- const hangTest=()=>{const id=d.lastCallId();if(!id){toast('Сначала позвони (лучше на тестовый номер), потом жми «Тест отбоя» во время гудков','bad');return}
-  toast('Пробую команды отбоя по одной, раз в 2,5 с…');d.zoom.testHangup(id,r=>{toast(r.ok?'Отбой работает: команда '+r.cmd.type+' запомнена':'Ни одна команда не сбросила звонок. Пришли журнал Zoom',r.ok?'gold':'bad');if(ov.dataset.k==='set'&&sec==='zoom')setUi()})};
+ // «Ещё статусы» раскрываются под основными статусами в той же колонке (как в ч.4), без всплывающего окна
+ const placeMore=()=>{const m=$('#more');if(m)m.classList.toggle('open',!!d.P.moreOpen);const b=$('#b-more');if(b)b.classList.toggle('on',!!d.P.moreOpen)};
  const persistGame=()=>{if(!demo)SM.soon(save,400)};
  // ---------- каркас ----------
  root.innerHTML=`<div class="wk ${S.fx==='off'?'fx-off':''}" id="wk">
   <header class="wk-top"><div class="wk-brand">UPLINK <b>SYNDICATE</b></div>
    <button class="wk-tb" id="b-pick" title="Выбрать лида (/)"><span class="lbl">Выбрать лида</span><span class="lbl-s" aria-hidden="true"></span><kbd>/</kbd></button>
-   <div class="wk-sp"></div><div class="wk-tempo" id="tempo"></div>
+   <div class="wk-sp"></div><div class="wk-tempo" id="tempo"></div><button class="wk-tb" id="b-end" title="Итог смены"><span class="lbl">Закончить смену</span><span class="lbl-s" aria-hidden="true">Конец</span></button>
    <div class="wk-leds" id="leds"></div>
    <button class="wk-tb" id="b-pad" title="Шпаргалка (T)"><span class="lbl">Шпаргалка</span><kbd>T</kbd></button>
    <button class="wk-tb icon" id="b-set" title="Настройки"><svg class="ic" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button></header>
   <section class="wk-hud" id="hud">
    <div class="wk-streak idle" id="streak"><div class="wk-ring"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="19"/><circle class="fg" id="ringfg" cx="23" cy="23" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringt">–</b></div>
     <div class="wk-sk"><div class="n" id="sk-n">СЕРИЯ 0<em>x1.0</em></div><div class="s" id="sk-s">начни звонить</div></div></div>
-   <div class="wk-od" id="od" title="Overdrive: ${C.od.streak} статусов подряд без потери серии"><div class="pill"><i id="od-f"></i><span class="t"><b>OD</b> <span id="od-t">0/${C.od.streak}</span></span></div></div><div class="wk-sp"></div>
+   <div class="wk-flow" id="flow" aria-live="polite"></div>
    <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
    <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
    <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
   <main class="wk-main" id="main"></main>
-  <footer class="wk-bar"><button class="wk-tb" id="b-skip">Отложить<kbd>S</kbd></button><button class="wk-tb" id="b-back">← Прошлый лид<kbd>Z</kbd></button>
-   <button class="wk-tb" id="b-clr">Убрать статус<kbd>X</kbd></button><button class="wk-tb" id="b-pause">Пауза<kbd>P</kbd></button>
-   <button class="wk-tb" id="b-end">Закончить смену</button><span class="hint">Space звонок · H отбой · 1–6 статусы · M ещё · N заметки · / лиды</span></footer>
  </div>
  <div class="wk-zoom ct-panel hide" id="zoomw"><header>ZOOM PHONE <span id="zst"></span><button class="wk-btn" id="z-hide">Спрятать</button></header></div>
- <div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
+ <div class="wk-glow" id="glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i><i class="o1"></i><i class="o2"></i><i class="o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
  // ---------- Zoom iframe (живой, даже когда спрятан) ----------
  const zw=$('#zoomw');
@@ -90,21 +80,39 @@ export function startWork(root,{save,au,demo=null}={}){
  const toast=(m,cls='')=>{const t=document.createElement('div');t.className='wk-toast '+cls;t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),cls==='gold'?4200:2800)};
  const gain=(x,m,el)=>{if(!x&&!m)return;const r=(el||$('#stat')||main).getBoundingClientRect(),g=document.createElement('div');g.className='wk-gain';
   g.style.left=(r.left+r.width/2)+'px';g.style.top=(r.top+20)+'px';g.innerHTML=(x?`<span class="x">+${x} XP</span>`:'')+(m?`<span class="m">+${money(m)}</span>`:'');document.body.appendChild(g);setTimeout(()=>g.remove(),1400)};
- const stamp=(txt,c)=>{if(S.fx==='off')return;const s=document.createElement('div');s.className='wk-stamp';s.style.setProperty('--c',c);s.textContent=txt;document.body.appendChild(s);setTimeout(()=>s.remove(),950)};
+ // штамп — печать на карточке лида (как в Papers, Please), а не посреди экрана
+ const stamp=(txt,c)=>{if(S.fx==='off')return;const card=$('#card'),s=document.createElement('div');s.className='wk-stamp'+(card?'':' free');s.style.setProperty('--c',c);s.style.setProperty('--r',(-11+Math.random()*7).toFixed(1)+'deg');s.textContent=txt;(card||document.body).appendChild(s);setTimeout(()=>s.remove(),1300)};
+ // ---------- поток (вместо полоски Overdrive): фразы по стадиям серии + свечение по краям ----------
+ const FLOW=[['Есть контакт','Линия жива','Пошло','Первый пошёл','Разогрев'],['Хороший темп','Ритм пойман','Чисто','Держим линию','Ровно идёшь'],
+  ['В потоке','Горячо','Не сбавляй','Машина','Город слушает'],['НЕУДЕРЖИМ','Синдикат доволен','Легенда линии','Без шансов для них','Король эфира'],['ПИК ФОРМЫ','ВСЁ В ПЛЮС','ЭФИР ТВОЙ','ПОЛНЫЙ ПРИВОД','ЧИСТЫЙ OVERDRIVE']];
+ const FLOWC=['#9fe8ff','#7dff6a','#ffd84a','#ff8a3a','#ff2bd6'];
+ const tier=w=>w.od?4:w.streak>=10?3:w.streak>=6?2:w.streak>=3?1:0;
+ let lastPhrase='',prevMult=null,flowT=0;
+ const winNow=()=>windowState(ses.G,now(),{onLine:d.calling||(d.call&&d.call.ended==null),zoom:d.zoom.live});
+ const flowSub=w=>{const a=[];if(w.od)a.push('OVERDRIVE ещё '+mmss(w.od));else{if(w.toNext!=null)a.push(`до x${w.nextMult}: ещё ${w.toNext}`);const o=w.odNeed-w.odProg;if(o>0)a.push(`до OVERDRIVE: ещё ${o}`)}return a.length?a.reduce((x,y)=>(+(x.match(/\d+$/)||[99])[0]<=+(y.match(/\d+$/)||[99])[0]?x:y)):'максимум жара'};
+ const flowPop=(e)=>{const box=$('#flow');if(!box)return;const w=winNow(),t=tier(w);let big=null;
+  if(e&&e.odStart)big='OVERDRIVE ВКЛЮЧЁН';else if(prevMult!=null&&w.mult>prevMult)big=`x${w.mult} ВКЛЮЧЁН`;
+  let ph=big;if(!ph){const pool=FLOW[t].filter(x=>x!==lastPhrase);ph=pool[Math.random()*pool.length|0];lastPhrase=ph}
+  prevMult=w.mult;const el=document.createElement('div');el.className='wk-fl'+(big?' big':'');el.style.setProperty('--c',big&&w.od?'#ff2bd6':big?'#ffc400':FLOWC[t]);
+  el.innerHTML=`<b>${esc(ph)}</b><span>${esc(flowSub(w))}</span>`;box.querySelectorAll('.wk-fl').forEach(x=>{x.classList.add('gone');setTimeout(()=>x.remove(),400)});box.appendChild(el);
+  clearTimeout(flowT);flowT=setTimeout(()=>el.classList.add('gone'),big?3600:2600);setTimeout(()=>el.remove(),big?4200:3200)};
+ let glowL=-1;const glow=w=>{const l=w.state==='lost'?0:tier(w)+(w.streak>0||w.od?1:0);if(l===glowL)return;glowL=l;const g=$('#glow');if(g)g.dataset.l=String(l)};
  // ---------- главный экран ----------
  const statBtn=(b,small)=>`<button class="wk-st ${small?'small':''} ${WIN.includes(b.i)?'win':''}" data-st="${b.i}" style="--c:${b.color}"><span class="k">${b.key}</span><span>${esc(b.name)}</span></button>`;
  const moreOpen=()=>!!d.P.moreOpen;
  const layout=()=>{const v=d.view();
   if(!v.loaded){main.innerHTML=emptyHtml();bindEmpty();return}
-  W.querySelectorAll(':scope>#more').forEach(x=>x.remove());main.innerHTML=`<section class="wk-col"><div class="wk-card ct-panel" id="card"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><div id="lead"></div></div><div class="wk-card wk-card2 ct-panel" id="card2"><div id="lead2"></div></div></section>
+  main.innerHTML=`<section class="wk-col"><div class="wk-card ct-panel" id="card"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><div id="lead"></div></div><div class="wk-card wk-card2 ct-panel" id="card2"><div id="lead2"></div></div></section>
    <section class="wk-col"><div class="wk-stat ct-panel" id="stat"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i>
     <div class="wk-lbl">СТАТУС ЗВОНКА</div><div class="wk-grid">${BUTTONS.slice(0,PRIM).map(b=>statBtn(b)).join('')}<button class="wk-st skip" data-act="skip" title="Лид вернётся позже в очереди, ничего не меняется"><span class="k">S</span><span>Отложить</span></button>
-    <div class="wk-pw"><button class="wk-st skip more-b" id="b-more"><span class="k">M</span><span>Ещё статусы</span></button><div class="wk-pop ${moreOpen()?'open':''}" id="more">${BUTTONS.slice(PRIM).map(b=>statBtn(b,1)).join('')}<button class="wk-st small clr" data-act="clear" id="more-clr"><span class="k">X</span><span>Убрать статус</span></button></div></div></div></div></section>
+    <button class="wk-st skip more-b ${moreOpen()?'on':''}" id="b-more" data-act="menu"><span class="k">M</span><span>Ещё статусы</span><i class="chev" aria-hidden="true"></i></button></div>
+    <div class="wk-acts"><button class="wk-tb" id="b-back" data-act="back" title="Вернуться к предыдущему лиду. Данные не меняются">← Прошлый лид<kbd>Z</kbd></button><button class="wk-tb" id="b-pause" data-act="pause">Пауза<kbd>P</kbd></button><button class="wk-tb" id="b-clr" data-act="clear">Убрать статус<kbd>X</kbd></button></div>
+    <div class="wk-more ${moreOpen()?'open':''}" id="more"><div class="wk-lbl">ЕЩЁ СТАТУСЫ</div><div class="wk-grid">${BUTTONS.slice(PRIM).map(b=>statBtn(b,1)).join('')}</div></div>
+    <div class="wk-hint">Space звонок · 1–6 статусы · S отложить · M ещё · X убрать · Z прошлый · P пауза · N заметки · / лиды</div></div></section>
    <aside class="wk-pad ct-panel paper-ish ${d.P.padOpen?'':'hidden'}" id="pad"><div class="wk-lbl" style="display:flex;align-items:center">ШПАРГАЛКА<button class="wk-x" id="pad-x" style="width:30px;height:30px;font-size:15px"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><textarea id="pad-t" placeholder="Скрипт, ответы на возражения…">${esc(d.P.pad||'')}</textarea></aside>`;
   $('#pad-t').oninput=e=>d.setPad(e.target.value);$('#pad-x').onclick=()=>act('pad');
-  {const m=$('#more');if(m)W.appendChild(m)}   // список «Ещё статусы» живёт поверх всего экрана, иначе его перекрывает HUD
-  $('#stat').onclick=$('#more').onclick=e=>{const b=e.target.closest('[data-st],[data-act]');if(!b)return;if(b.closest('#more')){d.P.moreOpen=false;d.sp();placeMore()}if(b.dataset.act)act(b.dataset.act);else doStatus(+b.dataset.st)};
-  $('#b-more').onclick=()=>act('menu');padW();renderLead();placeMore()};
+  $('#stat').onclick=e=>{const b=e.target.closest('[data-st],[data-act]');if(!b)return;if(b.dataset.act)act(b.dataset.act);else doStatus(+b.dataset.st)};
+  padW();renderLead();placeMore()};
  const padW=()=>{W.style.setProperty('--padw',d.P.padOpen&&innerWidth>=1180?'minmax(260px,.8fr)':'0px');const p=$('#pad');if(p)p.classList.toggle('hidden',!d.P.padOpen)};
  const renderLead=()=>{const v=d.view(),box=$('#lead');if(!box)return;
   if(!v.lead){box.innerHTML=`<h2 class="wk-biz">${v.exhausted?'Территория пройдена':'Нет лида'}</h2><p class="wk-ver">${v.exhausted?'Необработанных лидов по текущим фильтрам нет. Сбрось фильтры или выбери лида вручную.':''}</p><div class="wk-btns"><button class="wk-btn pri" data-a="picker">Выбрать лида</button><button class="wk-btn" data-a="reset">Сбросить фильтры</button></div>`;
@@ -117,7 +125,7 @@ export function startWork(root,{save,au,demo=null}={}){
     ${lt?`<span class="wk-chip time ${lt.work?'':'off'}">у них ${esc(lt.time)} ${esc(lt.tz)}</span>`:''}${L.reviews?`<span class="wk-chip">★ ${esc(L.reviews)}</span>`:''}
     ${L.result?`<span class="wk-chip res" style="background:${L.resultColor}">${esc(L.result)}</span>`:''}</div>
    <div class="wk-phone"><span class="wk-num">${esc(L.rawPhone||L.phone)}</span></div>
-   <div class="wk-phone"><button class="wk-dial" id="b-dial"></button><button class="wk-hang" id="b-hang" title="Отбой (H)">${PHONE_SVG}</button></div>
+   <div class="wk-phone"><button class="wk-dial" id="b-dial"></button></div>
    <div class="wk-links">${L.site?`<a href="${esc(/^https?:/i.test(L.site)?L.site:'https://'+L.site)}" target="_blank" rel="noopener">Сайт</a>`:''}${L.map?`<a href="${esc(L.map)}" target="_blank" rel="noopener">Карта</a>`:''}${L.email?`<a href="mailto:${esc(L.email)}">${esc(L.email)}</a>`:''}</div>
 `;
   $('#lead2').innerHTML=`${L.verification?`<div class="wk-ver">${esc(L.verification)}</div>`:''}${L.address?`<div class="wk-ver">${esc(L.address)}</div>`:''}
@@ -126,10 +134,10 @@ export function startWork(root,{save,au,demo=null}={}){
    <div class="wk-row2"><div><div class="wk-lbl">КОГДА ПЕРЕЗВОНИТЬ</div><input class="wk-in" id="wk-cb" value="${esc(L.callback)}" placeholder="например: вт 10:00 их времени"></div></div>
    <div class="wk-next">${v.next?'Дальше: '+esc(v.next)+' · ':''}осталось ${v.remaining}</div>`;
   $('#wk-notes').oninput=e=>d.setNotes(e.target.value);$('#wk-cb').oninput=e=>d.setCallback(e.target.value);
-  $('#b-dial').onclick=()=>act('dial');$('#b-hang').onclick=()=>act('hangup');dialUi(v);markStatus(L.resultIndex)};
- const dialUi=(v=d.view())=>{const b=$('#b-dial'),h=$('#b-hang');if(!b)return;const on=v.calling||(d.call&&d.call.ended==null);
-  b.classList.toggle('on',on);b.innerHTML=on?`<svg class="osc" viewBox="0 0 54 22"><path id="oscp" d="M0 11 H54"/></svg>НА ЛИНИИ ${mmss(v.callSec)}`:`ПОЗВОНИТЬ<kbd>Space</kbd>`;h.classList.toggle('live',on)};
- const markStatus=i=>{document.querySelectorAll('.wk-st[data-st]').forEach(b=>{b.classList.toggle('cur',+b.dataset.st===i);b.classList.toggle('sug',+b.dataset.st===shownSug)})};
+  $('#b-dial').onclick=()=>act('dial');dialUi(v);markStatus(L.resultIndex)};
+ const dialUi=(v=d.view())=>{const b=$('#b-dial');if(!b)return;const on=v.calling||(d.call&&d.call.ended==null);
+  b.classList.toggle('on',on);b.innerHTML=on?`<svg class="osc" viewBox="0 0 54 22"><path id="oscp" d="M0 11 H54"/></svg>НА ЛИНИИ ${mmss(v.callSec)}`:`ПОЗВОНИТЬ<kbd>Space</kbd>`};
+ const markStatus=i=>{const c=$('#b-clr');if(c)c.disabled=!(i>=0);document.querySelectorAll('.wk-st[data-st]').forEach(b=>{b.classList.toggle('cur',+b.dataset.st===i);b.classList.toggle('sug',+b.dataset.st===shownSug)})};
  // ---------- без таблицы ----------
  const emptyHtml=()=>`<div class="wk-empty"><div class="ct-panel"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i>
    <h2>NO TARGET LIST LOADED</h2><p>Подключи таблицу лидов. Игра не начисляет ничего, пока таблицы нет: прогресс зависит только от реальных звонков.</p>
@@ -164,8 +172,7 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#ringt').textContent=w.state==='online'?'☎':w.left!=null?(w.left>=60?Math.ceil(w.left/60)+'м':w.left):'–';
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
-  const od=$('#od'),pr=w.od?1:Math.min(1,w.odProg/w.odNeed),f=$('#od-f');od.classList.toggle('live',!!w.od);od.classList.toggle('heat',!w.od&&pr>=.8);f.style.width=(pr*100)+'%';
-  f.style.setProperty('--g',`linear-gradient(90deg,hsl(${215-pr*185},85%,50%),hsl(${235-pr*215},92%,58%))`);$('#od-t').textContent=w.od?mmss(w.od):`${Math.min(w.odProg,w.odNeed)}/${w.odNeed}`;
+  glow(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;
   $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';$('#r-m').textContent=money(G.money);$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
   const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
   $('#day').textContent=`сегодня ${d.ses.tot} · до 20: ${20-d.ses.sprint}`;
@@ -182,11 +189,11 @@ export function startWork(root,{save,au,demo=null}={}){
   if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);stamp(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400')}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
   const e=out.ev;if(e){gain(e.x,e.m);if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
-   if(e.odStart){stamp('OVERDRIVE','#ff2bd6');toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
+   if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
-  (out.achv||[]).forEach(a=>toast('Ачивка: '+a.name,'gold'));(out.missions||[]).forEach(m=>toast(`Задание «${m.name}»: +${money(m.money)}`,'gold'));if(out.trophy)toast('Трофей: '+out.trophy.company,'gold');
+  (out.achv||[]).forEach(a=>toast('Ачивка: '+(a.n||a.name),'gold'));(out.missions||[]).forEach(m=>toast(`Задание «${m.name}»: +${money(m.money)}`,'gold'));if(out.trophy)toast('Трофей: '+out.trophy.company,'gold');
   if(out.levelUp!=null)toast('Новый уровень!','gold');if(out.rankUp!=null)toast('Новый ранг!','gold');
-  shownSug=-1;persistGame();hud()});
+  if(e&&!out.blocked)flowPop(e);shownSug=-1;persistGame();hud()});
  dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud()});
  dbus.on('callLogged',e=>{const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
  dbus.on('pauseChanged',e=>{e.paused?ses.pause():ses.resume();$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
@@ -206,7 +213,7 @@ export function startWork(root,{save,au,demo=null}={}){
  // ---------- действия ----------
  const act=(a,x)=>{switch(a){
   case'dial':if(!d.view().lead)return;if(d.zoom.enabled&&d.zoom.gate==='connecting'){toast('Подожди: подключаю Zoom…');return}d.dial();dialUi();break;
-  case'hangup':{const r=d.hangup('button');if(r==='none'||r===false)toast('Активного звонка нет');else if(r==='unsupported'){d.zoom.peek={reason:'hangup'};zoomUi();toast('Zoom не принимает отбой из браузера: положи трубку в окне Zoom (открыл его). Настройки → Zoom → «Тест отбоя»','bad')}dialUi();break}
+  case'hangup':break;   // отбоя из браузера нет (Zoom его не принимает, ч.5): клавиша H ничего не делает
   case'status':doStatus(x);break;case'skip':d.skip();break;case'back':d.back();break;case'clear':d.clearStatus();break;
   case'pause':d.pause();break;case'notes':{const n=$('#wk-notes');if(n){n.focus();n.selectionStart=n.value.length}break}
   case'menu':d.P.moreOpen=!d.P.moreOpen;d.sp();placeMore();break;
@@ -217,8 +224,8 @@ export function startWork(root,{save,au,demo=null}={}){
   const modal=ov.classList.contains('open');if(modal&&e.code==='Escape'&&ov.dataset.k!=='gate'){e.preventDefault();closeOv();return}if(modal&&!typing&&ov.dataset.k==='pick'&&e.code==='Enter'){const f=ov.querySelector('.wk-li');if(f){f.click();e.preventDefault()}return}
   const r=resolveKey({typing,menu:!!d.P.moreOpen,suggest:shownSug,world:false,modal,shift:e.shiftKey,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey},e.code);if(!r)return;
   if(e.repeat&&r.a!=='blur')return;e.preventDefault();if(r.a==='status')act('status',r.id);else act(r.a)});
- const tb=$('#bn-test-off');if(tb)tb.onclick=()=>setTester(false);$('#b-pick').onclick=()=>act('picker');$('#b-pad').onclick=()=>act('pad');$('#b-set').onclick=()=>openSettings();$('#b-skip').onclick=()=>act('skip');$('#b-back').onclick=()=>act('back');
- $('#b-clr').onclick=()=>act('clear');$('#b-pause').onclick=()=>act('pause');$('#bn-res').onclick=()=>act('pause');$('#bn-reload').onclick=()=>location.reload();$('#b-end').onclick=()=>shiftEnd();
+ const tb=$('#bn-test-off');if(tb)tb.onclick=()=>setTester(false);$('#b-pick').onclick=()=>act('picker');$('#b-pad').onclick=()=>act('pad');$('#b-set').onclick=()=>openSettings();
+ $('#bn-res').onclick=()=>act('pause');$('#bn-reload').onclick=()=>location.reload();$('#b-end').onclick=()=>shiftEnd();
  // ---------- окна ----------
  const openOv=(k,html,sm)=>{ov.dataset.k=k;ov.innerHTML=`<div class="wk-win ct-panel ${sm?'sm':''}" role="dialog"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i>${html}</div>`;ov.classList.add('open')};
  const closeOv=()=>{ov.classList.remove('open');ov.dataset.k='';ov.innerHTML=''};
@@ -250,12 +257,12 @@ export function startWork(root,{save,au,demo=null}={}){
  const btn=(id,t,small,label,cls='')=>`<div class="wk-opt"><div class="t"><b>${t}</b>${small?`<small>${small}</small>`:''}</div><button class="wk-btn ${cls}" data-b="${id}">${label}</button></div>`;
  const secHtml=()=>{const P=d.P,z=d.zoom,sh=d.sheets.state();switch(sec){
   case'calls':return`<h4>Звонки</h4>${sw('auto',d.auto,'Автонабор следующего','После статуса сразу звонит следующему (после встречи пауза 1 с, на сотне 2,8 с)')}
-   ${sw('only',d.q.only,'В очереди только лиды без статуса','Выкл: показывать всех подряд')}${sw('hos',P.hangupOnStatus,'Авто-отбой при статусе','Поставил статус во время звонка: статус засчитан сразу, потом отбой')}
-   ${sw('hsk',P.hangupOnSkip,'«Отложить» кладёт трубку')}${sw('guard',P.guard!==false,'Возвращать из Zoom в браузер','Метка ☎ в заголовке вкладки для твоего скрипта на Mac')}`;
+   ${sw('only',d.q.only,'В очереди только лиды без статуса','Выкл: показывать всех подряд')}
+   ${sw('guard',P.guard!==false,'Возвращать из Zoom в браузер','Метка ☎ в заголовке вкладки для твоего скрипта на Mac')}`;
   case'zoom':return`<h4>Встроенный телефон</h4>${sw('zemb',z.enabled||P.zoomEmbed!==false,'Встроенный телефон Zoom','Через него браузер видит звонки: серия по Zoom, проверка встреч, бонус за разговор')}
    ${sw('zwin',!!P.zoomWindow,'Показывать окно Zoom','Для входа и диагностики. Спрятанное окно продолжает работать')}
    <div class="wk-kv" style="margin:10px 0">Состояние: <b>${z.live?'подключён ✓':z.gate==='connecting'?'подключаю…':z.gate==='app'?'звонки через приложение':z.enabled?'не подключён':'выключен'}</b> · Zoom: <b>${esc(z.status||'–')}</b> · здоровье: <b>${zp.health().state}</b></div>
-   <div class="wk-btns"><button class="wk-btn" data-b="zlog">Скопировать журнал Zoom</button><button class="wk-btn" data-b="zgate">Проверить подключение</button><button class="wk-btn" data-b="zhang">Тест отбоя (во время звонка)</button></div>
+   <div class="wk-btns"><button class="wk-btn" data-b="zlog">Скопировать журнал Zoom</button><button class="wk-btn" data-b="zgate">Проверить подключение</button></div>
    <div class="wk-kv">Отбой из браузера: <b>${P.zoomHangup?'работает ('+esc(P.zoomHangup.type)+')':'не найден'}</b>. Zoom официально не даёт команду отбоя встроенному телефону. Позвони на тестовый номер и нажми «Тест отбоя» во время гудков: я попробую варианты по очереди и запомню рабочий.</div>
    <h4>История звонков Zoom (CSV из портала)</h4>${btn('zcsv','Загрузить историю звонков','Zoom → Phone → Call History → Export. Можно в любой момент. Сейчас: разбор и сводка; проверка встреч задним числом в R5','Выбрать файл…')}<div id="zcsv-r" class="wk-kv"></div>`;
   case'table':return`<h4>Источник</h4><div class="wk-kv">Сейчас: <b>${esc(d.t.name||'нет')}</b> · ${d.view().source==='sheet'?'Google Таблица':d.view().source==='file'?'файл (пишу в тот же файл)':'—'} · лидов: <b>${d.t.L.length}</b></div>
@@ -280,7 +287,7 @@ export function startWork(root,{save,au,demo=null}={}){
    if(t.dataset.sw){const k=t.dataset.sw,P=d.P,on=!t.classList.contains('on');({auto:()=>d.setAuto(on),only:()=>d.setOnly(on),hos:()=>d.setPref('hangupOnStatus',on),hsk:()=>d.setPref('hangupOnSkip',on),guard:()=>d.setPref('guard',on),
      zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
    if(t.dataset.fx){S.fx=t.dataset.fx;W.classList.toggle('fx-off',S.fx==='off');persistGame();setUi();return}
-   const b=t.dataset.b;const A=({zlog:()=>copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)'),zgate:()=>{gateQuiet=true;d.zoom.startGate(15000);setUi()},zhang:()=>hangTest(),zcsv:pickZoomCsv,open:()=>{closeOv();openFileDlg()},switch:()=>{closeOv();d.switchBase().then(layout)},ourl:()=>{d.openSheetUrl($('#s-url').value);closeOv()},
+   const b=t.dataset.b;const A=({zlog:()=>copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)'),zgate:()=>{gateQuiet=true;d.zoom.startGate(15000);setUi()},zcsv:pickZoomCsv,open:()=>{closeOv();openFileDlg()},switch:()=>{closeOv();d.switchBase().then(layout)},ourl:()=>{d.openSheetUrl($('#s-url').value);closeOv()},
      gssave:async()=>{d.setSheets({url:$('#s-gs').value.trim(),token:$('#s-tok').value.trim(),on:true});$('#gs-r').textContent='Проверяю…';const r=await d.testConnection();$('#gs-r').textContent=r&&r.ok?'Связь есть ✓':'Нет связи: '+((r&&(r.error?human(r.error):r.msg))||'?')},
      gscopy:()=>copy(d.getAppsScript(),'Apps Script скопирован (с твоим словом)'),gsrnd:()=>{d.rndSecret();setUi();toast('Новое слово: обнови его и в скрипте')},pull:()=>{d.sheets.pull();toast('Обновляю из таблицы…')},
      bk:async()=>{try{const h=await showDirectoryPicker({mode:'readwrite'});await d.setBackupDir(h);toast('Папка для копий выбрана')}catch(e){}},tsv:()=>copy(d.tsv(),'База скопирована: вставь в Google Таблицу'),

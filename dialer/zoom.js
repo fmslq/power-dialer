@@ -10,6 +10,8 @@ export const INIT_CONFIG={type:"zp-init-config",data:{enableSavingLog:false,enab
 // Команда отбоя НЕ подтверждена документацией Smart Embed (в старом коде есть только init-config и make-call).
 // Кандидаты проверяются в Debug → «Тест отбоя» (R5). Пока список пуст, отбой честно сообщает «не поддерживается».
 export const HANGUP_CANDIDATES=[];
+// Догадки для «Тест отбоя» (Настройки → Zoom, во время звонка): шлём по очереди; та, после которой пришло ended, запоминается в P.zoomHangup.
+export const HANGUP_TRY=[{type:"zp-end-call"},{type:"zp-hangup-call"},{type:"zp-hang-up"},{type:"zp-call-hangup"},{type:"zp-end-call-event"},{type:"zp-terminate-call"},{type:"zp-hangup"}];
 export function suggestFromLog(d,curPhone){const r=String(d&&d.result||""),n=String(d&&d.callee&&(d.callee.number||d.callee.phoneNumber)||"").replace(/\D/g,"").slice(-10);
  if(!curPhone||!n||String(curPhone).replace(/\D/g,"").slice(-10)!==n)return -1;
  return /voicemail|no answer/i.test(r)?0:/wrong number/i.test(r)?10:/blocked|international|internal error|restricted/i.test(r)?9:-1}
@@ -39,18 +41,24 @@ export class ZoomBridge{
   this.provider&&this.provider.feed(d);
   if(d.type=="zp-call-ringing-event"){this.got=true;this.status="гудки…";if(this.peek&&this.peek.reason=='unconfirmed')this.peek=null}
   else if(d.type=="zp-call-connected-event"){this.got=true;this.status="на связи"}
-  else if(d.type=="zp-call-ended-event"){this.status="завершён: "+((d.data&&d.data.result)||"");this.emit('zoomEnded',{})}
+  else if(d.type=="zp-call-ended-event"){this.status="завершён: "+((d.data&&d.data.result)||"");this.emit('zoomEnded',{});
+   const h=this.htest;if(h&&h.cur){this.clearTimeout(h.T);this.htest=null;const P=this.prefs();P.zoomHangup=h.cur;this.savePrefs();this.note('hangup-test',{ok:true,cmd:h.cur});h.done&&h.done({ok:true,cmd:h.cur})}}
   else if(d.type=="zp-call-log-completed-event"&&d.data){const s=suggestFromLog(d.data,curPhone);if(s>=0){this.sug=s;this.emit('suggest',{index:s})}}
   this.changed()}
  // → 'zoom' (номер ушёл во встроенный Zoom) | 'app' (запасной путь: ссылка zoomphonecall://)
  call(e164){this.got=false;this.sug=-1;
-  if(this.enabled&&this.ready){try{this.send({type:"zp-make-call",data:{number:e164,autoDial:true}});
+  if(this.enabled&&this.ready){try{this.send({type:"zp-make-call",data:{number:e164,autoDial:true}});this.note('make-call',{number:e164});
     this.clearTimeout(this.T);this.T=this.setTimeout(()=>{if(!this.got){this.peek={reason:'unconfirmed'};this.changed();this.emit('toast',"Zoom не подтвердил звонок. Проверь окно Zoom Phone: вход, микрофон")}},6000);return'zoom'}
    catch(e){this.emit('toast',"Не удалось отправить номер в Zoom")}}
   // Встроенный включён, но не готов: БОЛЬШЕ НЕ звоним молча через приложение (из-за этого браузер не видел звонков).
   if(this.enabled&&this.gate!=='app'){this.gate='failed';this.emit('zoomGate',{state:'failed',onDial:true});return'blocked'}
   this.emit('zoomViaApp',{reason:this.enabled?'bypass':'off'});            // UI: жёлтая плашка «проверки по Zoom выключены»
   this.emit('openUrl',{url:"zoomphonecall://"+e164,holdUnloadMs:3000});return'app'}
- hangup(callId){if(!HANGUP_CANDIDATES.length)return false;HANGUP_CANDIDATES.forEach(m=>{try{this.send({...m,data:{...(m.data||{}),callId}})}catch(e){}});return true}
+ hangup(callId){const L=this.prefs().zoomHangup?[this.prefs().zoomHangup]:HANGUP_CANDIDATES;if(!L.length||!this.live)return false;L.forEach(m=>{try{this.send({...m,data:{...(m.data||{}),callId}});this.note('hangup-sent',m)}catch(e){}});return true}
+ note(type,data){this.log.push({t:new Date().toISOString(),type,data});if(this.log.length>200)this.log.shift()}
+ // Тест отбоя: во время звонка шлёт догадки по одной раз в 2,5 с. Если звонок закончился — запоминает команду.
+ testHangup(callId,done){if(!this.live){done&&done({ok:false,why:'offline'});return}let i=0;this.htest={callId,i:0,done};
+  const step=()=>{const h=this.htest;if(!h)return;if(i>=HANGUP_TRY.length){this.htest=null;this.note('hangup-test',{ok:false});done&&done({ok:false,why:'none'});return}
+   const m=HANGUP_TRY[i++];h.cur=m;try{this.send({...m,data:{callId}})}catch(e){}this.note('hangup-try',m);h.T=this.setTimeout(step,2500)};step()}
  logText(){return JSON.stringify(this.log,null,1)}
 }

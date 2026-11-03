@@ -14,7 +14,8 @@ export class HangupGuard{
  request(src='button'){const t=this.now();if(src==='button'){if(t-this.lastReq<this.debounceMs){this.note('debounced',{src});return'debounced'}this.lastReq=t}
   const c=this.activeCall();if(!c||c.ended!=null){this.note('none',{src});return'none'}
   if(this.sent.has(c.id)){this.note('dup',{src,id:c.id});return'dup'}
-  this.sent.add(c.id);this.pending={id:c.id,at:t,src};this.sendHangup(c.id);this.note('sent',{src,id:c.id});return'sent'}
+  const ok=this.sendHangup(c.id);if(ok===false){this.note('unsupported',{src,id:c.id});return'unsupported'}   // Zoom не принимает отбой: звонок НЕ считаем сброшенным
+  this.sent.add(c.id);this.pending={id:c.id,at:t,src};this.note('sent',{src,id:c.id});return'sent'}
  // набор следующего номера: откладывается, пока идёт отбой
  dial(number){if(!this.pending){this.sendDial(number);this.note('dial',{number});return'now'}
   this.queue={number,at:this.now()};this.note('dialQueued',{number});return'queued'}

@@ -19,6 +19,6 @@ export function matchCall(calls,phone,statusAt,winMin=30){const p=num(phone).sli
 // Через что звонили: встроенный телефон (есть живые события) или приложение Zoom (событий в браузере нет).
 export const viaApp=devices=>devices.some(d=>/MAC_Client|WIN_Client|IOS|Android/i.test(d));
 // Повторный набор: все исходящие на номер между прошлым статусом и этим = один звонок (длительность = сумма).
-export function matchGroup(calls,phone,statusAt,sinceAt=null,winMin=30){const p=num(phone).slice(-10),lo=sinceAt!=null?sinceAt:statusAt-winMin*60000;
+export function matchGroup(calls,phone,statusAt,sinceAt=null,winMin=30,minSec=30){const p=num(phone).slice(-10),lo=sinceAt!=null?sinceAt:statusAt-winMin*60000;
   const g=calls.filter(c=>c.dir==='out'&&c.number.slice(-10)===p&&c.start<=statusAt+5000&&c.start>=lo).sort((a,b)=>a.start-b.start);
-  return g.length?{calls:g,start:g[0].start,dur:g.reduce((a,c)=>a+c.dur,0),redials:g.length-1}:null}
+  return g.length?{calls:g,start:g[0].start,dur:g.reduce((a,c,i)=>a+(i===g.length-1||c.dur>=minSec?c.dur:0),0),redials:g.length-1}:null}   // ранние наборы < 30 с не прибавляются

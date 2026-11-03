@@ -8,7 +8,7 @@ import {CONFIG as C,STATUS} from './config.js';
 export function group(prov,c,since){if(!c||c.manual||!prov.calls||!c.number)return c;const p=c.number.slice(-10),all=[];
  for(const x of (prov.calls.values?prov.calls.values():prov.calls))if(x.bound==null&&x.ringing!=null&&x.number&&x.number.slice(-10)===p&&x.ringing<=c.ringing&&(since==null||x.ringing>=since))all.push(x);
  if(all.length<2)return c;all.sort((a,b)=>a.ringing-b.ringing);const done=all.slice(0,-1),last=all[all.length-1],pend=all.some(x=>x.dur==null&&x.ended!=null&&x!==last);
- const prevDur=done.reduce((a,x)=>a+(x.dur||0),0);
+ const prevDur=done.reduce((a,x)=>a+((x.dur||0)>=C.redialMinSec?x.dur:0),0);   // решение пользователя: оборванные наборы короче 30 с не прибавляются
  return{...last,id:last.id,ids:all.map(x=>x.id),ringing:all[0].ringing,redials:all.length-1,prevDur,
   dur:last.dur!=null&&!pend?prevDur+last.dur:null,connected:last.connected!=null?last.connected-prevDur*1000:(prevDur&&last.ended==null?last.ringing-prevDur*1000:last.connected)}}
 export function winCheck(id,c,lead,now,{late=false}={}){const st=STATUS[id];if(!st||!C.classes[st.cls].win)return{v:'ok'};const min=C.minTalkSec[st.cls];

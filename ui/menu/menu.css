@@ -1,13 +1,19 @@
 .ct-stage{position:fixed;inset:0;overflow:hidden;background:#03030a}
-.ct-stage svg{position:absolute;inset:-3%;width:106%;height:106%}
+.ct-stage .cw{position:absolute;contain:strict}.ct-stage .cl{position:absolute;inset:0;will-change:transform}.ct-stage .cl img{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.ct-stage .cn{position:absolute;background:var(--c);box-shadow:0 0 .5em var(--c),0 0 1.2em var(--c);will-change:opacity}
+.ct-stage .cdot{position:absolute;border-radius:50%;background:var(--c);box-shadow:0 0 .5em var(--c),0 0 1em var(--c);will-change:opacity}
+.ct-stage .clamp{position:absolute;background:radial-gradient(ellipse at 50% 50%,#fff2c4 0,#ffb347 55%,#ff9a2a 100%);box-shadow:0 0 1.2em #ffb347,0 0 3em rgba(255,179,71,.6);will-change:opacity}
+.ct-stage .clamp::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;background:#2a1c0a;transform:translateX(-50%)}.ct-stage .clamp::before{content:"";position:absolute;top:50%;left:0;right:0;height:3px;background:#2a1c0a}
+.ct-stage .cbeam{position:absolute;background:linear-gradient(0deg,rgba(255,43,214,.42),rgba(255,43,214,0));clip-path:polygon(50% 100%,0 0,100% 0);transform-origin:50% 100%;opacity:.5;will-change:transform}
+.ct-stage .csign{position:absolute;font-family:var(--ct-stencil);font-weight:400;color:var(--c);text-shadow:0 0 .4em var(--c),0 0 1em var(--c);white-space:nowrap;letter-spacing:.2em;will-change:opacity}
 .ct-stage .rain{position:absolute;inset:0;pointer-events:none}
 .ct-stage .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 55%,transparent 45%,rgba(0,0,0,.72) 100%)}
-.ct-stage .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+.ct-stage .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)}
 .flick{animation:ctflick 4.5s infinite steps(1)}@keyframes ctflick{0%,100%{opacity:1}6%{opacity:.35}8%{opacity:1}52%{opacity:.8}54%{opacity:.3}56%{opacity:1}}
 .beacon{animation:ctbeacon 2.4s infinite}@keyframes ctbeacon{0%,60%{opacity:1}70%,100%{opacity:.1}}
 .lamp{animation:ctlamp 7s infinite}@keyframes ctlamp{0%,100%{opacity:.8}30%{opacity:.95}33%{opacity:.7}60%{opacity:.9}}
 .sweep{animation:ctsweep 14s ease-in-out infinite alternate}@keyframes ctsweep{from{transform:rotate(-38deg)}to{transform:rotate(-8deg)}}
-.fogA{animation:ctfog 40s ease-in-out infinite alternate}@keyframes ctfog{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
+.fogA{animation:ctfog 40s ease-in-out infinite alternate;will-change:transform}@keyframes ctfog{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
 /* логотип */
 .ct-logo{position:absolute;left:0;right:0;top:11%;text-align:center;pointer-events:none;transition:transform .9s var(--ct-ease),top .9s var(--ct-ease)}
 .ct-logo h1{margin:0;font:400 clamp(44px,9vw,128px)/.92 var(--ct-stencil);letter-spacing:.06em;color:#eef3ec;text-shadow:0 0 28px rgba(255,43,214,.45),0 3px 0 #000}
@@ -38,7 +44,7 @@
 .ct-logo.small{top:5%;transform:scale(.62);transform-origin:50% 0}
 @media(max-width:760px){.ct-menu{left:50%;margin-left:calc(min(440px,88vw)/-2)}.ct-logo.small{transform:scale(.5)}}
 /* сцена-модалка (настройки) */
-.ct-modal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .25s}
+.ct-modal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s}
 .ct-modal.open{opacity:1;pointer-events:auto}.ct-modal .ct-panel{width:min(520px,92vw);transform:scale(.92) translateY(16px);transition:transform .45s var(--ct-ease)}.ct-modal.open .ct-panel{transform:none}
 .ct-row{display:flex;align-items:center;gap:14px;margin:16px 0;font:400 15px var(--ct-text)}.ct-row label{flex:0 0 150px;color:#cfdccb}.ct-row output{width:44px;text-align:right;font:400 13px var(--ct-mono);color:var(--ct-amber)}
 .ct-seg{display:flex;gap:6px}.ct-seg button{padding:7px 14px;background:#141a14;border:1px solid #2a3328;cursor:pointer;font:400 13px var(--ct-mono);color:#9aa898}.ct-seg button.on{background:#1f5a0e;color:#eaffdf;border-color:var(--ct-green)}

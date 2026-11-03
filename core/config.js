@@ -10,7 +10,7 @@ export const CONFIG={
  fastSec:60,crmSec:180,statusGapSec:{2:180,3:300}, // ОБЩЕЕ окно от статуса до следующего звонка, чтобы Heat не упал: обычно 60 с; после «Owner hung up в начале» (id 2) ровно 3 мин; после «Owner pitched & Hang Up» (id 3) ровно 5 мин; после Call back/Follow up 60+180 с
  afterCallSec:{TRASH:30,GATEKEEPER:30,MINOR:45,TALK:60,CALLBACK:180,BOOKED:1200,DISCOVERY:1200,byId:{}}, // окно по логу Zoom: от КОНЦА прошлого звонка до НАЧАЛА следующего (сек), по прошлому статусу. Только в коде, не в настройках (иначе чит)
  maxGapMin:40,winMaxGapMin:40,heatDropMode:'oneStep',
- antispamSec:4,undoKeep:5000,antispamMult:.5,undoSec:60,pauseMaxSec:600,bonusCap:.5,
+ antispamSec:4,redialMinSec:30,testerCallSec:360,undoKeep:5000,antispamMult:.5,undoSec:60,pauseMaxSec:600,bonusCap:.5,
  ulta:{n:5},
  od:{streak:25,sec:480,money:3,xp:2.2}, // ТЗ §7: 8 минут, XP x2.2. Серия 25: в реальной работе это ≈1 раз на 100 звонков (слово пользователя)
  talkBonus:{xp:3.5,money:2.6,cap:18,per:30,after:60},

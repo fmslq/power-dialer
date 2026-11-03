@@ -23,7 +23,7 @@ export class Dialer{
   this.saved=null;this.saveErr="";this.ps=0;this.wB=false;this.wD=false;
   const s=J(E.store,"pd2s",null),d=today(new Date(E.now()));this.ses=s&&s.d==d?{tot:s.tot|0,sprint:s.sprint|0,tFirst:s.tFirst|0,times:s.times||[],dset:new Set(s.dset||[])}:{tot:0,sprint:0,tFirst:0,times:[],dset:new Set()};
   const em=(k,v)=>this.bus.emit(k,v);
-  this.sheets=new SheetsSync({table:this.t,cfg:()=>this.P.sheets,fileTab:()=>(this.P.files[this.t.name]||{}).tab||this.t.name,store:E.store,fetch:E.fetch,setTimeout:E.setTimeout,clearTimeout:E.clearTimeout,now:E.now,
+  this.sheets=new SheetsSync({table:this.t,cfg:()=>E.readOnly?{...this.P.sheets,on:false}:this.P.sheets,fileTab:()=>(this.P.files[this.t.name]||{}).tab||this.t.name,store:E.store,fetch:E.fetch,setTimeout:E.setTimeout,clearTimeout:E.clearTimeout,now:E.now,
    isEditing:l=>E.isEditing(l),confirm:m=>E.confirm(m),busyLocal:()=>!!(this.ps||this.wB||this.wD),kv:E.kv,emit:(k,v)=>{if(k=='leadsReplaced')this.q.keep(v.keep);if(k=='tableChanged'){this.persist();em('leadChanged',this.view())}em(k,v)}});
   this.zoom=new ZoomBridge({provider:E.zoomProvider,send:m=>E.zoomSend&&E.zoomSend(m),prefs:()=>this.P,savePrefs:()=>this.sp(),emit:em,https:!!E.https,setTimeout:E.setTimeout,clearTimeout:E.clearTimeout});
   this.hang=new HangupGuard({activeCall:()=>this.call,sendHangup:id=>this.zoom.hangup(id),sendDial:n=>this._send(n),now:E.now});
@@ -31,7 +31,7 @@ export class Dialer{
   this.bus.on('callEnded',c=>{if(this.call&&this.call.id===c.callId)this.call.ended=c.at;this.hang.onEnded(c.callId);this.calling=false;em('leadChanged',this.view())});
   this.bus.on('zoomEnded',()=>{this.calling=false});}
  sp(){try{this.env.store.setItem("pd2",JSON.stringify(this.P))}catch(e){}}
- sesSave(){const s=this.ses;try{this.env.store.setItem("pd2s",JSON.stringify({d:today(new Date(this.env.now())),tot:s.tot,sprint:s.sprint,tFirst:s.tFirst,times:s.times,dset:[...s.dset]}))}catch(e){}}
+ sesSave(){if(this.env.readOnly)return;const s=this.ses;try{this.env.store.setItem("pd2s",JSON.stringify({d:today(new Date(this.env.now())),tot:s.tot,sprint:s.sprint,tFirst:s.tFirst,times:s.times,dset:[...s.dset]}))}catch(e){}}
  emit(k,v){this.bus.emit(k,v)}
  get cur(){return this.q.cur}
  // ---- снимок для UI (ничего не рисует) ----
@@ -49,20 +49,20 @@ export class Dialer{
    const f=await h.getFile();this.loadText(await f.text(),h.name);this.FH=h;this.addRecent(h);this.sheets.pump();this.env.setTimeout(()=>this.sheets.pull(),1500);return true}
   catch(e){this.emit('toast',"Не удалось открыть: "+e.message);return false}}
  async addRecent(h){const kv=this.env.kv;if(!kv)return;try{let r=(await kv("get","rc"))||[];const k=await Promise.all(r.map(x=>x.isSameEntry(h).catch(()=>false)));r=r.filter((x,i)=>!k[i]);r.unshift(h);r=r.slice(0,8);await kv("put","rc",r);this.recent=r}catch(e){}}
- async openSheetUrl(u){const s=parseSheetUrl(u);if(!s){this.emit('toast',"Это не ссылка на Google Таблицу");return false}return this.openSheet(s)}
+ async openSheetUrl(u){if(u&&String(u).trim()){this.P.lastSheetUrl=String(u).trim();this.sp()}const s=parseSheetUrl(u);if(!s){this.emit('toast',"Это не ссылка на Google Таблицу");return false}return this.openSheet(s)}
  async openSheet(src){this.emit('toast',"Загружаю таблицу…");const o=await this.sheets.open(src);if(!o.ok){this.emit('toast',o.error);if(o.cfg)this.emit('openSettings',{section:'dialer'});return false}
   const r=o.r;this.P.sheets.on=true;this.t.loadSheet(r,src);this.FH=null;const p=this.P.files[this.t.name]||{};this.q.start=Math.min(p.start||0,Math.max(this.t.L.length-1,0));this.q.f={type:p.type||"",state:p.state||"",tz:p.tz||""};
   this.saved=null;this.saveErr="";this.q.reinit();this.P.srcs=[{id:src.id,gid:r.gid,name:this.t.name},...this.P.srcs.filter(x=>!(x.id==src.id&&x.gid==r.gid))].slice(0,8);this.sp();
   this.emit('leadsLoaded',{count:this.t.L.length,name:this.t.name,head:this.t.h});this.emit('leadChanged',this.view());this.sheets.pump();this.bkSoon(1);return true}
  async switchBase(){try{await this.flush()}catch(e){}this.t.L=[];this.t.src=null;this.FH=null;this.q.hist=[];this.q.hc=-1;this.emit('leadsLoaded',{count:0});this.emit('leadChanged',this.view())}
  // ---- запись в файл (тот же файл, формат сохраняется) и резервная копия в папку ----
- async persist(){this.env.clearTimeout(this.ps);this.ps=0;if(!this.FH){if(this.t.src)this.bkSoon();return}this.wD=true;if(this.wB)return;this.wB=true;
+ async persist(){this.env.clearTimeout(this.ps);this.ps=0;if(this.env.readOnly)return;if(!this.FH){if(this.t.src)this.bkSoon();return}this.wD=true;if(this.wB)return;this.wB=true;
   try{while(this.wD){this.wD=false;const w=await this.FH.createWritable();await w.write(this.t.serialize());await w.close()}this.saved=new Date(this.env.now());this.saveErr=""}catch(e){this.saveErr=e.message||"ошибка"}
   this.wB=false;this.emit('saveState',{saved:this.saved,error:this.saveErr})}
  persistSoon(){this.env.clearTimeout(this.ps);const l=this.cur;this.ps=this.env.setTimeout(()=>{this.persist();this.sheets.sync(l,0)},1200)}
  async flush(){await this.persist();while(this.wB)await new Promise(r=>this.env.setTimeout(r,40))}
  bkSoon(now){if(!this.t.src)return;this.env.clearTimeout(this.bkT);this.bkT=this.env.setTimeout(()=>this.bkWrite(),now?300:20000)}
- async bkWrite(){if(!this.BK||!this.t.src)return;try{if(await this.BK.queryPermission({mode:"readwrite"})!="granted"){this.bkNeed=1;this.emit('saveState',{needBackupPermission:true});return}
+ async bkWrite(){if(!this.BK||!this.t.src||this.env.readOnly)return;try{if(await this.BK.queryPermission({mode:"readwrite"})!="granted"){this.bkNeed=1;this.emit('saveState',{needBackupPermission:true});return}
    const nm=(this.t.name||"table").replace(/[\\\/:*?"<>|]/g,"_")+".csv",fh=await this.BK.getFileHandle(nm,{create:true}),w=await fh.createWritable();await w.write(this.t.serializeCsv());await w.close();this.saved=new Date(this.env.now());this.saveErr="";this.bkNeed=0}
   catch(e){this.saveErr=e.message||"ошибка"}this.emit('saveState',{saved:this.saved,error:this.saveErr})}
  async setBackupDir(h){this.BK=h;if(this.env.kv)await this.env.kv("put","bk",h).catch(()=>{});this.bkSoon(1)}
@@ -71,6 +71,7 @@ export class Dialer{
  dial(){const l=this.cur;if(!l||!this.t.ph(l))return false;this.emit('guardMark',{});this.calling=true;this.t0=this.env.now();this.zoom.sug=-1;this.hang.dial(this.t.ph(l));this.emit('leadChanged',this.view());return true}
  _send(n){const how=this.zoom.call(n);if(how==='app'&&this.env.manualProvider)this.env.manualProvider.ring(n);if(how==='blocked'){this.calling=false;this.emit('leadChanged',this.view())}return how}
  hangup(src='button'){const r=this.hang.request(src);if(r==='sent')this.calling=false;return r}
+ lastCallId(){const c=this.call;return c&&c.ended==null?c.id:null}
  _autoHang(kind){if(!(kind=='status'?this.P.hangupOnStatus:this.P.hangupOnSkip))return'off';const c=this.call;if(!c||c.ended!=null)return'none';return this.hang.request('status')}
  // статус по индексу кнопки (0..14). Повтор того же статуса = убрать (как раньше). waitFn(meta) → мс задержки автонабора (праздники игры)
  // env.canStatus(k,lead,opt) => {ok,why,dur,min}: игра может ЗАПРЕТИТЬ статус (встреча короче 3 мин по Zoom). Тогда в таблицу ничего не пишется.

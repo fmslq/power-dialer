@@ -2,7 +2,7 @@
 // Меню НЕ ставит дайлер на паузу: звонок и таймеры идут как шли (игра первична, но работа не должна останавливаться от меню).
 import {icon} from '../../art/icons.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-export const MENU=[['resume','Продолжить','play','Esc'],['settings','Настройки','settings',''],['map','Карта','map','⇧G'],['base','База','base','⇧H'],['journal','Журнал','book',''],
+export const MENU=[['resume','Продолжить','play','Esc'],['settings','Настройки','settings',''],['map','Карта','map','⇧G'],['base','База','base','⇧H'],['journal','Журнал','book',''],['tutorial','Обучение','info',''],
  ['debug','Debug','bug','`'],['export','Экспорт сохранения','export',''],['home','В главное меню','home','']];
 export function makeGameMenu(o){ // o: {run(id), vol:{get,set}, info:()=>({rank,lvl,money,streak})}
  let el=null,sel=0;

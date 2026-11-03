@@ -1,7 +1,7 @@
 // БАЗА И ЧЁРНЫЙ РЫНОК (R4, ТЗ §10–11). Полноэкранная сцена базы 2400×1000 (панорама: тянуть / колесо / стрелки),
 // 4 стадии по району, купленные предметы на своих слотах (новые падают сверху), Гудок, люк на рынок, рычаг «К работе».
 // Рынок: продавец Лом, вкладки районов 1–12 + косметика, карточки в духе Inscryption (арт, тир, лор, где встанет).
-import {DIST,SHOP_ITEMS,COSMETICS,buy,baseStage} from '../../core/meta.js';
+import {DIST,SHOP_ITEMS,COSMETICS,buy,baseStage,equip,equipped} from '../../core/meta.js';
 import {ITEM_LORE,COSMETIC_LORE} from '../../story/items.js';
 import {LINES} from '../../story/guide.js';
 import {guideSvg} from '../../art/guide.js';
@@ -60,9 +60,10 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
  const tip=(e,id)=>{const t=el.querySelector('#hq-tip');if(!id){t.classList.remove('on');return}const it=byId(id);
   t.innerHTML=`<b>${esc(it.name)}</b><span>${it.district?esc(DIST[it.district-1][0])+' · ':''}${esc(tierName(it))}</span>`;t.style.left=e.clientX+'px';t.style.top=e.clientY+'px';t.classList.add('on')};
  // ---------- карточка (общая для рынка и осмотра) ----------
- const where=it=>{const sl=BASE_SLOTS[it.id];return it.district?`встанет ${LAYER[sl[3]]} базы · переезжает с тобой`:'на стене трофеев · пока только трофей'};
+ const where=it=>{const sl=BASE_SLOTS[it.id];return it.district?`встанет ${LAYER[sl[3]]} базы · переезжает с тобой`:it.slot==='trail'?'след фигурки на карте мира · и на стене трофеев':'материал печати статуса на карточке · и на стене трофеев'};
  const card=(it,st)=>{const L=loreOf(it.id),lk=st==='lk',cl=tierCls(it),g=G();const short=!lk&&st!=='own'&&g.money<it.price;
-  const btn=lk?`<span class="crd-lk">Откроется в районе ${it.district}</span>`:st==='own'?`<span class="crd-own">У тебя на базе</span>`:
+  const on=!it.district&&equipped(meta(),it.slot)===it.id;
+  const btn=lk?`<span class="crd-lk">Откроется в районе ${it.district}</span>`:st==='own'&&!it.district?`<button class="crd-eq${on?' on':''}" data-eq="${it.id}">${on?'Надето ✓ · снять':'Надеть'}</button>`:st==='own'?`<span class="crd-own">У тебя на базе</span>`:
    `<button class="crd-buy${short?' short':''}" data-buy="${it.id}"${short?' aria-disabled="true"':''}>${short?`не хватает ${$m(it.price-g.money)}`:`Купить · ${$m(it.price)}`}</button>`;
   return`<article class="crd ${cl} ${st}" data-id="${it.id}"><div class="crd-fr"><header class="crd-hd"><b>${lk?'???':esc(it.name)}</b><em>${lk?'':$m(it.price)}</em></header>
    <div class="crd-art"><svg class="crd-svg" viewBox="-200 -400 400 420"><g class="crd-g">${itemSprite(it.id)}</g></svg>${lk?'<i class="crd-q">?</i>':''}${cl==='t2'&&!lk?'<i class="crd-shine"></i>':''}</div>
@@ -72,7 +73,7 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
  const fit=root=>root.querySelectorAll('.crd-svg').forEach(s=>{try{const b=s.querySelector('.crd-g').getBBox();if(!b.width)return;const p=Math.max(b.width,b.height)*.08;
   s.setAttribute('viewBox',`${b.x-p} ${b.y-p} ${b.width+2*p} ${b.height+2*p}`)}catch(e){}});
  const showCard=id=>{const it=byId(id);if(!it)return;const w=document.createElement('div');w.className='hq-card';
-  w.innerHTML=`<div class="hq-card-in">${card(it,'own')}<p class="hq-card-x">Esc или клик — закрыть</p></div>`;w.onclick=()=>w.remove();w.querySelectorAll('.crd-stamp').forEach(x=>x.remove());el.appendChild(w);fit(w);o.sfx&&o.sfx('tick')};
+  w.innerHTML=`<div class="hq-card-in">${card(it,'own')}<p class="hq-card-x">Esc или клик — закрыть</p></div>`;w.onclick=()=>w.remove();w.querySelectorAll('.crd-stamp').forEach(x=>x.remove());w.querySelectorAll('.crd-eq').forEach(x=>x.replaceWith(Object.assign(document.createElement('span'),{className:'crd-own',textContent:'Надеть — на Чёрном Рынке'})));el.appendChild(w);fit(w);o.sfx&&o.sfx('tick')};
  // ---------- рынок ----------
  const stOf=it=>owned(it.id)?'own':it.district&&it.district>(G().district||1)?'lk':'';
  const lom=(mood,t)=>{if(!bm)return;bm.querySelector('#bm-lom').innerHTML=lomSvg(mood);const b=bm.querySelector('#bm-say');b.textContent=t;b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');
@@ -82,7 +83,7 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
   `<button class="bm-tab cos${tab==='cos'?' on':''}" data-tab="cos"><b>КОСМ</b><span>${COSMETICS.filter(x=>owned(x.id)).length}/${COSMETICS.length}</span></button>`};
  const list=()=>tab==='cos'?COSMETICS:SHOP_ITEMS.filter(x=>x.district===tab);
  const grid=()=>{const L=list(),lk=tab!=='cos'&&tab>(G().district||1);
-  return`<div class="bm-sub">${tab==='cos'?'<b>Косметика</b><span>Трофеи для стены. На карте и в игре пока не применяются.</span>':`<b>${tab}. ${esc(DIST[tab-1][0])}</b><span>${lk?'Район ещё не твой — только силуэты.':'Три вещи района: дешёвая, средняя, showpiece.'}</span>`}</div>
+  return`<div class="bm-sub">${tab==='cos'?'<b>Косметика</b><span>След фигурки на карте и материал печати статуса. Надето — одно из каждого вида.</span>':`<b>${tab}. ${esc(DIST[tab-1][0])}</b><span>${lk?'Район ещё не твой — только силуэты.':'Три вещи района: дешёвая, средняя, showpiece.'}</span>`}</div>
    <div class="bm-grid">${L.map(it=>card(it,stOf(it))).join('')}</div>`};
  const drawShop=()=>{if(!bm)return;bm.querySelector('#bm-tabs').innerHTML=tabs();bm.querySelector('#bm-body').innerHTML=grid();bm.querySelector('#bm-money').textContent=$m(G().money);fit(bm);
   const t=bm.querySelector('.bm-tab.on');t&&t.scrollIntoView&&t.scrollIntoView({block:'nearest',inline:'nearest'})};
@@ -101,6 +102,7 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
    <nav class="bm-tabs" id="bm-tabs"></nav><section class="bm-body" id="bm-body"></section>
    <p class="bm-foot">1–9, 0 — район · C — косметика · Esc — на базу</p></div>`;
   el.appendChild(bm);bm.onclick=e=>{const b=e.target.closest('[data-buy],[data-tab],[data-k]');if(!b)return;
+   if(b.dataset.eq){equip(meta(),b.dataset.eq);o.persist&&o.persist();o.onEquip&&o.onEquip();o.sfx&&o.sfx('tick');lom('welcome',equipped(meta(),byId(b.dataset.eq).slot)?'Носи с гордостью. И не мой.':'Снял? Ну и ладно. Я не обиделся.');drawShop();return}
    if(b.dataset.buy)doBuy(b.dataset.buy);else if(b.dataset.tab)setTab(b.dataset.tab==='cos'?'cos':+b.dataset.tab);else if(b.dataset.k==='close')closeShop()};
   drawShop();lom('welcome',pick(LOM_LINES.welcome));requestAnimationFrame(()=>bm&&bm.classList.add('in'));o.sfx&&o.sfx('tick')};
  const closeShop=()=>{if(!bm)return;const b=bm;bm=null;b.classList.remove('in');setTimeout(()=>b.remove(),reduce()?0:220);if(el)refresh()};

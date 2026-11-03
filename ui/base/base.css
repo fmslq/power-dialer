@@ -125,3 +125,6 @@
 /* без анимаций */
 .hq.rm *,.hq.rm *::before,.hq.rm *::after{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){.hq *,.hq *::before,.hq *::after{animation:none!important;transition-duration:.01s!important}}
+.crd-eq{flex:1;font:800 13px/1 var(--ct-text);text-transform:uppercase;background:#ff2bd6;color:#fff;border:3px solid #050505;box-shadow:3px 3px 0 #050505;padding:10px;cursor:pointer}
+.crd-eq.on{background:#1a140c;color:#39ff14}.crd-eq:hover{filter:brightness(1.1)}
+.crd.cos.own .crd-stamp{display:none}

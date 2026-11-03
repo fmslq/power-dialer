@@ -159,3 +159,7 @@
 @keyframes inkPath{to{stroke-dashoffset:0}}
 @keyframes inkFlag{from{opacity:0;transform:scale(.2) rotate(-20deg)}to{opacity:1;transform:none}}
 @keyframes capFlash{from{opacity:.55}to{opacity:0}}
+/* косметика: след фигурки (Чёрный Рынок) */
+#wm-paths path.wm-trail,.wm-trail{visibility:visible;fill:none;stroke:var(--tc)!important;stroke-width:8!important;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px var(--tc)) drop-shadow(0 0 14px var(--tc));opacity:.95;transition:opacity 1.6s ease-out;pointer-events:none}
+#wm-paths path.wm-trail.gone{opacity:0}
+.wm-tr{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}

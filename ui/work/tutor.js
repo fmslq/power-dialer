@@ -1,0 +1,53 @@
+// ОБУЧЕНИЕ (ТЗ §7): spotlight по шагам TUTORIAL из story/guide.js.
+// Безопасность: шаги «статус» и «отмена» — ТРЕНАЖЁР на ненастоящем лиде внутри карточки обучения.
+// Настоящий статус в таблицу не пишется, автодозвон не срабатывает (иначе обучение могло бы набрать живую компанию).
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+export function makeTutor(o){ // o:{steps, sfx(n), onDone(how), onStep(i), stamp:{label,color}}
+ const S=o.steps;let el=null,i=0,done={},raf=0,ro=null;
+ const isOpen=()=>!!el;
+ const vis=sel=>{if(!sel)return null;for(const s of String(sel).split('|')){const e=document.querySelector(s.trim());if(e){const r=e.getBoundingClientRect();if(r.width>4&&r.height>4&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth)return e}}return null};
+ const need=st=>st.act&&!done[st.id];
+ const train=st=>st.act==='status'?`<div class="tut-mini${done.status&&!done.undo?' on':''}" id="tut-mini"><div class="tm-h"><b>Joe's Pool Co.</b><span>тренажёр · не настоящий лид</span></div><div class="tm-r"><span>+1 512 555 01 99</span><span>TX</span></div><div class="tm-b"><kbd>1</kbd><span>Автоответчик</span><kbd>5</kbd><span>CALL BOOKED</span></div></div>`
+  :st.act==='undo'?`<div class="tut-mini${done.undo?'':' on'}" id="tut-mini"><div class="tm-h"><b>Joe's Pool Co.</b><span>тренажёр · не настоящий лид</span></div><div class="tm-r"><span>+1 512 555 01 99</span><span>TX</span></div><div class="tm-b"><kbd>X</kbd><span>убрать статус</span></div></div>`:'';
+ const draw=()=>{const st=S[i],n=S.length,blk=need(st);
+  return`<svg class="tut-dim" aria-hidden="true"><defs><mask id="tut-m"><rect width="100%" height="100%" fill="#fff"/><rect class="tut-hole" rx="12" fill="#000"/></mask></defs><rect width="100%" height="100%" fill="rgba(2,4,3,.72)" mask="url(#tut-m)"/></svg>
+  <div class="tut-ring" aria-hidden="true"><i></i></div>
+  <div class="tut-card" role="dialog" aria-label="Обучение"><div class="tut-h"><span class="tut-g" aria-hidden="true"><i></i><i></i><i></i></span><b>ГУДОК</b><em>обучение · ${i+1}/${n}</em></div>
+   <p>${esc(st.text)}</p>${train(st)}
+   ${blk?`<div class="tut-need"><kbd>${st.act==='status'?'1':'X'}</kbd><span>${st.act==='status'?'нажми 1 — поставить статус на тренажёре':'нажми X — убрать статус'}</span></div>`:''}
+   <div class="tut-dots">${S.map((_,k)=>`<i class="${k<i?'p':k===i?'c':''}"></i>`).join('')}</div>
+   <div class="tut-b"><button class="tut-skip" data-t="skip">Пропустить обучение</button><span></span>${i?'<button data-t="back">← Назад</button>':''}<button class="tut-next" data-t="next" ${blk?'disabled':''}>${i===n-1?'Готово':'Дальше →'}</button></div></div>`};
+ const place=()=>{if(!el)return;const st=S[i],t=vis(st.target),hole=el.querySelector('.tut-hole'),ring=el.querySelector('.tut-ring'),card=el.querySelector('.tut-card');
+  const W=innerWidth,H=innerHeight,cw=card.offsetWidth,ch=card.offsetHeight,pad=8;
+  if(!t){hole.setAttribute('width',0);hole.setAttribute('height',0);ring.style.opacity=0;card.style.left=Math.round((W-cw)/2)+'px';card.style.top=Math.round((H-ch)/2)+'px';el.classList.add('free');return}
+  el.classList.remove('free');const r=t.getBoundingClientRect(),x=Math.max(4,r.left-pad),y=Math.max(4,r.top-pad),w=Math.min(W-8,r.width+pad*2),h=Math.min(H-8,r.height+pad*2);
+  hole.setAttribute('x',x);hole.setAttribute('y',y);hole.setAttribute('width',w);hole.setAttribute('height',h);
+  Object.assign(ring.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px',opacity:1});
+  // карточка: справа, слева, снизу, сверху от цели — где помещается; иначе в угол, не перекрывая цель
+  const g=16,opts=[[x+w+g,y],[x-cw-g,y],[x,y+h+g],[x,y-ch-g]];let best=null;
+  for(const [cx,cy] of opts){const X=Math.min(Math.max(12,cx),W-cw-12),Y=Math.min(Math.max(12,cy),H-ch-12),ov=Math.max(0,Math.min(X+cw,x+w)-Math.max(X,x))*Math.max(0,Math.min(Y+ch,y+h)-Math.max(Y,y));if(!best||ov<best[2])best=[X,Y,ov];if(!ov)break}
+  card.style.left=Math.round(best[0])+'px';card.style.top=Math.round(best[1])+'px'};
+ const loop=()=>{if(!el)return;place();raf=requestAnimationFrame(()=>setTimeout(loop,120))};
+ const render=()=>{el.innerHTML=draw();el.classList.toggle('pass',false);
+  const t=vis(S[i].target);t&&t.scrollIntoView&&t.scrollIntoView({block:'nearest',behavior:'smooth'});place();o.onStep&&o.onStep(i)};
+ const go=k=>{if(k>=S.length){close('done');return}if(k<0)return;i=k;render();o.sfx&&o.sfx('tick')};
+ const next=()=>{if(need(S[i])){const nd=el.querySelector('.tut-need');nd&&(nd.classList.remove('shake'),void nd.offsetWidth,nd.classList.add('shake'));return}go(i+1)};
+ const stamp=(on)=>{const m=el&&el.querySelector('#tut-mini');if(!m)return;m.querySelectorAll('.wk-stamp').forEach(e=>e.remove());
+  if(on){const s=document.createElement('div');s.className='wk-stamp';s.textContent=o.stamp?.label||'VOICEMAIL';s.style.setProperty('--c',o.stamp?.color||'#d9a07a');s.style.fontSize='22px';m.appendChild(s);
+   const f=document.createElement('div');f.className='tut-gain';f.textContent='+XP  +$';m.appendChild(f)}};
+ const act=a=>{const st=S[i];if(!el||st.act!==a||done[a])return false;done[a]=1;
+  if(a==='status'){stamp(true);o.sfx&&o.sfx('stamp')}else{stamp(false);o.sfx&&o.sfx('undo')}
+  const nd=el.querySelector('.tut-need');nd&&(nd.classList.add('ok'),nd.innerHTML='<span>✓ так и делается</span>');const b=el.querySelector('.tut-next');b&&(b.disabled=false,b.focus());return true};
+ const key=e=>{if(!el)return false;if(e.metaKey||e.ctrlKey||e.altKey)return false;const k=e.code,st=S[i];
+  if(k==='Escape'){close('skip');return true}
+  if(k==='Enter'||k==='ArrowRight'||k==='Space'){if(e.target&&e.target.tagName==='BUTTON'&&k!=='ArrowRight'){e.target.click();return true}next();return true}
+  if(k==='ArrowLeft'){go(i-1);return true}
+  if(st.act==='status'&&(k==='Digit1'||k==='Numpad1')){act('status');return true}
+  if(st.act==='undo'&&k==='KeyX'){act('undo');return true}
+  return true}; // пока идёт обучение, клавиши игры не срабатывают: случайный статус по живому лиду исключён
+ const close=how=>{if(!el)return;cancelAnimationFrame(raf);removeEventListener('resize',place);el.classList.add('out');const e=el;el=null;setTimeout(()=>e.remove(),260);o.onDone&&o.onDone(how,i)};
+ const open=(from=0)=>{if(el)return;i=Math.max(0,Math.min(S.length-1,from));done={};el=document.createElement('div');el.className='tut';
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){const t=b.dataset.t;t==='next'?next():t==='back'?go(i-1):close('skip');return}
+   if(e.target.closest('#tut-mini')){const st=S[i];st.act==='status'?act('status'):st.act==='undo'&&act('undo')}});
+  document.body.appendChild(el);render();addEventListener('resize',place);loop()};
+ return{open,close,isOpen,key,act,step:()=>i}}

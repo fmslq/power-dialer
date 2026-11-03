@@ -46,6 +46,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
     <svg class="wm-ink" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
     <svg class="wm-r" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
     <canvas class="wm-bmp" width="8" height="8"></canvas>
+    <svg class="wm-tr" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
     <canvas class="wm-fog b" width="900" height="600"></canvas><canvas class="wm-fog d" width="900" height="600"></canvas>
     <div class="wm-fx">${embers()}</div>
     <div class="wm-mk">${NODES.map((_,i)=>marker(i+1)).join('')}${riddle()}</div>
@@ -130,9 +131,10 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
   busy=true;el.classList.add('busy');const seq=pathBetween(a,b),host=$('#wm-paths');let i=0;cl.classList.add('walk');
   const leg=()=>{if(!el)return;if(i>=seq.length-1){cl.classList.remove('walk');busy=false;el.classList.remove('busy');moveTo(root,o.G(),b);o.persist();S();refresh();done&&done();return}
    const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',segD(seq[i],seq[i+1]));host.append(p);const L=p.getTotalLength(),dur=Math.max(650,Math.min(1500,L/0.75)),t0=performance.now();
+   const tc=o.trail&&o.trail();let tp=null;if(tc){tp=document.createElementNS('http://www.w3.org/2000/svg','path');tp.setAttribute('d',segD(seq[i],seq[i+1]));tp.setAttribute('class','wm-trail');tp.style.setProperty('--tc',tc);tp.style.strokeDasharray=L;tp.style.strokeDashoffset=L;($('.wm-tr')||host).append(tp)}
    const follow=lvl()>0;const step=t=>{if(!el)return;const k=Math.min(1,(t-t0)/dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2,q=p.getPointAtLength(e*L),q2=p.getPointAtLength(Math.min(L,e*L+2));
-    face=q2.x<q.x-.01?-1:q2.x>q.x+.01?1:face;putCaller(q.x,q.y);if(follow){cam=clampCam(camAt(q.x,q.y-60,cam.s),vw,vh);apply();camEl.classList.add('mv')}
-    if(k<1)tw=requestAnimationFrame(step);else{p.remove();i++;moving();leg()}};tw=requestAnimationFrame(step)};leg()};
+    face=q2.x<q.x-.01?-1:q2.x>q.x+.01?1:face;putCaller(q.x,q.y);if(tp)tp.style.strokeDashoffset=L*(1-e);if(follow){cam=clampCam(camAt(q.x,q.y-60,cam.s),vw,vh);apply();camEl.classList.add('mv')}
+    if(k<1)tw=requestAnimationFrame(step);else{p.remove();if(tp){const z=tp;setTimeout(()=>z.classList.add('gone'),900);setTimeout(()=>z.remove(),2600)}i++;moving();leg()}};tw=requestAnimationFrame(step)};leg()};
  // ---------- раскрытие района волной от фигурки ----------
  // кат-сцена захвата (ТЗ §8 п.8): вспышка, чернила цвета игрока разливаются по району из центра, фигурка ставит флаг,
  // тропа к следующему району прорисовывается — затем обычное раскрытие (туман расходится волной)

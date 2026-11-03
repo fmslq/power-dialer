@@ -3,14 +3,17 @@ export const bagPick=(bag,all,last)=>{if(!bag.length){bag.push(...all.filter(x=>
 // Пулы: <тема>/calm, <тема>/action, overdrive (верхний уровень), hq (верхний уровень), stingers (верхний уровень).
 // ИСПРАВЛЕНО (rework §14): раньше overdrive/ верхнего уровня не находился (искалось */overdrive), а hq/ не использовался вовсе.
 export const THEMES=['industrial','neon','blackgold'];
-export function pickPool(pools,theme,state){const has=k=>pools[k]&&pools[k].length,any=x=>Object.keys(pools).filter(k=>k.endsWith('/'+x));
+export function pickPool(pools,theme,state,dist){const has=k=>pools[k]&&pools[k].length,any=x=>Object.keys(pools).filter(k=>k.endsWith('/'+x));
+ // свои папки: boss/ — фаза босса, d1…d12/ — свой район (с подпапками calm/action или файлами прямо в ней)
+ if(state==='boss'){for(const k of ['boss',dist&&`d${dist}/action`,dist&&`d${dist}`])if(k&&has(k))return k;state='action'}
+ if(dist&&(state==='calm'||state==='action')){for(const k of [`d${dist}/${state}`,`d${dist}`])if(has(k))return k}
  const order=state==='overdrive'?[`${theme}/overdrive`,'overdrive',...any('overdrive'),`${theme}/action`,...any('action')]
   :(state==='hq'||state==='standby')?['hq',`${theme}/calm`,...any('calm')]
   :state==='action'?[`${theme}/action`,`${theme}/calm`,...any('action')]:[`${theme}/calm`,...any('calm')];
  order.push(...Object.keys(pools).filter(k=>/\/(calm|action)$/.test(k)),'hq','overdrive');
  for(const k of order)if(has(k))return k;return null}
 // c: {paused, world (открыт мировой экран: карта/база/магазин), od, step, ulta}
-export const stateOf=c=>c.paused?'standby':c.world?'hq':c.od?'overdrive':(c.step>=2||c.ulta)?'action':'calm';
+export const stateOf=c=>c.paused?'standby':c.world?'hq':c.od?'overdrive':c.boss?'boss':(c.step>=2||c.ulta)?'action':'calm';
 // Стингеры играют на ВСЕХ значимых событиях (раньше только победа и захват района).
 export const STINGER_EVENTS=['hundred','capture','level','achv','booked','discovery','rank','purchase','boss','finish','overdrive','trophy'];
 export const STINGER_PRIORITY=['capture','rank','booked','discovery','hundred'];
@@ -18,8 +21,8 @@ export class Music{constructor(bus){this.pools={};this.bags={};this.decks=[];thi
  init(ctx){if(this.ctx||!ctx)return;this.ctx=ctx;const c=ctx;this.out=c.createGain();this.shelf=c.createBiquadFilter();this.shelf.type='lowshelf';this.shelf.frequency.value=160;this.lp=c.createBiquadFilter();this.lp.type='lowpass';this.lp.frequency.value=9000;this.comp=c.createDynamicsCompressor();this.comp.threshold.value=-14;this.comp.ratio.value=3;
   this.out.connect(this.shelf).connect(this.lp).connect(this.comp).connect(c.destination);this.decks=[0,1].map(()=>{const a=new Audio();a.crossOrigin='anonymous';a.preload='auto';const s=c.createMediaElementSource(a),g=c.createGain();g.gain.value=0;s.connect(g).connect(this.out);a.addEventListener('timeupdate',()=>{if(a===this.decks[this.cur].a&&a.duration&&a.duration-a.currentTime<3&&!this._n){this._n=1;this.next(2.5)}});a.addEventListener('ended',()=>{if(a===this.decks[this.cur].a&&!this._n)this.next(.5)});return{a,g}});this.apply()}
  apply(){if(!this.out)return;const t=this.ctx.currentTime,d=this.duckT>t?.4:1,sb=this.state==='standby';this.out.gain.setTargetAtTime(this.v*d*(sb?.35:1),t,.2);this.lp.frequency.setTargetAtTime(sb?900:9000+(this.heat||0)*3000,t,.4);this.shelf.gain.setTargetAtTime((this.heat||0)*2,t,.5);const rate=this.state==='overdrive'?1.1:1;this.decks.forEach(k=>{k.a.playbackRate=rate;k.a.preservesPitch=true})}
- setCtx(c){const st=stateOf(c);this.heat=c.step;const changed=st!==this.state||c.theme!==this.theme;this.state=st;this.theme=c.theme;this.apply();if(!this.lib||!this.ctx)return;if(changed)this.next(1.5)}
- next(fade){this._n=0;const key=pickPool(this.pools,this.theme||'industrial',this.state);this.key=key;if(!key)return this.lib=false;const all=this.pools[key],b=this.bags[key]||(this.bags[key]=[]),tr=bagPick(b,all,this.last);this.last=tr;
+ setCtx(c){const st=stateOf(c);this.heat=c.step;const changed=st!==this.state||c.theme!==this.theme||c.dist!==this.dist;this.state=st;this.theme=c.theme;this.dist=c.dist;this.apply();if(!this.lib||!this.ctx)return;if(changed)this.next(1.5)}
+ next(fade){this._n=0;const key=pickPool(this.pools,this.theme||'industrial',this.state,this.dist);this.key=key;if(!key)return this.lib=false;const all=this.pools[key],b=this.bags[key]||(this.bags[key]=[]),tr=bagPick(b,all,this.last);this.last=tr;
   const o=this.decks[this.cur],n=this.decks[1-this.cur],t=this.ctx.currentTime;n.a.src=tr.url;n.a.currentTime=0;n.g.gain.cancelScheduledValues(t);o.g.gain.cancelScheduledValues(t);n.a.play().catch(()=>{});
   const steps=24;for(let i=0;i<=steps;i++){const x=i/steps,tt=t+fade*x;n.g.gain.linearRampToValueAtTime(Math.sin(x*Math.PI/2)*Math.pow(10,(tr.gainDb||0)/20),tt);o.g.gain.linearRampToValueAtTime(Math.cos(x*Math.PI/2),tt)}setTimeout(()=>{o.a.pause()},fade*1000+100);this.cur=1-this.cur;this.apply()}
  start(){if(this.lib)this.next(1)}

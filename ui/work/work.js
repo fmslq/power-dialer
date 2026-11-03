@@ -23,7 +23,11 @@ import {makeArena} from '../boss/arena.js';
 import {makeBase} from '../base/base.js';
 import {claim as claimReward,migrateClaims} from '../../core/claim.js';
 import {makeClaimFx} from './claimfx.js';
-import {bossHp,DIST} from '../../core/meta.js';
+import {makeDistrictWindow} from './dwin.js';
+import {makeTutor} from './tutor.js';
+import {TUTORIAL} from '../../story/guide.js';
+import {Music} from '../../audio/music.js';
+import {bossHp,DIST,TRAIL_COL,equipped} from '../../core/meta.js';
 import {bossState} from '../../core/engine.js'; // (windowState — выше)
 import {debugHtml,journalHtml} from './debug.js';
 import {icon} from '../../art/icons.js';
@@ -82,6 +86,7 @@ export function startWork(root,{save,au,demo=null}={}){
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
    <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
+  <section class="wk-dw" id="dwin" aria-label="Окно в район"></section>
   <div class="wk-mid" id="mid"><div class="wk-mw" id="mw"><main class="wk-main" id="main"></main></div></div>
  </div>
  <div class="wk-zoom ct-panel hide" id="zoomw"><header>ZOOM PHONE <span id="zst"></span><button class="wk-btn" id="z-hide">Спрятать</button></header></div>
@@ -89,7 +94,7 @@ export function startWork(root,{save,au,demo=null}={}){
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
  // ---------- левая панель «Командный центр» ----------
  const CC=makePanel({claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
-  vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;au&&au.setMusic&&au.setMusic(v);persistGame()}}},
+  vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;au&&au.setMusic&&au.setMusic(v);MUS.v=v;MUS.apply();persistGame()}}},
   onLayout:(m,open)=>{const mid=$('#mid');mid.dataset.cc=m+(open?' open':'');if(main.firstChild)padW()}});
  // ползунки в верхней полосе (≥1180; уже — в НАСТРОЙКАХ панели и в меню): те же значения, что в настройках
  const volUi=()=>{const v=CC.vol();document.querySelectorAll('input[data-vol]').forEach(i=>{if(document.activeElement===i)return;const x=Math.round(v[i.dataset.vol]*100);i.value=x;i.style.setProperty('--v',x+'%')})};
@@ -100,7 +105,7 @@ export function startWork(root,{save,au,demo=null}={}){
  // игровое меню (☰ / Esc)
  const GM=makeGameMenu({vol:{get:()=>CC.vol(),set:(k,v)=>CC.setVol(k,v)},
   info:()=>({rank:(RANKS[save.rank??0]||RANKS[0])[1],lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),money:money(ses.G.money),streak:String(ses.G.streak||0)}),
-  run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>BASE.open(),journal:()=>openJournal(),debug:()=>openDebug(),export:()=>SM.exportFile(save),
+  run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>BASE.open(),journal:()=>openJournal(),tutorial:()=>tutOpen(0),debug:()=>openDebug(),export:()=>SM.exportFile(save),
    home:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[k]?.()});
  // сюжет (R5): плеер сцен. Сцены не мешают звонить: во время звонка, серии и Overdrive они ждут в очереди (ТЗ §6)
  const STORY=makeStory({save,persist:persistGame,fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),mode:()=>S.storyMode||'full'});
@@ -119,26 +124,41 @@ export function startWork(root,{save,au,demo=null}={}){
   // счётчик закрыт панелью (узкий экран): временный счётчик сверху по центру
   const f=document.createElement('div');f.className='wk-m-float';f.innerHTML='<small>деньги</small><b></b>';f.querySelector('b').textContent=money(ses.G.money);document.body.appendChild(f);return f.querySelector('b')}});
  let claiming=false;
- const doClaim=async(k,id,card)=>{if(claiming)return;const r=claimReward(save,ses.G,k,id);if(!r.ok){toast(r.why);return}claiming=true;persistGame();
+ const doClaim=async(k,id,card)=>{if(claiming)return;const r=claimReward(save,ses.G,k,id);if(!r.ok){toast(r.why);return}claiming=true;persistGame();if(MUS.lib)MUS.stinger("achv");
   try{await CFX(card,r)}catch(e){mLock=false}document.querySelectorAll('.wk-m-float').forEach(f=>{f.classList.add('out');setTimeout(()=>f.remove(),400)});claiming=false;hud();CC.refresh();MAP.refresh&&MAP.refresh()};
  // база и Чёрный Рынок (R4): полный экран, модальный
- const BASE=makeBase({mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
-  dark:()=>(save.rank??0)===0&&!!save.wasNobody,onBuy:()=>{hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
- const stFlush=()=>{const q=stQ();if(!q.length||!stSafe()||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen())return;const k=q.splice(0);persistGame();const ar=k.filter(x=>x.startsWith('arena-')),sc=k.filter(x=>!x.startsWith('arena-'));
+ const applyCos=()=>{document.body.dataset.stamp=(equipped(save.meta,'stamp')||'').replace('stamp-','')};applyCos();
+ const BASE=makeBase({onEquip:()=>applyCos(),mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
+  dark:()=>(save.rank??0)===0&&!!save.wasNobody,onBuy:()=>{applyCos();hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
+ const stFlush=()=>{const q=stQ();if(!q.length||!stSafe()||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||document.querySelector(".tut"))return;const k=q.splice(0);persistGame();const ar=k.filter(x=>x.startsWith('arena-')),sc=k.filter(x=>!x.startsWith('arena-'));
   const go=()=>{if(ar.length){const dd=+ar.at(-1).split('-')[1];if(dd===ses.G.district)arenaIntro(dd);else ar.forEach(x=>STORY.mark('boss-'+x.split('-')[1]))}};if(sc.length)story(sc,{force:true,cb:go});else go()};
  // первый запуск с сюжетом (save.story.v нет): старому сохранению открываем пройденное (в Журнал), новой игре играем пролог
  {const st=save.story=save.story||{seen:{},queue:[]},cur=ses.G.district||1,fresh=cur===1&&!(ses.G.lifeXp>0);st.seen=st.seen||{};
   if(!st.v){st.v=1;if(!fresh){const t=Date.now(),sn=st.seen;sn.prologue=t;for(let k=1;k<cur;k++){sn['intro-'+k]=t;sn['boss-'+k]=t;sn['capture-'+k]=t}sn['intro-'+cur]=t}persistGame()}
-  if(!st.seen.prologue&&fresh&&!demo&&!tester)setTimeout(()=>story(['prologue','intro-1'],{force:true}),900)}
+  if(!st.seen.prologue&&fresh&&!demo&&!tester)setTimeout(()=>story(['prologue','intro-1'],{force:true,cb:()=>{tutWant=fresh;tutMaybe()}}),900)}
+ // обучение (ТЗ §7): после пролога новой игры; заново — Esc → «Обучение». Статус и отмена — на тренажёре, живой лид не трогаем
+ const TUT=makeTutor({steps:TUTORIAL,sfx:n=>SFX.snd&&SFX.snd(n==='undo'?'del':n),stamp:{label:'VOICEMAIL',color:'#d9a07a'},
+  onDone:(how,i)=>{const t=save.tutorial=save.tutorial||{};t.done=true;t.how=how;t.at=i;t.when=Date.now();persistGame();toast(how==='skip'?'Обучение можно пройти заново: Esc → «Обучение»':'Обучение пройдено. Хорошей смены',how==='skip'?'':'gold');stFlush()}});
+ let tutWant=false;const tutOpen=(k=0)=>{if(STORY.isOpen()||ARENA.isOpen())return;MAP.isOpen()&&MAP.close&&MAP.close();BASE.isOpen()&&BASE.close&&BASE.close();if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();TUT.open(k)};
+ const tutMaybe=()=>{if(!tutWant||(save.tutorial&&save.tutorial.done)||TUT.isOpen())return;if(!d.view().lead)return;tutWant=false;setTimeout(()=>tutOpen(0),700)};
  // арена босса (R3): полный экран, статусы ставятся как обычно — арена показывает удары
  const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState});
+ // ---------- музыка из своей папки (handle в IndexedDB «ct_music»; темы, босс, районы, Overdrive, стингеры) ----------
+ const MUS=new Music(gbus),MTH={industrial:'industrial',neon:'neon',chrome:'neon',blackgold:'blackgold',orbital:'blackgold'};let musPrev=.3;
+ const musCtx=()=>{const G=ses.G;return{paused:!!G.paused,world:BASE.isOpen()||MAP.isOpen(),od:!!G.od,boss:bossState(G)!=='scenery',step:G.step||0,ulta:G.ulta,theme:MTH[(DIST[(G.district||1)-1]||[])[2]]||'industrial',dist:G.district||1}};
+ const musLoad=async how=>{try{const c=au&&au.init&&au.init();if(!c)return 0;MUS.init(c);MUS.v=S.music??.3;const n=how==='pick'?await MUS.fromFolder():await MUS.reconnect();
+   if(n){S.musicDir=true;persistGame();MUS.setCtx(musCtx());MUS.start();toast('Музыка: '+n+' '+(n%10===1&&n%100!==11?'трек':n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'трека':'треков'))}else if(how==='pick')toast('В папке нет аудиофайлов (mp3, ogg, wav, m4a, aac, flac)');return n}
+  catch(e){if(how==='pick'&&e&&e.name!=='AbortError')toast('Папка не открылась: '+(e.message||e));return 0}};
+ if(S.musicDir&&!demo){const re=()=>{removeEventListener('pointerdown',re);removeEventListener('keydown',re);musLoad('re')};addEventListener('pointerdown',re);addEventListener('keydown',re)}
+ const DW=makeDistrictWindow({el:$('#dwin'),G:()=>ses.G,state:bossState,hp:bossHp,prog:G=>G.dxp/(districtThr(G.district)*(1-C.bossPhaseShare)),on:()=>S.dwin!==false,fx:()=>S.fx||'full',
+  onOpen:k=>k==='arena'?ARENA.open(ses.G.district||1):MAP.open()});
  const arenaIntro=dd=>{STORY.mark('boss-'+dd);ARENA.open(dd,{intro:true})};
  // босс вышел впервые в этом районе: интро сейчас (если можно) или в очередь сцен
  const bossCheck=()=>{const G=ses.G,dd=G.district,m=save.meta||(save.meta={});m.bossIntro=m.bossIntro||{};if(bossState(G)==='scenery'||m.bossIntro[dd])return;
   m.bossIntro[dd]=Date.now();persistGame();if(stMode()==='off'){STORY.mark('boss-'+dd);return}
   if(stSafe()&&!STORY.isOpen())arenaIntro(dd);else{const q=stQ();if(!q.includes('arena-'+dd))q.push('arena-'+dd);toast(`Вышел босс: ${DIST[dd-1][3]}. Арена откроется после серии`,'gold')}};
  // карта мира (R2): полный экран поверх работы, звонок не прерывается
- const MAP=makeMap({save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),
+ const MAP=makeMap({trail:()=>TRAIL_COL[equipped(save.meta,'trail')]||null,save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),
   onReveal:(d,cb)=>story(d>1?['capture-'+(d-1),'intro-'+d]:['intro-'+d],{cb}),onOpen:()=>stFlush(),
   info:()=>({lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),xp:ses.G.lifeXp||0,money:money(ses.G.money)})});
  $('#mid').prepend(CC.el);$('#mid').append(CC.scrim);CC.sync();volUi();
@@ -284,7 +304,7 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
   glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(!w.streak)prevStreak=0;
-  $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';if(!mLock)$('#r-m').textContent=money(G.money);CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
+  $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';if(!mLock)$('#r-m').textContent=money(G.money);DW.sync();if(MUS.lib)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
   const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
   $('#day').textContent=`сегодня ${d.ses.tot} · до 20: ${20-d.ses.sprint}`;
   if(d.paused){$('#pause-t').textContent=mmss((t-d.pauseAt)/1000)}
@@ -299,7 +319,7 @@ export function startWork(root,{save,au,demo=null}={}){
   if(f){SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
   if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>J.free(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400'),meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
-  const e=out.ev;if(e){gain(e.x,e.m);if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
+  const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
    if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
   (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
@@ -309,7 +329,7 @@ export function startWork(root,{save,au,demo=null}={}){
  dbus.on('callLogged',e=>{const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
  dbus.on('pauseChanged',e=>{e.paused?ses.pause():ses.resume();$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
  dbus.on('leadChanged',()=>{if(!$('#lead')&&d.view().loaded)layout();else renderLead();leds()});
- dbus.on('leadsLoaded',()=>{layout();leds()});
+ dbus.on('leadsLoaded',()=>{layout();leds();tutMaybe()});
  ['sourceStateChanged','saveState','syncReport'].forEach(k=>dbus.on(k,leds));
  dbus.on('toast',m=>toast(typeof m==='string'?m:m.text||''));
  dbus.on('suggest',e=>{shownSug=e.index;markStatus(d.view().lead?d.view().lead.resultIndex:-1);toast(`Zoom предлагает: ${BUTTONS[e.index].name} (Shift+Enter)`)});
@@ -331,8 +351,9 @@ export function startWork(root,{save,au,demo=null}={}){
   case'menu':d.P.moreOpen=!d.P.moreOpen;d.sp();placeMore();break;
   case'pad':d.openCheatSheet();break;case'picker':openPicker();break;case'close':if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();else if(d.P.moreOpen){d.P.moreOpen=false;d.sp();placeMore()}else if(CC.isOpen()&&CC.mode()!=='wide')CC.setOpen(false);else GM.open();break;   // как в старом: Esc сперва закрывает «Ещё статусы»
   case'blur':document.activeElement&&document.activeElement.blur();break;case'debug':openDebug();break;case'gmenu':GM.toggle();break;
-  case'map':MAP.toggle();break;case'base':BASE.toggle();break;case'muteMusic':case'nextTrack':toast('Музыка из папки: R2');break}};
- addEventListener('keydown',e=>{if(STORY.isOpen()){if(STORY.key(e))e.preventDefault();return}if(ARENA.isOpen()&&ARENA.key(e)){e.preventDefault();return}if(BASE.isOpen()){if(BASE.key(e))e.preventDefault();return}if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
+  case'map':MAP.toggle();break;case'base':BASE.toggle();break;case'muteMusic':{const v=S.music??.3;if(v>0){musPrev=v;CC.setVol('music',0);toast('Музыка выключена (⇧M — вернуть)')}else{CC.setVol('music',musPrev||.3);toast('Музыка включена')}volUi();break}
+  case'nextTrack':if(MUS.lib){MUS.next(1.2);setTimeout(()=>toast('Трек: '+((MUS.last&&MUS.last.name)||'—')),60)}else toast('Музыки нет: Настройки → Звук → «Папка с музыкой…»');break}};
+ addEventListener('keydown',e=>{if(STORY.isOpen()){if(STORY.key(e))e.preventDefault();return}if(TUT.isOpen()){if(TUT.key(e))e.preventDefault();return}if(ARENA.isOpen()&&ARENA.key(e)){e.preventDefault();return}if(BASE.isOpen()){if(BASE.key(e))e.preventDefault();return}if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
   const modal=ov.classList.contains('open');if(modal&&e.code==='Escape'&&ov.dataset.k!=='gate'){e.preventDefault();closeOv();return}if(modal&&!typing&&ov.dataset.k==='pick'&&e.code==='Enter'){const f=ov.querySelector('.wk-li');if(f){f.click();e.preventDefault()}return}
   const r=resolveKey({typing,menu:!!d.P.moreOpen,suggest:shownSug,world:false,modal,shift:e.shiftKey,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey},e.code);if(!r)return;
   if(e.repeat&&r.a!=='blur')return;e.preventDefault();if(r.a==='status')act('status',r.id);else act(r.a)});
@@ -396,9 +417,10 @@ export function startWork(root,{save,au,demo=null}={}){
    ${btn('pull','Обновить из таблицы сейчас','','Обновить')}${btn('bk','Папка для резервных копий','Копия CSV каждые 20 с после изменений','Выбрать…')}${btn('tsv','Скопировать базу для Google Таблицы','TSV в буфер: вставить в таблицу','Копировать')}`;
   case'sound':return`<h4>Звуки статусов (как в старом дайлере)</h4>${sw('snd',!P.mute,'Звуки')}
    <div class="wk-opt"><div class="t"><b>Громкость</b></div><input class="ct-slider" id="s-vol" type="range" min="0" max="100" value="${Math.round((P.vol??.5)*100)}" style="width:180px;--v:${Math.round((P.vol??.5)*100)}%"></div>
-   ${btn('sdir','Свои звуки из папки…',SFX.getState().files?'Загружено файлов: '+SFX.getState().files:SFX.getState().need?'Нужно разрешение на папку':'','Выбрать…')}${btn('snames','Какие имена у файлов звуков','','Копировать')}
+   ${btn('mdir','Папка с музыкой…',MUS.lib?'Загружено треков: '+Object.values(MUS.pools).reduce((a,x)=>a+x.length,0)+' · подпапки: '+Object.keys(MUS.pools).join(', '):'Подпапки: industrial/calm, neon/action, overdrive, hq, boss, d1…d12, stingers. Можно и без подпапок','Выбрать…')}${btn('sdir','Свои звуки из папки…',SFX.getState().files?'Загружено файлов: '+SFX.getState().files:SFX.getState().need?'Нужно разрешение на папку':'','Выбрать…')}${btn('snames','Какие имена у файлов звуков','','Копировать')}
    <h4>Вид</h4><div class="wk-opt"><div class="t"><b>Эффекты</b><small>Штамп статуса, анимации карточки, сканлайны</small></div><div class="wk-btns">${['off','low','full'].map(v=>`<button class="wk-btn ${S.fx===v?'pri':''}" data-fx="${v}">${{off:'Выкл',low:'Мало',full:'Полно'}[v]}</button>`).join('')}</div></div>
-   <div class="wk-opt"><div class="t"><b>Сюжет</b><small>Сцены районов и Гудок. Во время звонка, серии и Overdrive сцены ждут. «Выкл» — сцены сразу попадают в Журнал истории</small></div><div class="wk-btns">${['off','short','full'].map(v=>`<button class="wk-btn ${stMode()===v?'pri':''}" data-stm="${v}">${{off:'Выкл',short:'Коротко',full:'Полно'}[v]}</button>`).join('')}</div></div>`;
+   <div class="wk-opt"><div class="t"><b>Сюжет</b><small>Сцены районов и Гудок. Во время звонка, серии и Overdrive сцены ждут. «Выкл» — сцены сразу попадают в Журнал истории</small></div><div class="wk-btns">${['off','short','full'].map(v=>`<button class="wk-btn ${stMode()===v?'pri':''}" data-stm="${v}">${{off:'Выкл',short:'Коротко',full:'Полно'}[v]}</button>`).join('')}</div></div>
+   <div class="wk-opt"><div class="t"><b>Окно в район</b><small>Полоса со сценой района над работой. В фазе босса разворачивается: босс, HP, удары статусов. Клик — карта или арена</small></div><div class="wk-btns">${[['off','Скрыть'],['on','Показать']].map(([v,t])=>`<button class="wk-btn ${(S.dwin!==false)===(v==='on')?'pri':''}" data-dwin="${v}">${t}</button>`).join('')}</div></div>`;
   case'map':return`<h4>Что пишется в колонку Result</h4><p class="wk-kv">Кнопка → значение в таблице. Меняй, только если поменял выпадающий список в таблице.</p><div class="wk-map">${d.mapping().map(b=>`<label>${b.key} · ${esc(b.name)}</label><input class="wk-in" data-map="${b.i}" value="${esc(b.value)}">`).join('')}</div>
    <div class="wk-btns" style="margin-top:12px"><button class="wk-btn" data-b="mapreset">Вернуть как было</button></div>`;
   case'game':return`<h4>Игра</h4>${sw('tester',tester,'Режим тестировщика (временно)','Звонки не идут, статусы засчитываются кнопками (каждый звонок = разговор '+Math.round(C.testerCallSec/60)+' мин). В таблицу, файл и копии ничего не пишется, прогресс игры отдельный. Переключение перезагрузит страницу. Удалим перед релизом')}${btn('end','Закончить смену','Итог дня: звонки, разговоры, лучшая серия, выплата за 50+ звонков','Итог')}${btn('export','Скачать сохранение игры','Файл .json, ключ ct1','Скачать')}${btn('menu','Главное меню','','Выйти в меню')}
@@ -406,7 +428,8 @@ export function startWork(root,{save,au,demo=null}={}){
  const openSettings=(s)=>{if(s)sec=s;openOv('set',`<div class="wk-wh"><h3>НАСТРОЙКИ</h3><button class="wk-x" id="s-x" title="Закрыть (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-set"><nav class="wk-nav" id="s-nav"></nav><div class="wk-sec" id="s-sec"></div></div>`);
   $('#s-x').onclick=closeOv;setUi();
   $('#s-nav').onclick=e=>{const b=e.target.closest('[data-s]');if(b){sec=b.dataset.s;setUi()}};
-  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm]');if(!t)return;
+  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm],[data-dwin]');if(!t)return;
+   if(t.dataset.dwin){S.dwin=t.dataset.dwin==='on';persistGame();DW.sync();layout&&layout();setUi();return}
    if(t.dataset.sw){const k=t.dataset.sw,P=d.P,on=!t.classList.contains('on');({auto:()=>d.setAuto(on),only:()=>d.setOnly(on),hos:()=>d.setPref('hangupOnStatus',on),hsk:()=>d.setPref('hangupOnSkip',on),guard:()=>d.setPref('guard',on),
      zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
    if(t.dataset.stm){S.storyMode=t.dataset.stm;persistGame();setUi();return}
@@ -415,7 +438,7 @@ export function startWork(root,{save,au,demo=null}={}){
      gssave:async()=>{d.setSheets({url:$('#s-gs').value.trim(),token:$('#s-tok').value.trim(),on:true});$('#gs-r').textContent='Проверяю…';const r=await d.testConnection();$('#gs-r').textContent=r&&r.ok?'Связь есть ✓':'Нет связи: '+((r&&(r.error?human(r.error):r.msg))||'?')},
      gscopy:()=>copy(d.getAppsScript(),'Apps Script скопирован (с твоим словом)'),gsrnd:()=>{d.rndSecret();setUi();toast('Новое слово: обнови его и в скрипте')},pull:()=>{d.sheets.pull();toast('Обновляю из таблицы…')},
      bk:async()=>{try{const h=await showDirectoryPicker({mode:'readwrite'});await d.setBackupDir(h);toast('Папка для копий выбрана')}catch(e){}},tsv:()=>copy(d.tsv(),'База скопирована: вставь в Google Таблицу'),
-     sdir:async()=>{await SFX.sndPick(kv);setUi()},snames:()=>copy(SFX.sndNamesText(),'Список имён звуков скопирован'),mapreset:()=>{d.resetMap();setUi()},end:()=>{closeOv();shiftEnd()},export:()=>SM.exportFile(save),menu:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[b];if(A)A()};
+     sdir:async()=>{await SFX.sndPick(kv);setUi()},mdir:async()=>{await musLoad('pick');setUi()},snames:()=>copy(SFX.sndNamesText(),'Список имён звуков скопирован'),mapreset:()=>{d.resetMap();setUi()},end:()=>{closeOv();shiftEnd()},export:()=>SM.exportFile(save),menu:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[b];if(A)A()};
   $('#s-sec').oninput=e=>{const t=e.target;if(t.id==='s-vol'){const v=t.value/100;d.P.vol=v;d.sp();SFX.setVol(v);t.style.setProperty('--v',t.value+'%');volUi()}if(t.dataset.map!=null)d.setMap(+t.dataset.map,t.value);
    if(t.id==='s-gs'){d.P.sheets.url=t.value.trim();d.sp()}if(t.id==='s-tok'){d.P.sheets.token=t.value.trim();d.sp()}if(t.id==='s-url'){d.P.lastSheetUrl=t.value.trim();d.sp()}}};
  const setUi=()=>{$('#s-nav').innerHTML=SECS.map(([k,t])=>`<button data-s="${k}" class="${k===sec?'on':''}">${t}</button>`).join('');$('#s-sec').innerHTML=secHtml()};
@@ -440,7 +463,11 @@ export function startWork(root,{save,au,demo=null}={}){
    msg('zp-call-ringing-event',{callId:id,callee:{phoneNumber:e164},dateTime:iso,direction:'outbound'});setTimeout(()=>{if(cur&&cur.id===id)msg('zp-call-connected-event',{callId:id,callee:{extensionType:'pstn',phoneNumber:e164},dateTime:iso,direction:'outbound'})},800);return'zoom'};
   z.hangup=()=>{if(!cur)return false;setTimeout(end,150);return true};msg('zp-ready',{});z.changed()}
  layout();leds();banner();zoomUi();hud();tempoUi();
- setInterval(()=>{d.tick();hud()},250);setInterval(tempoUi,5000);addEventListener('resize',padW);
+ setInterval(()=>{d.tick();hud()},250);
+ // местное время контакта идёт само: раз в 10 с обновляем только чип времени (карточку не перерисовываем)
+ const ltTick=()=>{const c=document.querySelector('#lead .wk-chip.time');if(!c)return;const v=d.view(),lt=v.lead&&v.lead.local;if(!lt)return;
+  const t=`у них ${lt.time} ${lt.tz}`;if(c.textContent!==t)c.textContent=t;c.classList.toggle('off',!lt.work)};
+ setInterval(ltTick,10000);addEventListener('visibilitychange',()=>{if(!document.hidden)ltTick()});setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen}}

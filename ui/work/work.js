@@ -13,6 +13,15 @@ import {resolveKey} from '../../dialer/hotkeys.js';
 import {parseZoomHistory,viaApp} from '../../dialer/zoomcsv.js';
 import {human} from '../../dialer/sheets.js';
 import * as SFX from '../../audio/legacy-sfx.js';
+import {makeJuice} from './juice.js';
+import {makePanel} from './panel.js';
+import {makeProto} from './proto.js';
+import {makeGameMenu} from './gamemenu.js';
+import {makeMap} from '../map/map.js';
+import {debugHtml,journalHtml} from './debug.js';
+import {icon} from '../../art/icons.js';
+import {dayKey} from '../../core/stats.js';
+import {LEVELS,RANKS} from '../../core/stats.js';
 
 const $=(s,r=document)=>r.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mmss=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
@@ -28,6 +37,7 @@ const PHONE_SVG='<svg viewBox="0 0 24 24"><path d="M3 15c5-5 13-5 18 0l-2.6 2.6-
 export const TESTER_KEY='ct1_tester';
 export const testerOn=()=>{try{return localStorage.getItem(TESTER_KEY)==='1'}catch(e){return false}};
 const seededStore=()=>{const m=memStore();try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^pd2/.test(k))m.setItem(k,localStorage.getItem(k))}}catch(e){}return m};
+const SECS=[['calls','Звонки'],['zoom','Zoom'],['table','Таблица и база'],['sound','Звук и вид'],['map','Значения в таблицу'],['game','Игра']];
 export function startWork(root,{save,au,demo=null}={}){
  const now=()=>Date.now(),dbus=new EventBus(),gbus=new EventBus(),tester=!demo&&testerOn();
  const store=demo?memStore():tester?seededStore():localStorage,kv=demo?null:(globalThis.indexedDB?kvFactory():null);
@@ -49,26 +59,46 @@ export function startWork(root,{save,au,demo=null}={}){
  const persistGame=()=>{if(!demo)SM.soon(save,400)};
  // ---------- каркас ----------
  root.innerHTML=`<div class="wk ${S.fx==='off'?'fx-off':''}" id="wk">
-  <header class="wk-top"><div class="wk-brand">UPLINK <b>SYNDICATE</b></div>
+  <header class="wk-top"><button class="wk-tb icon" id="b-cc" title="Командный центр (C)">${icon('panel')}</button><div class="wk-brand">UPLINK <b>SYNDICATE</b></div>
    <button class="wk-tb" id="b-pick" title="Выбрать лида (/)"><span class="lbl">Выбрать лида</span><span class="lbl-s" aria-hidden="true"></span><kbd>/</kbd></button>
    <div class="wk-sp"></div><div class="wk-tempo" id="tempo"></div><button class="wk-tb" id="b-end" title="Итог смены"><span class="lbl">Закончить смену</span><span class="lbl-s" aria-hidden="true">Конец</span></button>
    <div class="wk-leds" id="leds"></div>
-   <button class="wk-tb" id="b-pad" title="Шпаргалка (T)"><span class="lbl">Шпаргалка</span><kbd>T</kbd></button>
-   <button class="wk-tb icon" id="b-set" title="Настройки"><svg class="ic" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button></header>
+   <div class="wk-vol" id="vol"><label title="Громкость звуков">${icon('sfx')}<input type="range" min="0" max="100" data-vol="sfx"></label><label title="Громкость музыки">${icon('music')}<input type="range" min="0" max="100" data-vol="music"></label></div>
+    <button class="wk-tb" id="b-pad" title="Шпаргалка (T)"><span class="lbl">Шпаргалка</span><kbd>T</kbd></button>
+   <button class="wk-tb icon" id="b-set" title="Меню (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button></header>
   <section class="wk-hud" id="hud">
    <div class="wk-streak idle" id="streak"><div class="wk-ring"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="19"/><circle class="fg" id="ringfg" cx="23" cy="23" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringt">–</b></div>
     <div class="wk-sk"><div class="n" id="sk-n">СЕРИЯ 0<em>x1.0</em></div><div class="s" id="sk-s">начни звонить</div></div></div>
-   <div class="wk-flow" id="flow" aria-live="polite"></div>
+   <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-p" id="flow-p"></div></div>
    <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
    <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
    <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
-  <main class="wk-main" id="main"></main>
+  <div class="wk-mid" id="mid"><div class="wk-mw" id="mw"><main class="wk-main" id="main"></main></div></div>
  </div>
  <div class="wk-zoom ct-panel hide" id="zoomw"><header>ZOOM PHONE <span id="zst"></span><button class="wk-btn" id="z-hide">Спрятать</button></header></div>
- <div class="wk-glow" id="glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i><i class="o1"></i><i class="o2"></i><i class="o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
+ <div class="wk-glow" id="glow" aria-hidden="true"><i class="g g0"></i><i class="g g1"></i><i class="g g2"></i><i class="g g3"></i><i class="au a1"></i><i class="au a2"></i><i class="o o1"></i><i class="o o2"></i><i class="o o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
+ // ---------- левая панель «Командный центр» ----------
+ const CC=makePanel({save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
+  vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;persistGame()}}},
+  onLayout:(m,open)=>{const mid=$('#mid');mid.dataset.cc=m+(open?' open':'');if(main.firstChild)padW()}});
+ // ползунки в верхней полосе (≥1180; уже — в НАСТРОЙКАХ панели и в меню): те же значения, что в настройках
+ const volUi=()=>{const v=CC.vol();document.querySelectorAll('input[data-vol]').forEach(i=>{if(document.activeElement===i)return;const x=Math.round(v[i.dataset.vol]*100);i.value=x;i.style.setProperty('--v',x+'%')})};
+ $('#vol').addEventListener('input',e=>{const t=e.target;if(!t.dataset.vol)return;CC.setVol(t.dataset.vol,t.value/100);t.style.setProperty('--v',t.value+'%')});
+ // панель «Протокол» (шпаргалка | Google Doc)
+ const PR=makeProto({save,pad:()=>d.P.pad||'',setPad:t=>d.setPad(t),persist:persistGame,toast:m=>toast(m),
+  rerender:()=>{const old=$('#pad');if(!old)return;const w=document.createElement('div');w.innerHTML=PR.html(!d.P.padOpen);old.replaceWith(w.firstElementChild);PR.bind(main);$('#pad-x').onclick=()=>act('pad')}});
+ // игровое меню (☰ / Esc)
+ const GM=makeGameMenu({vol:{get:()=>CC.vol(),set:(k,v)=>CC.setVol(k,v)},
+  info:()=>({rank:(RANKS[save.rank??0]||RANKS[0])[1],lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),money:money(ses.G.money),streak:String(ses.G.streak||0)}),
+  run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>CC.tab('base'),journal:()=>openJournal(),debug:()=>openDebug(),export:()=>SM.exportFile(save),
+   home:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[k]?.()});
+ // карта мира (R2): полный экран поверх работы, звонок не прерывается
+ const MAP=makeMap({save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,
+  info:()=>({lvl:((save.lvl??0)+1)+' · '+((LEVELS[save.lvl??0]||LEVELS[0])[1]),xp:ses.G.lifeXp||0,money:money(ses.G.money)})});
+ $('#mid').prepend(CC.el);$('#mid').append(CC.scrim);CC.sync();volUi();
  // ---------- Zoom iframe (живой, даже когда спрятан) ----------
  const zw=$('#zoomw');
  if(d.zoom.enabled&&!demo&&!tester){frame=document.createElement('iframe');frame.src=ZOOM_SRC;frame.allow="microphone; camera; autoplay; clipboard-read; clipboard-write; display-capture";
@@ -77,28 +107,63 @@ export function startWork(root,{save,au,demo=null}={}){
  const zoomUi=()=>{zw.classList.toggle('hide',!d.zoom.shown);$('#zst').textContent=d.zoom.status||''};
  $('#z-hide').onclick=()=>{d.zoom.setShown(false);zoomUi()};
  // ---------- тосты и эффекты ----------
- const toast=(m,cls='')=>{const t=document.createElement('div');t.className='wk-toast '+cls;t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),cls==='gold'?4200:2800)};
+ const toast=(m,cls='')=>{const box=$('#toasts'),t=document.createElement('div');t.className='wk-toast '+cls;t.textContent=m;
+  // одинаковый тост подряд не дублируем, а продлеваем; больше трёх сразу не держим
+  const same=[...box.children].find(x=>x.textContent===m&&!x.classList.contains('out'));if(same){clearTimeout(same._t);same._t=setTimeout(()=>tout(same),2600);return}
+  box.appendChild(t);const live=[...box.children].filter(x=>!x.classList.contains('out'));if(live.length>3)tout(live[0]);t._t=setTimeout(()=>tout(t),cls==='gold'?4200:2800)};
+ const tout=t=>{clearTimeout(t._t);t.classList.add('out');setTimeout(()=>t.remove(),320)};
+ // ---------- награды: ачивки, задания, трофеи, уровень, ранг — по одной, плавно, потом улетают в меню ☰ (позже — во вкладку ТРОФЕИ) ----------
+ const RQ=[];let rqBusy=false;
+ const MEDAL='<svg viewBox="0 0 40 40" aria-hidden="true"><path class="rb" d="M13 2h6l-3 12h-6zM21 2h6l3 12h-6z"/><circle class="md" cx="20" cy="25" r="11"/><circle class="in" cx="20" cy="25" r="7.5"/><path class="st" d="M20 19.5l1.7 3.5 3.8.5-2.8 2.6.7 3.8-3.4-1.8-3.4 1.8.7-3.8-2.8-2.6 3.8-.5z"/></svg>';
+ const reward=(kind,title,sub,rar='c')=>{RQ.push({kind,title,sub,rar});if(!rqBusy)nextReward()};
+ const nextReward=()=>{const it=RQ.shift();if(!it){rqBusy=false;return}rqBusy=true;const el=document.createElement('div');el.className='wk-rw r-'+it.rar;
+  el.innerHTML=`<div class="ic">${MEDAL}</div><div class="tx"><div class="k">${esc(it.kind)}${RQ.length?` <em>+${RQ.length}</em>`:''}</div><div class="n">${esc(it.title)}</div>${it.sub?`<div class="s">${esc(it.sub)}</div>`:''}</div>`;
+  {const h=$('#hud');if(h)el.style.top=Math.round(h.getBoundingClientRect().bottom+10)+'px'}document.body.appendChild(el);SFX.snd&&SFX.snd(it.rar==='l'?'fanfare':'tick');
+  const hold=RQ.length>2?1500:2600;setTimeout(()=>{const vis=e=>e&&e.getClientRects().length&&e.getBoundingClientRect().width?e:null,tgt=vis(CC.target())||vis($('#b-cc'))||$('#b-set'),a=el.getBoundingClientRect(),b=tgt?tgt.getBoundingClientRect():{left:innerWidth-30,top:10,width:20,height:20};
+   const dx=b.left+b.width/2-(a.left+a.width/2),dy=b.top+b.height/2-(a.top+a.height/2);
+   if(S.fx==='off'){el.remove();nextReward();return}
+   el.animate([{transform:'none',opacity:1},{transform:`translate(${dx*.2}px,${dy*.2+6}px) scale(.9)`,opacity:1,offset:.25},{transform:`translate(${dx}px,${dy}px) scale(.08)`,opacity:.2}],{duration:620,easing:'cubic-bezier(.5,0,.8,.4)',fill:'forwards'}).onfinish=()=>{el.remove();if(tgt){tgt.classList.remove('wk-catch');void tgt.offsetWidth;tgt.classList.add('wk-catch')}CC.refresh();setTimeout(nextReward,160)}},hold)};
  const gain=(x,m,el)=>{if(!x&&!m)return;const r=(el||$('#stat')||main).getBoundingClientRect(),g=document.createElement('div');g.className='wk-gain';
   g.style.left=(r.left+r.width/2)+'px';g.style.top=(r.top+20)+'px';g.innerHTML=(x?`<span class="x">+${x} XP</span>`:'')+(m?`<span class="m">+${money(m)}</span>`:'');document.body.appendChild(g);setTimeout(()=>g.remove(),1400)};
- // штамп — печать на карточке лида (как в Papers, Please), а не посреди экрана
- const stamp=(txt,c)=>{if(S.fx==='off')return;const card=$('#card'),s=document.createElement('div');s.className='wk-stamp'+(card?'':' free');s.style.setProperty('--c',c);s.style.setProperty('--r',(-11+Math.random()*7).toFixed(1)+'deg');s.textContent=txt;(card||document.body).appendChild(s);setTimeout(()=>s.remove(),1300)};
- // ---------- поток (вместо полоски Overdrive): фразы по стадиям серии + свечение по краям ----------
- const FLOW=[['Есть контакт','Линия жива','Пошло','Первый пошёл','Разогрев'],['Хороший темп','Ритм пойман','Чисто','Держим линию','Ровно идёшь'],
-  ['В потоке','Горячо','Не сбавляй','Машина','Город слушает'],['НЕУДЕРЖИМ','Синдикат доволен','Легенда линии','Без шансов для них','Король эфира'],['ПИК ФОРМЫ','ВСЁ В ПЛЮС','ЭФИР ТВОЙ','ПОЛНЫЙ ПРИВОД','ЧИСТЫЙ OVERDRIVE']];
- const FLOWC=['#9fe8ff','#7dff6a','#ffd84a','#ff8a3a','#ff2bd6'];
- const tier=w=>w.od?4:w.streak>=10?3:w.streak>=6?2:w.streak>=3?1:0;
- let lastPhrase='',prevMult=null,flowT=0;
+ const J=makeJuice(()=>S.fx||'full');
+ // ---------- поток (вместо полоски Overdrive, ч.6–7): мысли оператора по стадиям серии, шкала шагов, свечение краёв ----------
+ // Стадии = ступени множителя: 0 — x1 (1–3), 1 — x1.25 (4–9), 2 — x1.5 (10–19), 3 — x2 (20+), 4 — OVERDRIVE. Внутри стадии всё растёт плавно.
+ const FLOW=[['Есть контакт','Линия ожила','Пошло','Первая искра','Разгоняемся','Так, работаем'],
+  ['Ритм пойман','Держи темп','Хорошо идёт','Чисто работаешь','Набираем ход','Уже теплее'],
+  ['Ты в потоке','Горит!','Не сбавляй','Только не останавливайся','Жара пошла','Ещё сильнее'],
+  ['Неудержим','Ещё! Ещё!','Ты машина','Город слышит тебя','Остановиться нельзя','Чистый огонь'],
+  ['OVERDRIVE','Всё горит','Пик формы','Выжми всё','Ты и есть эфир','Легенда линии']];
+ // у каждой стадии своя пара цветов (градиент букв), внутри стадии оттенок сдвигается от фразы к фразе
+ const FLOWC=[['#9fe8ff','#5fb8ff'],['#b6ff7a','#39ff14'],['#ffe27a','#ffb020'],['#ffa24a','#ff3d6e'],['#ff2bd6','#3ad7ff']];
+ const tier=w=>w.od?4:w.step>=3?3:w.step>=2?2:w.step>=1?1:0;
+ let lastPhrase='',prevMult=null,prevStreak=0,flowT=0;
  const winNow=()=>windowState(ses.G,now(),{onLine:d.calling||(d.call&&d.call.ended==null),zoom:d.zoom.live});
- const flowSub=w=>{const a=[];if(w.od)a.push('OVERDRIVE ещё '+mmss(w.od));else{if(w.toNext!=null)a.push(`до x${w.nextMult}: ещё ${w.toNext}`);const o=w.odNeed-w.odProg;if(o>0)a.push(`до OVERDRIVE: ещё ${o}`)}return a.length?a.reduce((x,y)=>(+(x.match(/\d+$/)||[99])[0]<=+(y.match(/\d+$/)||[99])[0]?x:y)):'максимум жара'};
- const flowPop=(e)=>{const box=$('#flow');if(!box)return;const w=winNow(),t=tier(w);let big=null;
+ const stepsC=C.heat.steps;
+ // вторая строка: шаги до следующего множителя точками + сколько до OVERDRIVE
+ const pipsHtml=w=>{if(!w.streak&&!w.od)return'';if(w.od)return`<span class="od on">OVERDRIVE <b>${mmss(w.od)}</b></span>`;
+  let a='';if(w.nextMult!=null){const from=stepsC[w.step]||0,span=stepsC[w.step+1]-from,got=Math.max(0,w.streak-from);
+   a=`<span class="nx"><b>x${w.nextMult}</b><i class="pp">${Array.from({length:span},(_,i)=>`<i class="${i<got?'f':''}"></i>`).join('')}</i></span>`}
+  const o=Math.max(0,w.odNeed-w.odProg);return a+(o>0?`<span class="od">OVERDRIVE через <b>${o}</b></span>`:'')};
+ let pipsKey='';const pipsUi=w=>{const el=$('#flow-p');if(!el)return;const k=w.od?'od'+w.od:w.streak+'|'+w.step+'|'+w.odProg;if(k===pipsKey)return;pipsKey=k;el.innerHTML=pipsHtml(w);el.classList.toggle('on',!!(w.streak||w.od))};
+ const flowPop=(e)=>{const box=$('#flow-w');if(!box)return;const w=winNow(),t=tier(w);let big=null;
   if(e&&e.odStart)big='OVERDRIVE ВКЛЮЧЁН';else if(prevMult!=null&&w.mult>prevMult)big=`x${w.mult} ВКЛЮЧЁН`;
   let ph=big;if(!ph){const pool=FLOW[t].filter(x=>x!==lastPhrase);ph=pool[Math.random()*pool.length|0];lastPhrase=ph}
-  prevMult=w.mult;const el=document.createElement('div');el.className='wk-fl'+(big?' big':'');el.style.setProperty('--c',big&&w.od?'#ff2bd6':big?'#ffc400':FLOWC[t]);
-  el.innerHTML=`<b>${esc(ph)}</b><span>${esc(flowSub(w))}</span>`;box.querySelectorAll('.wk-fl').forEach(x=>{x.classList.add('gone');setTimeout(()=>x.remove(),400)});box.appendChild(el);
-  clearTimeout(flowT);flowT=setTimeout(()=>el.classList.add('gone'),big?3600:2600);setTimeout(()=>el.remove(),big?4200:3200)};
- let glowL=-1;const glow=w=>{const l=w.state==='lost'?0:tier(w)+(w.streak>0||w.od?1:0);if(l===glowL)return;glowL=l;const g=$('#glow');if(g)g.dataset.l=String(l)};
+  prevMult=w.mult;const [c1,c2]=FLOWC[t],idx=FLOW[t].indexOf(ph),hue=idx<0?0:(idx-2.5)*7;
+  // сила внутри стадии: 0..1 — растут размер, свечение, разлёт букв
+  const from=stepsC[w.step]||0,to=stepsC[w.step+1]??(from+10),pw=w.od?1:Math.min(1,(w.streak-from+1)/Math.max(1,to-from));
+  const el=document.createElement('div');el.className='wk-fl t'+t+(big?' big':'');el.style.cssText=`--c1:${c1};--c2:${c2};--h:${hue}deg;--p:${pw.toFixed(2)}`;
+  el.innerHTML=`<b>${esc(ph)}</b>`;box.querySelectorAll('.wk-fl').forEach(x=>{x.classList.add('gone');setTimeout(()=>x.remove(),600)});box.appendChild(el);
+  clearTimeout(flowT);flowT=setTimeout(()=>el.classList.add('rest'),big?3200:2200);
+  const n=$('#sk-n');if(n&&w.streak>prevStreak&&S.fx!=='off'){n.classList.remove('punch');void n.offsetWidth;n.classList.add('punch')}prevStreak=w.streak;
+  pipsKey='';pipsUi(w)};
+ // свечение по краям: еле заметно на первом статусе, растёт с каждым, цвет идёт голубой → зелёный → золото → огонь; в OVERDRIVE переливающаяся рамка
+ let glowK='';const glow=w=>{const g=$('#glow');if(!g)return;const lost=w.state==='lost'||(!w.streak&&!w.od);const t=lost?-1:tier(w);
+  const I=lost?0:w.od?1:Math.min(1,.1+.9*Math.sqrt(Math.min(w.streak,24)/24));const k=t+'|'+I.toFixed(2);if(k===glowK)return;glowK=k;
+  const wt=[0,0,0,0];if(t>=0&&t<4){wt[t]=1;if(t>0)wt[t-1]=.35}
+  g.style.setProperty('--i',I.toFixed(3));g.querySelectorAll('.g').forEach((x,i)=>{x.style.opacity=(I*wt[i]).toFixed(3)});
+  g.querySelectorAll('.au').forEach(x=>{x.style.opacity=t>=2&&t<4?(I*(t===3?.9:.5)).toFixed(3):'0'});g.classList.toggle('od',t===4)};
  // ---------- главный экран ----------
- const statBtn=(b,small)=>`<button class="wk-st ${small?'small':''} ${WIN.includes(b.i)?'win':''}" data-st="${b.i}" style="--c:${b.color}"><span class="k">${b.key}</span><span>${esc(b.name)}</span></button>`;
+ const statBtn=(b,small)=>`<button class="wk-st ${small?'small':''} ${WIN.includes(b.i)?'win':''} fx-${(SFX.FXT[b.i]||[])[2]||'fade'}" data-st="${b.i}" style="--c:${b.color}"><span class="k">${b.key}</span><span>${esc(b.name)}</span></button>`;
  const moreOpen=()=>!!d.P.moreOpen;
  const layout=()=>{const v=d.view();
   if(!v.loaded){main.innerHTML=emptyHtml();bindEmpty();return}
@@ -109,11 +174,14 @@ export function startWork(root,{save,au,demo=null}={}){
     <div class="wk-acts"><button class="wk-tb" id="b-back" data-act="back" title="Вернуться к предыдущему лиду. Данные не меняются">← Прошлый лид<kbd>Z</kbd></button><button class="wk-tb" id="b-pause" data-act="pause">Пауза<kbd>P</kbd></button><button class="wk-tb" id="b-clr" data-act="clear">Убрать статус<kbd>X</kbd></button></div>
     <div class="wk-more ${moreOpen()?'open':''}" id="more"><div class="wk-lbl">ЕЩЁ СТАТУСЫ</div><div class="wk-grid">${BUTTONS.slice(PRIM).map(b=>statBtn(b,1)).join('')}</div></div>
     <div class="wk-hint">Space звонок · 1–6 статусы · S отложить · M ещё · X убрать · Z прошлый · P пауза · N заметки · / лиды</div></div></section>
-   <aside class="wk-pad ct-panel paper-ish ${d.P.padOpen?'':'hidden'}" id="pad"><div class="wk-lbl" style="display:flex;align-items:center">ШПАРГАЛКА<button class="wk-x" id="pad-x" style="width:30px;height:30px;font-size:15px"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><textarea id="pad-t" placeholder="Скрипт, ответы на возражения…">${esc(d.P.pad||'')}</textarea></aside>`;
-  $('#pad-t').oninput=e=>d.setPad(e.target.value);$('#pad-x').onclick=()=>act('pad');
+   ${PR.html(!d.P.padOpen)}`;
+  PR.bind(main);$('#pad-x').onclick=()=>act('pad');
   $('#stat').onclick=e=>{const b=e.target.closest('[data-st],[data-act]');if(!b)return;if(b.dataset.act)act(b.dataset.act);else doStatus(+b.dataset.st)};
   padW();renderLead();placeMore()};
- const padW=()=>{W.style.setProperty('--padw',d.P.padOpen&&innerWidth>=1180?'minmax(260px,.8fr)':'0px');const p=$('#pad');if(p)p.classList.toggle('hidden',!d.P.padOpen)};
+ const padW=()=>{W.style.setProperty('--padw',d.P.padOpen&&$('#mw').clientWidth>=1200?'minmax(260px,.8fr)':'0px');const p=$('#pad');if(p)p.classList.toggle('hidden',!d.P.padOpen)};
+ // отзывы и адрес скрыты, как скрытый текст в Telegram (в старом дайлере был blur): клик показывает, до смены лида
+ const rev={r:'',a:''};const sp=(k,ph,html)=>{const on=rev[k]===ph;return `<span class="wk-spoil ${on?'on':''}" data-sp="${k}" data-ph="${esc(ph)}" ${on?'':'title="Показать" role="button" tabindex="0"'}><span class="t">${html}</span></span>`};
+ main.addEventListener('click',e=>{const x=e.target.closest('.wk-spoil:not(.on)');if(!x)return;rev[x.dataset.sp]=x.dataset.ph;x.classList.add('on');x.removeAttribute('title');x.removeAttribute('tabindex')});
  const renderLead=()=>{const v=d.view(),box=$('#lead');if(!box)return;
   if(!v.lead){box.innerHTML=`<h2 class="wk-biz">${v.exhausted?'Территория пройдена':'Нет лида'}</h2><p class="wk-ver">${v.exhausted?'Необработанных лидов по текущим фильтрам нет. Сбрось фильтры или выбери лида вручную.':''}</p><div class="wk-btns"><button class="wk-btn pri" data-a="picker">Выбрать лида</button><button class="wk-btn" data-a="reset">Сбросить фильтры</button></div>`;
    box.onclick=e=>{const a=e.target.closest('[data-a]');if(!a)return;if(a.dataset.a==='picker')openPicker();else d.setFilter({},true)};markStatus(-1);return}
@@ -122,21 +190,21 @@ export function startWork(root,{save,au,demo=null}={}){
   box.dataset.ph=L.phone;
   box.innerHTML=`<h2 class="wk-biz">${esc(L.biz||'Без названия')}</h2>
    <div class="wk-meta">${L.type?`<span class="wk-chip">${esc(L.type)}</span>`:''}${L.state?`<span class="wk-chip">${esc(L.state)}</span>`:''}
-    ${lt?`<span class="wk-chip time ${lt.work?'':'off'}">у них ${esc(lt.time)} ${esc(lt.tz)}</span>`:''}${L.reviews?`<span class="wk-chip">★ ${esc(L.reviews)}</span>`:''}
+    ${lt?`<span class="wk-chip time ${lt.work?'':'off'}">у них ${esc(lt.time)} ${esc(lt.tz)}</span>`:''}${L.reviews?sp('r',L.phone,`<span class="wk-chip">★ ${esc(L.reviews)} отзывов</span>`):''}
     ${L.result?`<span class="wk-chip res" style="background:${L.resultColor}">${esc(L.result)}</span>`:''}</div>
    <div class="wk-phone"><span class="wk-num">${esc(L.rawPhone||L.phone)}</span></div>
-   <div class="wk-phone"><button class="wk-dial" id="b-dial"></button></div>
+   <div class="wk-phone"><button class="wk-dial" id="b-dial"></button>${tester?`<button class="wk-btn wk-tend" id="b-tend" title="Только в режиме тестировщика (H)">Завершить тест-звонок <kbd>H</kbd></button>`:''}</div>
    <div class="wk-links">${L.site?`<a href="${esc(/^https?:/i.test(L.site)?L.site:'https://'+L.site)}" target="_blank" rel="noopener">Сайт</a>`:''}${L.map?`<a href="${esc(L.map)}" target="_blank" rel="noopener">Карта</a>`:''}${L.email?`<a href="mailto:${esc(L.email)}">${esc(L.email)}</a>`:''}</div>
 `;
-  $('#lead2').innerHTML=`${L.verification?`<div class="wk-ver">${esc(L.verification)}</div>`:''}${L.address?`<div class="wk-ver">${esc(L.address)}</div>`:''}
+  $('#lead2').innerHTML=`${L.verification?`<div class="wk-ver">${esc(L.verification)}</div>`:''}${L.address?`<div class="wk-ver">${sp('a',L.phone,esc(L.address))}</div>`:''}
    ${L.prep?`<div class="wk-prep"><h4>Подготовка</h4>${esc(L.prep)}</div>`:''}
    <div class="wk-lbl">ЗАМЕТКИ <kbd>N</kbd></div><textarea class="wk-notes" id="wk-notes" placeholder="Заметки (N)">${esc(L.notes)}</textarea>
    <div class="wk-row2"><div><div class="wk-lbl">КОГДА ПЕРЕЗВОНИТЬ</div><input class="wk-in" id="wk-cb" value="${esc(L.callback)}" placeholder="например: вт 10:00 их времени"></div></div>
    <div class="wk-next">${v.next?'Дальше: '+esc(v.next)+' · ':''}осталось ${v.remaining}</div>`;
   $('#wk-notes').oninput=e=>d.setNotes(e.target.value);$('#wk-cb').oninput=e=>d.setCallback(e.target.value);
-  $('#b-dial').onclick=()=>act('dial');dialUi(v);markStatus(L.resultIndex)};
+  $('#b-dial').onclick=()=>act('dial');{const te=$('#b-tend');if(te)te.onclick=()=>act('hangup')}dialUi(v);markStatus(L.resultIndex)};
  const dialUi=(v=d.view())=>{const b=$('#b-dial');if(!b)return;const on=v.calling||(d.call&&d.call.ended==null);
-  b.classList.toggle('on',on);b.innerHTML=on?`<svg class="osc" viewBox="0 0 54 22"><path id="oscp" d="M0 11 H54"/></svg>НА ЛИНИИ ${mmss(v.callSec)}`:`ПОЗВОНИТЬ<kbd>Space</kbd>`};
+  b.classList.toggle('on',on);{const te=$('#b-tend');if(te)te.classList.toggle('live',on)}b.innerHTML=on?`<svg class="osc" viewBox="0 0 54 22"><path id="oscp" d="M0 11 H54"/></svg>НА ЛИНИИ ${mmss(v.callSec)}`:`ПОЗВОНИТЬ<kbd>Space</kbd>`};
  const markStatus=i=>{const c=$('#b-clr');if(c)c.disabled=!(i>=0);document.querySelectorAll('.wk-st[data-st]').forEach(b=>{b.classList.toggle('cur',+b.dataset.st===i);b.classList.toggle('sug',+b.dataset.st===shownSug)})};
  // ---------- без таблицы ----------
  const emptyHtml=()=>`<div class="wk-empty"><div class="ct-panel"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i>
@@ -172,7 +240,7 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#ringt').textContent=w.state==='online'?'☎':w.left!=null?(w.left>=60?Math.ceil(w.left/60)+'м':w.left):'–';
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
-  glow(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;
+  glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(!w.streak)prevStreak=0;
   $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';$('#r-m').textContent=money(G.money);$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
   const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
   $('#day').textContent=`сегодня ${d.ses.tot} · до 20: ${20-d.ses.sprint}`;
@@ -185,16 +253,16 @@ export function startWork(root,{save,au,demo=null}={}){
  const refused=r=>{SFX.snd('del');const nm=BUTTONS[r.index].name;toast(`Сорри, ${nm} нельзя поставить: разговор ${mmss(r.dur||0)} по Zoom, нужно от ${mmss(r.min)}`,'bad')};
  dbus.on('statusSet',meta=>{const L=meta.lead,f=SFX.FXT[meta.index];
   const out=ses.setStatus(meta.index,{key:L.phone,phone:L.phone,business:L.biz,state:L.state},{had:!!meta.changed,late:!!pendingLate});
-  if(f){SFX.statusSound(meta.index);stamp(f[0],f[1]);const c=$('#card');if(c&&S.fx!=='off'){c.className=c.className.replace(/ out-\w+/g,'');void c.offsetWidth;c.classList.add('out-'+f[2])}}
-  if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);stamp(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400')}
+  if(f){SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
+  if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>J.free(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400'),meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
   const e=out.ev;if(e){gain(e.x,e.m);if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
    if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
-  (out.achv||[]).forEach(a=>toast('Ачивка: '+(a.n||a.name),'gold'));(out.missions||[]).forEach(m=>toast(`Задание «${m.name}»: +${money(m.money)}`,'gold'));if(out.trophy)toast('Трофей: '+out.trophy.company,'gold');
-  if(out.levelUp!=null)toast('Новый уровень!','gold');if(out.rankUp!=null)toast('Новый ранг!','gold');
-  if(e&&!out.blocked)flowPop(e);shownSug=-1;persistGame();hud()});
- dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud()});
+  (out.achv||[]).forEach(a=>reward('Ачивка',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей',out.trophy.company,'','l');
+  if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
+  if(e&&!out.blocked)flowPop(e);shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
+ dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('callLogged',e=>{const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
  dbus.on('pauseChanged',e=>{e.paused?ses.pause():ses.resume();$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
  dbus.on('leadChanged',()=>{if(!$('#lead')&&d.view().loaded)layout();else renderLead();leds()});
@@ -213,21 +281,30 @@ export function startWork(root,{save,au,demo=null}={}){
  // ---------- действия ----------
  const act=(a,x)=>{switch(a){
   case'dial':if(!d.view().lead)return;if(d.zoom.enabled&&d.zoom.gate==='connecting'){toast('Подожди: подключаю Zoom…');return}d.dial();dialUi();break;
-  case'hangup':break;   // отбоя из браузера нет (Zoom его не принимает, ч.5): клавиша H ничего не делает
+  case'hangup':if(tester){if(!d.zoom.hangup())toast('Тест-звонка нет')}break;   // отбоя из браузера нет (Zoom его не принимает, ч.5); в режиме тестировщика H/кнопка завершают фейковый звонок
   case'status':doStatus(x);break;case'skip':d.skip();break;case'back':d.back();break;case'clear':d.clearStatus();break;
   case'pause':d.pause();break;case'notes':{const n=$('#wk-notes');if(n){n.focus();n.selectionStart=n.value.length}break}
+  case'panel':CC.toggle();break;
   case'menu':d.P.moreOpen=!d.P.moreOpen;d.sp();placeMore();break;
-  case'pad':d.openCheatSheet();break;case'picker':openPicker();break;case'close':if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();else document.activeElement&&document.activeElement.blur();break;
-  case'blur':document.activeElement&&document.activeElement.blur();break;case'debug':openSettings('zoom');break;
-  case'map':case'base':toast('Карта и база появятся в R2');break;case'muteMusic':case'nextTrack':toast('Музыка из папки: R2');break}};
- addEventListener('keydown',e=>{const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
+  case'pad':d.openCheatSheet();break;case'picker':openPicker();break;case'close':if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();else if(d.P.moreOpen){d.P.moreOpen=false;d.sp();placeMore()}else if(CC.isOpen()&&CC.mode()!=='wide')CC.setOpen(false);else GM.open();break;   // как в старом: Esc сперва закрывает «Ещё статусы»
+  case'blur':document.activeElement&&document.activeElement.blur();break;case'debug':openDebug();break;case'gmenu':GM.toggle();break;
+  case'map':MAP.toggle();break;case'base':CC.tab(a);break;case'muteMusic':case'nextTrack':toast('Музыка из папки: R2');break}};
+ addEventListener('keydown',e=>{if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
   const modal=ov.classList.contains('open');if(modal&&e.code==='Escape'&&ov.dataset.k!=='gate'){e.preventDefault();closeOv();return}if(modal&&!typing&&ov.dataset.k==='pick'&&e.code==='Enter'){const f=ov.querySelector('.wk-li');if(f){f.click();e.preventDefault()}return}
   const r=resolveKey({typing,menu:!!d.P.moreOpen,suggest:shownSug,world:false,modal,shift:e.shiftKey,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey},e.code);if(!r)return;
   if(e.repeat&&r.a!=='blur')return;e.preventDefault();if(r.a==='status')act('status',r.id);else act(r.a)});
- const tb=$('#bn-test-off');if(tb)tb.onclick=()=>setTester(false);$('#b-pick').onclick=()=>act('picker');$('#b-pad').onclick=()=>act('pad');$('#b-set').onclick=()=>openSettings();
+ const tb=$('#bn-test-off');if(tb)tb.onclick=()=>setTester(false);$('#b-pick').onclick=()=>act('picker');$('#b-cc').onclick=()=>CC.toggle();$('#b-pad').onclick=()=>act('pad');$('#b-set').onclick=()=>GM.toggle();
  $('#bn-res').onclick=()=>act('pause');$('#bn-reload').onclick=()=>location.reload();$('#b-end').onclick=()=>shiftEnd();
  // ---------- окна ----------
  const openOv=(k,html,sm)=>{ov.dataset.k=k;ov.innerHTML=`<div class="wk-win ct-panel ${sm?'sm':''}" role="dialog"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i>${html}</div>`;ov.classList.add('open')};
+ let dbgTab='zoom',dbgCalc={n:100,t:20,b:1};
+ const openDebug=(t)=>{if(t)dbgTab=t;openOv('dbg',debugHtml({zoom:d.zoom,G:ses.G,calc:dbgCalc},dbgTab));const w=ov.querySelector('.wk-win');w.classList.add('dbg-w');
+  $('#dbg-x').onclick=closeOv;w.querySelectorAll('.dbg-nav button').forEach(b=>b.onclick=()=>openDebug(b.dataset.t));
+  w.addEventListener('click',e=>{const b=e.target.closest('[data-b]');if(!b)return;if(b.dataset.b==='zlog')copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)');if(b.dataset.b==='retest')openDebug('test');
+   // повтор анимации раскрытия текущего района: прогресс не трогаем, фигурка просто встаёт на соседний район
+   if(b.dataset.b==='mapdemo'){const c=ses.G.district;closeOv();if(c<2){toast('Раскрывать нечего: открыт только первый район');return}const m=save.map||(save.map={});m.seen=(m.seen||[]).filter(x=>x!==c);m.pos=c-1;MAP.open()}});
+  w.querySelectorAll('[data-c]').forEach(i=>i.onchange=()=>{dbgCalc[i.dataset.c]=Math.max(0,+i.value||0);openDebug('bal');const f=ov.querySelector(`[data-c="${i.dataset.c}"]`);if(f)f.focus()})};
+ const openJournal=()=>{openOv('jr',journalHtml(save,now()));ov.querySelector('.wk-win').classList.add('dbg-w');$('#jr-x').onclick=closeOv};
  const closeOv=()=>{ov.classList.remove('open');ov.dataset.k='';ov.innerHTML=''};
  ov.addEventListener('mousedown',e=>{if(e.target===ov&&ov.dataset.k!=='gate')closeOv()});
  const gateWin=st=>{const c=st==='connecting';openOv('gate',`<div class="wk-wh"><h3>${c?'ПОДКЛЮЧАЮ ZOOM…':'ZOOM НЕ ПОДКЛЮЧИЛСЯ'}</h3></div><div class="wk-wb">
@@ -252,7 +329,7 @@ export function startWork(root,{save,au,demo=null}={}){
    $('#p-ch').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;M[b.dataset.k]=M[b.dataset.k]===b.dataset.v?'':b.dataset.v;M.off=0;pickerUi()};
    $('#p-l').onclick=e=>{const b=e.target.closest('.wk-li');if(!b)return;if(b.dataset.more){M.off=Math.max(0,M.off+(+b.dataset.more)*M.n);pickerUi();return}d.pickLead(+b.dataset.i,{type:M.type,state:M.state,tz:M.tz});closeOv()}}};
  // --- настройки: отдельное окно, переключатели его НЕ закрывают
- const SECS=[['calls','Звонки'],['zoom','Zoom'],['table','Таблица и база'],['sound','Звук и вид'],['map','Значения в таблицу'],['game','Игра']];let sec='calls';
+ let sec='calls';
  const sw=(id,on,t,small)=>`<div class="wk-opt"><div class="t"><b>${t}</b>${small?`<small>${small}</small>`:''}</div><button class="ct-switch ${on?'on':''}" data-sw="${id}" aria-pressed="${!!on}"></button></div>`;
  const btn=(id,t,small,label,cls='')=>`<div class="wk-opt"><div class="t"><b>${t}</b>${small?`<small>${small}</small>`:''}</div><button class="wk-btn ${cls}" data-b="${id}">${label}</button></div>`;
  const secHtml=()=>{const P=d.P,z=d.zoom,sh=d.sheets.state();switch(sec){
@@ -292,7 +369,7 @@ export function startWork(root,{save,au,demo=null}={}){
      gscopy:()=>copy(d.getAppsScript(),'Apps Script скопирован (с твоим словом)'),gsrnd:()=>{d.rndSecret();setUi();toast('Новое слово: обнови его и в скрипте')},pull:()=>{d.sheets.pull();toast('Обновляю из таблицы…')},
      bk:async()=>{try{const h=await showDirectoryPicker({mode:'readwrite'});await d.setBackupDir(h);toast('Папка для копий выбрана')}catch(e){}},tsv:()=>copy(d.tsv(),'База скопирована: вставь в Google Таблицу'),
      sdir:async()=>{await SFX.sndPick(kv);setUi()},snames:()=>copy(SFX.sndNamesText(),'Список имён звуков скопирован'),mapreset:()=>{d.resetMap();setUi()},end:()=>{closeOv();shiftEnd()},export:()=>SM.exportFile(save),menu:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[b];if(A)A()};
-  $('#s-sec').oninput=e=>{const t=e.target;if(t.id==='s-vol'){const v=t.value/100;d.P.vol=v;d.sp();SFX.setVol(v);t.style.setProperty('--v',t.value+'%')}if(t.dataset.map!=null)d.setMap(+t.dataset.map,t.value);
+  $('#s-sec').oninput=e=>{const t=e.target;if(t.id==='s-vol'){const v=t.value/100;d.P.vol=v;d.sp();SFX.setVol(v);t.style.setProperty('--v',t.value+'%');volUi()}if(t.dataset.map!=null)d.setMap(+t.dataset.map,t.value);
    if(t.id==='s-gs'){d.P.sheets.url=t.value.trim();d.sp()}if(t.id==='s-tok'){d.P.sheets.token=t.value.trim();d.sp()}if(t.id==='s-url'){d.P.lastSheetUrl=t.value.trim();d.sp()}}};
  const setUi=()=>{$('#s-nav').innerHTML=SECS.map(([k,t])=>`<button data-s="${k}" class="${k===sec?'on':''}">${t}</button>`).join('');$('#s-sec').innerHTML=secHtml()};
  const copy=(txt,msg)=>{(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast(msg)).catch(()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast(msg)})};
@@ -319,4 +396,4 @@ export function startWork(root,{save,au,demo=null}={}){
  setInterval(()=>{d.tick();hud()},250);setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP}}

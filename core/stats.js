@@ -8,9 +8,10 @@ export const LEVELS=[[0,'Cold Caller Noob'],[1500,'Dial Tone Apprentice'],[5e3,'
 const life=r=>r.life||(r.life={calls:0,gk:0,booked:0,disc:0,since:0,spent:0});
 export function record(root,e,now,streak){if(e.spam)return null;const days=root.days||(root.days={}),k=dayKey(now),d=days[k]||(days[k]={n:0,pts:0,xp:0,money:0,c:{},od:0,first:now,last:now});
  d.n++;d.pts+=C.classes[e.cls].pts;d.xp+=e.x;d.money+=e.m;d.c[e.cls]=(d.c[e.cls]||0)+1;d.last=now;if(e.odStart)d.od++;d.hs=Math.max(d.hs||0,e.step||0);d.bs=Math.max(d.bs||0,streak||0);
+ const hr=new Date(now).getHours();d.h=d.h||{};d.h[hr]=(d.h[hr]||0)+1;   // тепловая карта часов (вкладка ДОСЬЕ)
  const L=life(root);L.calls++;if(e.cls==='GATEKEEPER')L.gk++;if(e.cls==='DISCOVERY')L.disc++;if(e.cls==='BOOKED'){L.booked++;L.since=0}else L.since++;
  const R=root.recent||(root.recent=[]);R.push(e.cls);if(R.length>20)R.shift();return d}
-export function unrecord(root,u){const d=root.days&&root.days[dayKey(u.t)];if(!d||!u.cls)return;d.n=Math.max(0,d.n-1);d.pts=Math.max(0,d.pts-C.classes[u.cls].pts);d.xp-=u.x;d.money-=u.m;d.c[u.cls]=Math.max(0,(d.c[u.cls]||0)-1);
+export function unrecord(root,u){const d=root.days&&root.days[dayKey(u.t)];if(!d||!u.cls)return;d.n=Math.max(0,d.n-1);d.pts=Math.max(0,d.pts-C.classes[u.cls].pts);d.xp-=u.x;d.money-=u.m;d.c[u.cls]=Math.max(0,(d.c[u.cls]||0)-1);if(d.h){const hr=new Date(u.t).getHours();if(d.h[hr])d.h[hr]--}
  const L=life(root);L.calls=Math.max(0,L.calls-1);if(u.cls==='GATEKEEPER')L.gk--;if(u.cls==='BOOKED')L.booked--;if(u.cls==='DISCOVERY')L.disc--}
 // Окно Dominance: сегодня + предыдущие дни, пока не набрано 3 рабочих (выходные внутри окна считаются, если там звонили)
 export function window3(now){const keys=[];let w=0,t=now;for(let i=0;i<14&&w<3;i++,t-=DAY){keys.push(dayKey(t));if(isWork(t))w++}return keys}

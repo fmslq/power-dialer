@@ -1,0 +1,68 @@
+// Эффекты рабочего экрана (R1 ч.7): «призрак» карточки с печатью статуса и его уход, частицы.
+// Как в старом дайлере: карточка клонируется поверх себя, на клон ставится печать, клон уходит, а под ним уже следующий лид.
+// Только transform/opacity (+ короткие filter у редких эффектов). Цикл частиц спит, когда частиц нет: рядом с Zoom ничего не крутится.
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function makeJuice(getLvl){
+ let cv=null,g=null,P=[],run=false,dpr=1;
+ const lvl=()=>RM?'off':getLvl();
+ const fit=()=>{if(!cv)return;dpr=Math.min(2,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr};
+ const ensure=()=>{if(cv)return;cv=document.createElement('canvas');cv.className='wk-px';document.body.appendChild(cv);g=cv.getContext('2d');fit();addEventListener('resize',fit)};
+ let last=0;
+ const loop=t=>{const dt=Math.min(.05,(t-(last||t))/1000);last=t;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,innerWidth,innerHeight);
+  for(let i=P.length-1;i>=0;i--){const p=P[i];p.life+=dt;if(p.life>=p.max){P.splice(i,1);continue}p.vy+=p.g*dt;p.vx*=p.drag;p.vy*=p.drag;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt;
+   const k=1-p.life/p.max;g.globalAlpha=Math.min(1,k*1.6);g.fillStyle=p.c;
+   if(p.s==='spark'){g.save();g.translate(p.x,p.y);g.rotate(Math.atan2(p.vy,p.vx));g.fillRect(-p.r*2.4,-p.r*.35,p.r*4.8,p.r*.7);g.restore()}
+   else if(p.s==='sq'){g.save();g.translate(p.x,p.y);g.rotate(p.rot);g.fillRect(-p.r,-p.r*.6,p.r*2,p.r*1.2);g.restore()}
+   else{g.beginPath();g.arc(p.x,p.y,p.r*k+.4,0,6.283);g.fill()}}
+  g.globalAlpha=1;if(P.length)requestAnimationFrame(loop);else{run=false;last=0;g.clearRect(0,0,innerWidth,innerHeight)}};
+ // n частиц из точки; o: {cols, speed, spread(рад), dir(рад), g, life, r, s:'dot'|'sq'|'spark', drag}
+ const burst=(x,y,n,o={})=>{if(lvl()!=='full')return;ensure();const cols=o.cols||['#fff'];
+  for(let i=0;i<n;i++){const a=(o.dir??-Math.PI/2)+(Math.random()-.5)*(o.spread??Math.PI*2),v=(o.speed??420)*(.35+Math.random()*.65);
+   P.push({x:x+(Math.random()-.5)*(o.w||0),y:y+(Math.random()-.5)*(o.h||0),vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:o.g??900,drag:o.drag??.985,life:0,max:(o.life??.9)*(.6+Math.random()*.6),r:(o.r??2.6)*(.6+Math.random()*.8),rot:Math.random()*6,vr:(Math.random()-.5)*12,c:cols[i%cols.length],s:o.s||'dot'})}
+  if(P.length>600)P.splice(0,P.length-600);if(!run){run=true;requestAnimationFrame(loop)}};
+ const A=(el,kf,ms,o={})=>el.animate(kf,{duration:ms,fill:'forwards',easing:'cubic-bezier(.45,0,.2,1)',...o});
+ // печать на документе: крупная, по центру карточки, как в старом дайлере (рамка 7px, наклон −12°)
+ const stampEl=(label,color,w)=>{const s=document.createElement('div');s.className='wk-stamp';s.textContent=label;s.style.setProperty('--c',color);
+  s.style.fontSize=Math.round(Math.max(30,Math.min(76,w*.115*(label.length>8?8.5/label.length+.06:1))))+'px';s.style.setProperty('--r',(-12+Math.random()*5).toFixed(1)+'deg');return s};
+ // главный эффект: печать + уход карточки по виду статуса
+ const exit=(card,label,color,kind,win)=>{const L=lvl();if(L==='off'||!card)return;const r=card.getBoundingClientRect();if(r.width<40||r.height<40)return;
+  const W=innerWidth,H=innerHeight,cx=r.left+r.width/2,cy=r.top+r.height/2,D0=win?1050:380,nodes=[];
+  const mk=()=>{const cl=card.cloneNode(true);cl.removeAttribute('id');cl.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));cl.querySelectorAll('.wk-stamp').forEach(e=>e.remove());
+   cl.classList.add('wk-ghost');Object.assign(cl.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});document.body.appendChild(cl);nodes.push(cl);return cl};
+  const cl=mk(),st=stampEl(label,color,r.width);cl.appendChild(st);
+  // печать «бьёт» по документу: лёгкое проседание клона
+  cl.animate([{transform:'none'},{transform:'scale(.986)',offset:.45},{transform:'none'}],{duration:240,delay:120,easing:'ease-out'});
+  setTimeout(()=>burst(cx,cy,win?26:10,{cols:[color,'#ffffff'],speed:win?360:220,g:500,life:.5,r:2,s:'spark'}),150);
+  const D=(o={})=>({delay:D0,...o});let life=D0+1100;
+  if(L==='low'){A(cl,[{opacity:1},{opacity:0,transform:'translateY(10px)'}],320,D());setTimeout(()=>nodes.forEach(n=>n.remove()),D0+400);return}
+  const fall=[{transform:'none'},{transform:`translateY(${H-r.top+40}px) rotate(6deg)`,opacity:.25}];
+  switch(kind){
+  case'ring':A(cl,[{transform:'none'},{transform:'rotate(-2.5deg)'},{transform:'rotate(2.5deg)'},{transform:'rotate(-2deg)'},{transform:'rotate(1.5deg)'},{transform:'none'}],360,{delay:D0-180,fill:'none'});A(cl,fall,560,D({easing:'cubic-bezier(.55,0,1,.55)',delay:D0+180}));life+=200;break;
+  case'down':A(cl,fall,540,D({easing:'cubic-bezier(.55,0,1,.55)'}));break;
+  case'right':A(cl,[{transform:'none'},{transform:'translateX(-14px)',offset:.18},{transform:`translateX(${W-r.left+40}px) rotate(3deg)`,opacity:.6}],560,D());break;
+  case'flyup':A(cl,[{transform:'none'},{transform:'translateY(10px)',offset:.2},{transform:`translateY(${-r.bottom-40}px) rotate(-5deg)`,opacity:.3}],600,D({easing:'cubic-bezier(.5,0,.9,.5)'}));break;
+  case'fade':A(cl,[{opacity:1},{opacity:0,transform:'scale(.965)'}],420,D());break;
+  case'spin':A(cl,[{transform:'none'},{transform:'rotate(540deg) scale(0)',opacity:0}],700,D({easing:'cubic-bezier(.6,0,.9,.6)'}));break;
+  case'plane':A(cl,[{transform:'none'},{transform:'translate(-10px,8px) rotate(-3deg)',offset:.15},{transform:`translate(${W*.55}px,${-H*.6}px) rotate(18deg) scale(.3)`,opacity:0}],760,D({easing:'cubic-bezier(.5,0,.75,.5)'}));break;
+  case'swing':cl.style.transformOrigin='50% 0';A(cl,[{transform:'none'},{transform:'rotate(8deg)',offset:.2},{transform:'rotate(-6deg)',offset:.42},{transform:'rotate(4deg)',offset:.58},{transform:`translateX(${W-r.left+60}px) rotate(14deg)`}],950,D({easing:'ease-in-out'}));life+=200;break;
+  case'glitch':A(cl,[{transform:'none',opacity:1},{transform:'translateX(-10px) skewX(10deg)',opacity:.85,offset:.16},{transform:'translateX(12px) skewX(-7deg)',opacity:.6,offset:.34},{transform:'translateX(-4px)',opacity:.9,offset:.5},{transform:'scale(1,.03)',opacity:1,offset:.78},{transform:'scale(0,.01)',opacity:0}],580,D({easing:'steps(9)'}));break;
+  case'burn':A(cl,[{filter:'none'},{filter:'sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.35)',offset:.3},{filter:'sepia(1) saturate(5) brightness(.12)',opacity:0,transform:'scale(.93) translateY(20px)'}],900,D({easing:'ease-in'}));
+   for(let i=0;i<5;i++)setTimeout(()=>burst(r.left+Math.random()*r.width,r.bottom-8,16,{cols:['#ff9a2a','#ffd84a','#ff5a1f'],dir:-Math.PI/2,spread:1.2,speed:200,g:-160,life:1.1,r:2.2}),D0+i*140);life+=300;break;
+  case'slash':{const b=mk();cl.style.clipPath='polygon(0 0,100% 0,0 100%)';b.style.clipPath='polygon(100% 0,100% 100%,0 100%)';
+   A(cl,[{transform:'none'},{transform:'translate(-26px,-20px) rotate(-4deg)',offset:.2},{transform:`translate(${-W*.35}px,${H}px) rotate(-22deg)`,opacity:0}],760,D());
+   A(b,[{transform:'none'},{transform:'translate(26px,20px) rotate(4deg)',offset:.2},{transform:`translate(${W*.35}px,${H}px) rotate(22deg)`,opacity:0}],760,D());
+   const len=Math.hypot(r.width,r.height)+80,ang=-Math.atan(r.height/r.width)*180/Math.PI,ln=document.createElement('div');ln.className='wk-slash';ln.style.setProperty('--c',color);
+   Object.assign(ln.style,{left:(cx-len/2)+'px',top:cy+'px',width:len+'px'});document.body.appendChild(ln);nodes.push(ln);
+   ln.animate([{opacity:0,transform:`rotate(${ang}deg) scaleX(.05)`},{opacity:1,transform:`rotate(${ang}deg) scaleX(1)`,offset:.45},{opacity:0,transform:`rotate(${ang}deg) scaleX(1)`}],{duration:320,delay:D0-60,fill:'forwards'});
+   setTimeout(()=>burst(cx,cy,30,{cols:['#fff',color],speed:620,g:700,life:.5,r:2,s:'spark'}),D0);break}
+  case'crumple':{const bx=W-60,by=H-40,dx=bx-cx,dy=by-cy;
+   A(cl,[{transform:'none',borderRadius:'4px'},{transform:'scale(.95,1.03) rotate(-2deg) skewX(3deg)',offset:.1},{transform:'scale(.7,.56) rotate(5deg) skewX(-9deg)',borderRadius:'30px',offset:.26},{transform:'scale(.4,.36) rotate(-14deg) skewY(6deg)',borderRadius:'46%',offset:.42},{transform:'scale(.22) rotate(28deg)',borderRadius:'50%',offset:.52},{transform:`translate(${dx*.55}px,${dy*.15-120}px) scale(.16) rotate(300deg)`,borderRadius:'50%',offset:.78},{transform:`translate(${dx}px,${dy+80}px) scale(.08) rotate(560deg)`,borderRadius:'50%',opacity:.8}],1050,D({easing:'linear'}));
+   setTimeout(()=>burst(bx,by,14,{cols:['#cfd3da','#8b939f'],speed:260,g:700,life:.5,r:2.2,s:'sq'}),D0+1000);life+=400;break}
+  case'triumph':default:A(cl,[{transform:'none'},{transform:'translateY(-14px) scale(1.04)',offset:.28},{transform:`translateX(${W-r.left+60}px) rotate(6deg) scale(.92)`}],860,D());
+   setTimeout(()=>burst(cx,cy,44,{cols:[color,'#ffd84a','#ffffff'],speed:560,g:820,life:1.1,r:3,s:'sq'}),D0-200);break}
+  // новый лид под призраком проявляется мягко
+  card.classList.remove('wk-enter');void card.offsetWidth;card.classList.add('wk-enter');
+  setTimeout(()=>nodes.forEach(n=>n.remove()),life)};
+ // печать без карточки (вехи 20/100, если карточки нет)
+ const free=(label,color)=>{if(lvl()==='off')return;const s=stampEl(label,color,Math.min(640,innerWidth*.6));s.classList.add('free');document.body.appendChild(s);setTimeout(()=>s.remove(),1500)};
+ return{exit,burst,free}}

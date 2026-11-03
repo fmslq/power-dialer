@@ -40,24 +40,29 @@ export function cityScene(el){
   <polygon points="420,${GY+45} 500,${GY+45} 560,${GY+110} 380,${GY+110}" fill="url(#spill)"/></g>`;
  const neonSvg=nl.map(n=>`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" fill="${n.c}"/>`).join('');
  const L={
-  sky:svg(`<rect width="${W}" height="${H}" fill="url(#sky)"/><ellipse cx="1000" cy="${GY-10}" rx="800" ry="150" fill="#ff2bd6" opacity=".22" filter="url(#blur8)"/><rect y="${GY}" width="${W}" height="${H-GY}" fill="url(#ground)"/><g mask="url(#rm)" opacity=".7">${[260,420,640,900,1130,1290,1460].map((x,i)=>`<rect x="${x}" y="${GY+4}" width="${3+i%3*2}" height="${150+i*20}" fill="${['#ff2bd6','#3ad7ff','#ffb347'][i%3]}" filter="url(#blur3)"/>`).join('')}</g><rect width="${W}" height="${H}" filter="url(#grain)" opacity=".10"/>`),
+  sky:svg(`<rect width="${W}" height="${H}" fill="url(#sky)"/><ellipse cx="1000" cy="${GY-10}" rx="800" ry="150" fill="#ff2bd6" opacity=".22" filter="url(#blur8)"/><rect y="${GY}" width="${W}" height="${H-GY}" fill="url(#ground)"/><g mask="url(#rm)" opacity=".7">${[260,420,640,900,1130,1290,1460].map((x,i)=>`<rect x="${x}" y="${GY+4}" width="${3+i%3*2}" height="${150+i*20}" fill="${['#ff2bd6','#3ad7ff','#ffb347'][i%3]}" filter="url(#blur3)"/>`).join('')}</g>`),
   far:svg(far),summit:svg(summit,SB),mid:svg(mid+`<g mask="url(#rm)" opacity=".8"><g transform="translate(0,${GY*2}) scale(1,-1)" filter="url(#blur3)">${mid}${neonSvg}</g></g>`),
   fog:svg(`<ellipse cx="400" cy="${GY-20}" rx="520" ry="60" fill="#6a2a7a" opacity=".16" filter="url(#blur8)"/><ellipse cx="1200" cy="${GY-40}" rx="560" ry="70" fill="#2a3a7a" opacity=".14" filter="url(#blur8)"/>`),
   near:svg(near+`<path d="M-20 90 Q 200 150 420 100 T 900 120 T 1640 70" stroke="#050409" stroke-width="2" fill="none"/>`),
   garage:svg(garage,GB)};
  const P=(x,y,w,h)=>`left:${(x/W*100).toFixed(3)}%;top:${(y/H*100).toFixed(3)}%;width:${(w/W*100).toFixed(3)}%;height:${(h/H*100).toFixed(3)}%`;
- const img=(k,d,extra='',bb=null)=>`<div class="cl" ${d!=null?`data-d="${d}"`:''}><img src="${L[k]}" alt="" ${bb?`style="${P(...bb)}"`:''}>${extra}</div>`;
+ const img=(k,d,extra='',bb=null)=>`<div class="cl" ${d!=null?`data-d="${d}"`:''}><img data-src="${L[k]}" alt="" ${bb?`style="${P(...bb)}"`:''}>${extra}</div>`;
  const neons=nl.map(n=>`<i class="cn flick" style="${P(n.x,n.y,n.w,n.h)};--c:${n.c};animation-delay:${n.dl}s"></i>`).join('');
  const sx=-480,sy=60;   // сдвиг башни
  el.innerHTML=`<div class="cw" id="cw">
   ${img('sky',null)}${img('far',6)}
   ${img('summit',12,`<i class="cbeam sweep" style="${P(1200+sx-160,128+sy-648,320,648)}"></i><i class="cdot beacon" style="${P(1190+sx,54+sy,8,8)};--c:#ff1f3d"></i><b class="csign flick" style="left:${((1250+sx)/W*100).toFixed(3)}%;top:${((358+sy)/H*100).toFixed(3)}%;--c:#ff1f3d;font-size:.875em">THE SUMMIT</b>`,SB)}
   ${img('mid',20,neons)}
-  <div class="cl fogA">${`<img src="${L.fog}" alt="">`}</div>
+  <div class="cl fogA">${`<img data-src="${L.fog}" alt="">`}</div>
   ${img('near',46)}
-  ${img('garage',34,`<i class="clamp lamp" style="${P(830+420,GY-10,80,55)}"></i><i class="cdot beacon" style="${P(830+188,GY-115,6,6)};--c:#39ff14;animation-duration:1.6s"></i><b class="csign flick" style="left:${((830+350)/W*100).toFixed(3)}%;top:${((GY-88)/H*100).toFixed(3)}%;transform:translateX(-50%);--c:#3ad7ff;font-size:1.06em;letter-spacing:.25em">UPLINK</b>`,GB)}</div><canvas class="rain"></canvas><div class="vig"></div><div class="scan"></div>`;
+  ${img('garage',34,`<i class="clamp lamp" style="${P(830+420,GY-10,80,55)}"></i><i class="cdot beacon" style="${P(830+188,GY-115,6,6)};--c:#39ff14;animation-duration:1.6s"></i><b class="csign flick" style="left:${((830+350)/W*100).toFixed(3)}%;top:${((GY-88)/H*100).toFixed(3)}%;transform:translateX(-50%);--c:#3ad7ff;font-size:1.06em;letter-spacing:.25em">UPLINK</b>`,GB)}</div><canvas class="rain"><div class="cgrain"></div></canvas><div class="vig"></div><div class="scan"></div>`;
  // ч.6: картинки слоёв декодируются заранее, а не в момент первого показа/сдвига
- el.querySelectorAll('img').forEach(i=>{try{i.decoding='async';i.decode&&i.decode().catch(()=>{})}catch(e){}});
+ // ч.7: зерно плёнки — маленькая плитка шума (canvas 128×128) вместо feTurbulence на весь кадр: это и была заминка ~0,2–0,4 с при загрузке
+ {const c=document.createElement('canvas');c.width=c.height=128;const g2=c.getContext('2d'),im=g2.createImageData(128,128);for(let i=0;i<im.data.length;i+=4){const v=Math.random()*255|0;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255}g2.putImageData(im,0,0);
+  const gr=el.querySelector('.cgrain');if(gr)gr.style.backgroundImage=`url(${c.toDataURL()})`}
+ // ч.7: слои подгружаются по одному (каждый в своём кадре) и плавно проявляются — вместо одной заминки ~0,4 с на старте страницы
+ {const ims=[...el.querySelectorAll('img[data-src]')];let k=0;const nx=()=>{const i=ims[k++];if(!i)return;i.decoding='async';i.src=i.dataset.src;
+  const done=()=>{i.classList.add('in');requestAnimationFrame(()=>setTimeout(nx,16))};(i.decode?i.decode():Promise.resolve()).then(done,done)};requestAnimationFrame(nx)}
  const cw=el.querySelector('#cw'),px=[...el.querySelectorAll('.cl[data-d]')];
  // «cover» как у preserveAspectRatio=slice; размер шрифта контейнера = масштаб (вывески в em)
  const cover=()=>{const vw=innerWidth*1.06,vh=innerHeight*1.06,s=Math.max(vw/W,vh/H);cw.style.width=W*s+'px';cw.style.height=H*s+'px';cw.style.left=(innerWidth-W*s)/2+'px';cw.style.top=(innerHeight-H*s)/2+'px';cw.style.fontSize=(16*s)+'px'};

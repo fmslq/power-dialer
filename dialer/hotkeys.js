@@ -3,7 +3,7 @@ import {STATUS} from '../core/config.js';
 // Space и Enter = Позвонить; 1–9,0,Q,W,E,R,T статусы; M меню; S отложить; Z прошлый; X убрать статус; P пауза;
 // / и ⌘K выбор лида; N заметки; T шпаргалка (вне меню «Ещё статусы»); Esc закрыть.
 // Новое: H = Отбой (красная кнопка). С Shift/Alt, ничего старого не занимает): Shift+Enter подтвердить подсказку статуса по Zoom,
-// Shift+G карта, Shift+H база, Shift+M мьют музыки, Shift+N следующий трек, ` Debug.
+// C = левая панель «Командный центр», Esc без открытых окон = игровое меню. Shift+G карта, Shift+H база, Shift+M мьют музыки, Shift+N следующий трек, ` Debug.
 // c: {typing, menu, suggest, world (открыт мировой экран), modal, shift, meta, alt, ctrl}
 const KEY=Object.fromEntries(STATUS.map(s=>[s.key,s.id])),ch=c=>c.startsWith('Digit')?c.slice(5):c.startsWith('Key')?c.slice(3):'';
 export function resolveKey(c,code){
@@ -19,5 +19,5 @@ export function resolveKey(c,code){
  if(code==='Space'||code==='Enter')return{a:'dial'};
  if(code==='Slash')return{a:'picker'};
  const k=ch(code);if(code==='KeyT')return c.menu?{a:'status',id:KEY.T}:{a:'pad'};
- const m={S:'skip',Z:'back',X:'clear',P:'pause',N:'notes',M:'menu',H:'hangup'};if(m[k])return{a:m[k]};
+ const m={S:'skip',Z:'back',X:'clear',P:'pause',N:'notes',M:'menu',H:'hangup',C:'panel'};if(m[k])return{a:m[k]};
  if(k in KEY)return{a:'status',id:KEY[k]};return null}

@@ -13,6 +13,7 @@ export function boot(root=document.getElementById('ct-app')){
  root.innerHTML=`<div class="ct-stage" id="ct-stage"></div>
   <div class="ct-logo build" id="ct-logo"><h1><span data-t="UPLINK">UPLINK</span><span data-t="SYNDICATE">SYNDICATE</span></h1><div class="tag">${esc(C.subtitle)} // оператор терминала</div></div>
   <div class="ct-start" id="ct-start">НАЖМИ ЛЮБУЮ КЛАВИШУ<small>звук включится после нажатия</small></div>
+  <div class="ct-band" id="ct-band" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
   <nav class="ct-menu ct-panel" id="ct-menu" aria-label="Главное меню"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i></nav>
   <div class="ct-ver">${esc(C.version)}</div><div class="ct-toastc" id="ct-toast"></div>
   <div class="ct-modal" id="ct-modal"><div class="ct-panel" id="ct-mbox"><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><i class="ct-bolt"></i><div id="ct-mc"></div></div></div>`;
@@ -56,7 +57,7 @@ export function boot(root=document.getElementById('ct-app')){
  // --- старт
  // ч.6: сначала запускаем анимации (они идут на видеокарте), звук создаём кадром позже — создание AudioContext на Mac может занять десятки мс
  const begin=()=>{if(started)return;started=true;$('#ct-start').style.display='none';$('#ct-logo').classList.add('small');
-  requestAnimationFrame(()=>setTimeout(()=>{const c=au.init();if(c&&c.state==='suspended'){const r=()=>c.resume();addEventListener('pointerdown',r,{once:true});addEventListener('keydown',r,{once:true})}au.setFlags({hum:S().hum});au.hum(S().hum);open()},0));setTimeout(()=>{menu.classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
+  requestAnimationFrame(()=>setTimeout(()=>{const c=au.init();if(c&&c.state==='suspended'){const r=()=>c.resume();addEventListener('pointerdown',r,{once:true});addEventListener('keydown',r,{once:true})}au.setFlags({hum:S().hum});au.hum(S().hum);open()},0));setTimeout(()=>{menu.classList.add('in');$('#ct-band').classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
  const kd=e=>{if(!started){if(!e.metaKey&&!e.ctrlKey&&e.key!=='Tab'&&!/^F\d/.test(e.key)){e.preventDefault();begin()}return}
   if(e.key==='Escape')close();const ks=[...menu.querySelectorAll('.ct-key')];const i=ks.indexOf(document.activeElement);
   if(e.key==='ArrowDown'){e.preventDefault();ks[(i+1)%ks.length].focus()}if(e.key==='ArrowUp'){e.preventDefault();ks[(i-1+ks.length)%ks.length].focus()}};

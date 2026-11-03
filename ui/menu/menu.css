@@ -1,0 +1,48 @@
+.ct-stage{position:fixed;inset:0;overflow:hidden;background:#03030a}
+.ct-stage svg{position:absolute;inset:-3%;width:106%;height:106%}
+.ct-stage .rain{position:absolute;inset:0;pointer-events:none}
+.ct-stage .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 55%,transparent 45%,rgba(0,0,0,.72) 100%)}
+.ct-stage .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+.flick{animation:ctflick 4.5s infinite steps(1)}@keyframes ctflick{0%,100%{opacity:1}6%{opacity:.35}8%{opacity:1}52%{opacity:.8}54%{opacity:.3}56%{opacity:1}}
+.beacon{animation:ctbeacon 2.4s infinite}@keyframes ctbeacon{0%,60%{opacity:1}70%,100%{opacity:.1}}
+.lamp{animation:ctlamp 7s infinite}@keyframes ctlamp{0%,100%{opacity:.8}30%{opacity:.95}33%{opacity:.7}60%{opacity:.9}}
+.sweep{animation:ctsweep 14s ease-in-out infinite alternate}@keyframes ctsweep{from{transform:rotate(-38deg)}to{transform:rotate(-8deg)}}
+.fogA{animation:ctfog 40s ease-in-out infinite alternate}@keyframes ctfog{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
+/* логотип */
+.ct-logo{position:absolute;left:0;right:0;top:11%;text-align:center;pointer-events:none;transition:transform .9s var(--ct-ease),top .9s var(--ct-ease)}
+.ct-logo h1{margin:0;font:400 clamp(44px,9vw,128px)/.92 var(--ct-stencil);letter-spacing:.06em;color:#eef3ec;text-shadow:0 0 28px rgba(255,43,214,.45),0 3px 0 #000}
+.ct-logo h1 span{display:block;position:relative}
+.ct-logo h1 span:nth-child(2){color:var(--ct-green);text-shadow:0 0 30px rgba(57,255,20,.55),0 3px 0 #000;font-size:.62em;letter-spacing:.22em}
+.ct-logo h1 span::before,.ct-logo h1 span::after{content:attr(data-t);position:absolute;inset:0;clip-path:inset(0 0 100% 0);opacity:.9}
+.ct-logo h1 span::before{color:#ff2bd6;transform:translateX(-4px)}.ct-logo h1 span::after{color:#3ad7ff;transform:translateX(4px)}
+.ct-logo.build h1 span{animation:ctbuild 1.5s steps(1) both}.ct-logo.build h1 span:nth-child(2){animation-delay:.35s}
+.ct-logo.build h1 span::before{animation:ctglA 1.5s steps(1) both}.ct-logo.build h1 span::after{animation:ctglB 1.5s steps(1) both}
+.ct-logo.build h1 span:nth-child(2)::before,.ct-logo.build h1 span:nth-child(2)::after{animation-delay:.35s}
+@keyframes ctbuild{0%{opacity:0}10%{opacity:1;transform:translateX(-14px) skewX(12deg)}20%{opacity:.2}30%{opacity:1;transform:translateX(9px)}45%{opacity:.6;transform:none}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes ctglA{0%,100%{clip-path:inset(0 0 100% 0)}12%{clip-path:inset(10% 0 55% 0)}24%{clip-path:inset(60% 0 8% 0)}38%{clip-path:inset(30% 0 40% 0)}52%{clip-path:inset(0 0 100% 0)}}
+@keyframes ctglB{0%,100%{clip-path:inset(0 0 100% 0)}16%{clip-path:inset(55% 0 12% 0)}30%{clip-path:inset(8% 0 70% 0)}44%{clip-path:inset(40% 0 30% 0)}56%{clip-path:inset(0 0 100% 0)}}
+.ct-logo .tag{margin-top:14px;font:400 clamp(11px,1.3vw,16px) var(--ct-mono);letter-spacing:.5em;color:#8fa08c;text-transform:uppercase}
+.ct-start{position:absolute;left:0;right:0;bottom:11%;text-align:center;font:400 clamp(15px,2vw,24px) var(--ct-display);letter-spacing:.35em;color:#fff;text-shadow:0 0 14px var(--ct-green);animation:ctblink 1.3s ease-in-out infinite;cursor:pointer;text-shadow:0 0 14px var(--ct-green),0 2px 4px #000,0 0 30px #000}
+@keyframes ctblink{50%{opacity:.25}}
+.ct-start small{display:block;margin-top:10px;font:400 12px var(--ct-mono);letter-spacing:.2em;color:#7a8a78}
+/* меню */
+.ct-menu{position:absolute;left:clamp(16px,5vw,90px);top:50%;width:min(440px,88vw);transform:translate(-120%,-50%);transition:transform .7s var(--ct-ease)}
+.ct-menu.in{transform:translate(0,-50%)}
+.ct-menu .ct-key{opacity:0;transform:translateX(-40px)}.ct-menu.in .ct-key{opacity:1;transform:none;transition:transform .5s var(--ct-ease) calc(var(--i)*70ms+250ms),opacity .3s calc(var(--i)*70ms+250ms),filter .15s,color .15s}
+.ct-menu.in .ct-key:hover:not(:disabled),.ct-menu.in .ct-key:focus-visible{transform:translateX(8px);transition:transform .12s var(--ct-ease)}
+.ct-menu h2{margin:0 0 4px;font:400 13px var(--ct-mono);letter-spacing:.3em;color:var(--ct-green);text-transform:uppercase}
+.ct-save{margin:0 0 16px;padding:10px 12px;font:400 12px/1.5 var(--ct-mono);color:#b8c6b4;background:rgba(0,0,0,.35);border-left:3px solid var(--ct-green)}
+.ct-save b{color:var(--ct-amber);font-weight:500}
+.ct-key small.soon{color:#6a5a2a;border:1px solid #4a3d18;padding:1px 5px;border-radius:2px;font-size:10px}
+.ct-ver{position:absolute;right:18px;bottom:12px;font:400 11px var(--ct-mono);color:#5a6a58;letter-spacing:.1em}
+.ct-logo.small{top:5%;transform:scale(.62);transform-origin:50% 0}
+@media(max-width:760px){.ct-menu{left:50%;margin-left:calc(min(440px,88vw)/-2)}.ct-logo.small{transform:scale(.5)}}
+/* сцена-модалка (настройки) */
+.ct-modal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .25s}
+.ct-modal.open{opacity:1;pointer-events:auto}.ct-modal .ct-panel{width:min(520px,92vw);transform:scale(.92) translateY(16px);transition:transform .45s var(--ct-ease)}.ct-modal.open .ct-panel{transform:none}
+.ct-row{display:flex;align-items:center;gap:14px;margin:16px 0;font:400 15px var(--ct-text)}.ct-row label{flex:0 0 150px;color:#cfdccb}.ct-row output{width:44px;text-align:right;font:400 13px var(--ct-mono);color:var(--ct-amber)}
+.ct-seg{display:flex;gap:6px}.ct-seg button{padding:7px 14px;background:#141a14;border:1px solid #2a3328;cursor:pointer;font:400 13px var(--ct-mono);color:#9aa898}.ct-seg button.on{background:#1f5a0e;color:#eaffdf;border-color:var(--ct-green)}
+.ct-modal h3{margin:0 0 6px;font:400 22px var(--ct-display);letter-spacing:.12em;text-transform:uppercase}
+.ct-toastc{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);padding:10px 18px;font:400 13px var(--ct-mono);color:#ffe9a0;background:rgba(20,16,4,.9);border:1px solid #6a5a1a;opacity:0;transition:opacity .3s;pointer-events:none}.ct-toastc.on{opacity:1}
+
+@media(max-width:760px){.ct-key{font-size:16px;padding:11px 16px 13px}.ct-menu{top:56%}}

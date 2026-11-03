@@ -1,0 +1,75 @@
+// Session: игровой контроллер без DOM. Объединяет engine + flow + stats + achv + missions + трофеи.
+// Бывший мост (bridge.js) делал это поверх старого дайлера; теперь это отдельный, тестируемый слой.
+// ПОЛНЫЙ UNDO (ТЗ rework §15): вместе с ресурсами откатываются открытые ачивки, выполненные задания
+// (и деньги за них), запись recent, максимумы дня, запечатанный трофей. Для этого перед каждым статусом
+// снимается «боковой снимок» (side) только для ПОСЛЕДНЕЙ записи undo (старые не хранят его: сохранение не пухнет).
+import {newState,undo as gUndo,pause as gPause,resume as gResume} from './engine.js';
+import {statusFlow,lateLog,winCheck} from './flow.js';
+import {record,unrecord,dominance,rankOf,levelOf,dayKey} from './stats.js';
+import {evaluate} from './achv.js';
+import {checkMissions,modsFor} from './missions.js';
+
+const J=x=>JSON.stringify(x===undefined?null:x);
+export function sideSnapshot(root,now){const k=dayKey(now);
+  return J({k,day:(root.days||{})[k]||null,life:root.life||null,recent:root.recent||null,ach:root.ach||null,
+   mdone:(root.mdone||{})[k]||null,trophies:root.trophies||null,wasNobody:root.wasNobody||0,rank:root.rank??null,lvl:root.lvl??null})}
+export function sideRestore(root,snap){const o=JSON.parse(snap),put=(obj,key,v)=>{if(v==null)delete obj[key];else obj[key]=v};
+  root.days=root.days||{};put(root.days,o.k,o.day);put(root,'life',o.life);put(root,'recent',o.recent);put(root,'ach',o.ach);
+  root.mdone=root.mdone||{};put(root.mdone,o.k,o.mdone);put(root,'trophies',o.trophies);root.wasNobody=o.wasNobody;put(root,'rank',o.rank);put(root,'lvl',o.lvl)}
+
+// Два провайдера (Zoom приоритетен, ручной «Позвонить» запасной): статус закрывает оба.
+export const makeCombo=(zp,mp)=>({takeCall(now){const z=zp.takeCall(now),m=mp.takeCall(now);return z&&(!m||z.ringing>=m.ringing-15000)?z:m},
+  bind(id,st){if(zp.calls.has(id))zp.bind(id,st);else{const c=zp.takeCall(Infinity);if(c)zp.bind(c.id,st)}const m=mp.takeCall(Infinity);if(m)mp.bind(m.id,st)},health:()=>zp.health(),zoom:zp});
+
+export class Session{
+  constructor({root,bus,prov,now=Date.now,gate=null}){this.root=root;this.bus=bus;this.prov=prov;this.now=now;this.gate=gate;
+    const g=root.game;this.G=g&&Array.isArray(g.undo)?g:newState(now());root.game=this.G;
+    root.meta=Object.assign({owned:{},bossIntro:{},staggered:{},captured:{}},root.meta||{})}
+  emit(t,d){this.bus&&this.bus.emit(t,d)}
+  // lead: {key, phone, business, state}; had: текущий статус лида (смена статуса = «re»)
+  // Guard на уровне логики (не только оверлей): gate() => {ok,code}. Пока таблица не подтверждена, статус
+  // в таблицу пишет дайлер, но игра ничего не начисляет. Приложение ОБЯЗАНО передать gate (ui/app в части 4).
+  setGate(fn){this.gate=fn}
+  // Можно ли поставить статус (дайлер спрашивает ДО записи в таблицу): {ok, why, dur, min}
+  precheck(id,lead,{now=this.now(),late=false}={}){const c=this.prov.takeCall(now),w=winCheck(id,c,{phone:lead&&lead.phone},now,{late});
+    return{ok:w.v==='ok'||w.v==='nodata',why:w.v,dur:w.dur,min:w.min,unverified:w.v==='nodata'}}
+  setStatus(id,lead,{had=false,now=this.now(),isKnown,late=false}={}){const root=this.root,G=this.G;
+    const g=this.gate?this.gate():{ok:true};if(!g||!g.ok){const out={ev:null,meta:null,blocked:g&&g.code||'locked',achv:[],missions:[]};this.emit('blocked',out.blocked);return out}
+    if(had)this.dropLead(lead.key,now);
+    const side=sideSnapshot(root,now),d0=(root.days||{})[dayKey(now)]||{n:0},dir=root.dir&&root.dir.k===dayKey(now)?root.dir.pick:null;
+    const r=statusFlow(G,id,now,this.prov,{phone:lead.phone},{re:!!had,isKnown,late,mods:modsFor(dir||'',d0.n)});
+    if(r.blocked){const out={ev:null,meta:r.meta,blocked:r.blocked,dur:r.dur,min:r.min,achv:[],missions:[]};this.emit('statusRefused',out);return out}
+    const out={ev:r.ev,meta:r.meta,achv:[],missions:[],rankUp:null,levelUp:null,trophy:null};
+    if(!r.ev){this.emit('offList',r.meta);return out}
+    const u=r.entry;u.lead=lead.key;
+    for(const x of G.undo)if(x!==u)delete x.side;         // боковой снимок только у последней записи
+    u.side=side;
+    // re-статус тоже записывается: старая запись только что снята dropLead, иначе звонок пропадал из дня (баг черновика);
+    // а перевод лида в CALL BOOKED/DISCOVERY раньше вообще не создавал трофей.
+    if(!r.ev.spam)this.after(r,u,lead,out,now);
+    this.emit('status',r.ev);return out}
+  after(r,u,lead,out,now){const root=this.root,G=this.G,ev=r.ev,sinceBefore=(root.life||{}).since||0;
+    const d=record(root,{...ev},now,G.streak);if(!d)return;u.rec=1;
+    if(ev.cls==='BOOKED'||ev.cls==='DISCOVERY'){const t={id:'t'+now,kind:ev.cls==='BOOKED'?'gold':'platinum',company:lead.business||'?',state:lead.state||'',t:now,lead:lead.key,sealed:0,
+      verified:r.meta.verified||u.verified||null,mode:r.meta.mode};(root.trophies||(root.trophies=[])).push(t);out.trophy=t}
+    const dm=dominance(root,now),rk=rankOf(dm.pts),lv=levelOf(G.lifeXp);if(dm.idle)root.wasNobody=1;
+    if(root.rank!=null&&rk>root.rank)out.rankUp=rk;if(root.lvl!=null&&lv>root.lvl)out.levelUp=lv;
+    out.achv=evaluate({root,G,ev,now,d,L:root.life,rank:rk,meta:root.meta,lvl:lv,sinceBefore});
+    if(out.achv.some(a=>a.id==='ret'))root.wasNobody=0;root.rank=rk;root.lvl=lv;
+    out.missions=checkMissions(root,G,now);u.ach=out.achv.map(a=>a.id);u.mis=out.missions.map(m=>({id:m.id,k:m.k,money:m.money,lx:m.lx}));
+    out.achv.forEach(a=>this.emit('achv',a));out.missions.forEach(m=>this.emit('mission',m));
+    if(out.rankUp!=null)this.emit('rankUp',out.rankUp);if(out.levelUp!=null)this.emit('levelUp',out.levelUp);if(out.trophy)this.emit('trophy',out.trophy)}
+  // Снять статус / откатить: «full» (последний, ≤undoSec) откатывает всё по снимку, иначе «worth»: ровно то, что статус принёс.
+  dropLead(key,now=this.now()){const G=this.G,root=this.root;
+    for(let i=G.undo.length-1;i>=0;i--){const u=G.undo[i];if(u.lead!==key)continue;
+      const side=u.side,how=gUndo(G,now,i);
+      if(how==='full'&&side)sideRestore(root,side);                    // полный откат: ачивки, задания, recent, максимумы, трофей
+      else{if(u.rec)unrecord(root,u);root.trophies=(root.trophies||[]).filter(t=>t.lead!==key||t.t!==u.t); // старый статус: ВСЁ, что он принёс
+        for(const a of u.ach||[])if(root.ach)delete root.ach[a];                       // ачивки, открытые этим статусом
+        for(const m of u.mis||[]){if(root.mdone&&root.mdone[m.k])delete root.mdone[m.k][m.id];G.money-=m.money;G.lifeXp=Math.max(0,G.lifeXp-(m.lx||0))}}
+      this.emit('undo',{how,key});return how}
+    return false}
+  pause(now=this.now()){gPause(this.G,now);this.emit('pauseChanged',{paused:true})}
+  resume(now=this.now()){gResume(this.G,now);this.emit('pauseChanged',{paused:false})}
+  lateLog(callId,dur,now=this.now()){const r=lateLog(this.G,callId,dur,now);if(r&&r.bonus&&r.bonus.captured)this.emit('captured',{district:this.G.district-1,late:true});return r}
+}

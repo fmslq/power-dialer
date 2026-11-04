@@ -191,3 +191,9 @@ button.cc-a,button.cc-tr{font:inherit;color:inherit;text-align:left;border:0;cur
 .wk-m-float{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9998;display:grid;justify-items:center;gap:2px;padding:8px 18px;border-radius:12px;background:#0b0e10;box-shadow:0 0 0 1px rgba(57,255,20,.5),0 10px 30px rgba(0,0,0,.6);animation:wkFl .25s ease-out;transition:opacity .35s}
 .wk-m-float small{font:700 9px/1 var(--ct-mono);letter-spacing:.16em;color:#9fb3a8;text-transform:uppercase}.wk-m-float b{display:inline-block;font:800 22px/1 var(--ct-mono);color:#39ff14}.wk-m-float.out{opacity:0}
 @keyframes wkFl{from{opacity:0;transform:translate(-50%,-10px)}}
+/* J11: закрытые разделы не видны; только что открытый — мигает, пока не зайдёшь */
+.cc-tab[hidden]{display:none!important}
+.cc-tab.nw{position:relative}
+.cc-tab.nw::after{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--a,#39ff14);box-shadow:0 0 0 0 var(--a,#39ff14);animation:ccNew 1.6s ease-out infinite}
+@keyframes ccNew{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--a,#39ff14) 80%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@media (prefers-reduced-motion:reduce){.cc-tab.nw::after{animation:none}}

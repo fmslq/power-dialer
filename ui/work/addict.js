@@ -16,7 +16,7 @@ const TC=r=>A.TIER[r][1],TN=r=>A.TIER[r][0];
 const SV=d=>`<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 const IC={c:SV('M8 8h8v8H8z'),u:SV('M12 3l9 9-9 9-9-9z'),r:SV('M12 2l8.7 5v10L12 22l-8.7-5V7z'),e:SV('M12 1l2.6 7.4L22 11l-7.4 2.6L12 21l-2.6-7.4L2 11l7.4-2.6z'),l:SV('M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8 5.4 21.7l1.8-7.3L1.5 9.5 9 8.9z')};
 const SG='<svg class="sg" viewBox="0 0 12 12" aria-hidden="true"><path fill-rule="evenodd" d="M6 0L12 6 6 12 0 6ZM6 3.2L8.8 6 6 8.8 3.2 6Z"/></svg>';
-export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx=()=>'full',J=null,now=Date.now,lead=()=>null,dayN=()=>0,dPaused=()=>false,extra=()=>'',HH=null,onTab=()=>false,onSys=()=>false,warmDone=null}){
+export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx=()=>'full',J=null,now=Date.now,lead=()=>null,dayN=()=>0,dPaused=()=>false,extra=()=>'',HH=null,onTab=()=>false,onSys=()=>false,warmDone=null,unl=()=>true}){
  const a=()=>A.ensure(save),G=()=>ses.G;
  let waitMs=0,spinning=false,frzT=0,ghT=0,ghI=0,sig='';
  // ---------- полоса в HUD ----------
@@ -33,12 +33,12 @@ export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx
   const frzLeft=F.on?A.AD.freeze.sec-(t-F.at)/1000:0;
   if(F.on&&!document.body.classList.contains('frz-on')){document.body.classList.add('frz-on');holdAuto(true);if(frzLeft<=0)setTimeout(()=>unfreeze('время'),0)}
   el.innerHTML=
-   `<button class="adx-c sig" data-ax="tree" title="Сигнал: Гудок копит его из каждого звонка. Трать в Коммутаторе">${SG}<b>${A_.sig.toLocaleString('ru')}</b></button>`
-  +`<button class="adx-c frz${F.on?' on':''}${F.ch?'':' off'}" data-ax="frz" title="Заморозка (F): множитель и Overdrive не сгорают до 3 минут, автонабор на это время выключен. Заряд — только за каждые 25 наборов">❄ <b>${F.on?mmss(frzLeft):F.ch}</b><kbd>F</kbd></button>`
-  +`<button class="adx-c bag${inv?' has':''}" data-ax="bag" title="Рюкзак (B): обломки Тишины из Шума. Включи буст — работает N звонков, активно до 3">🎒 <b>${inv}</b>${act?`<i>${act} акт.</i>`:''}<kbd>B</kbd></button>`
-  +(R&&R.on?`<button class="adx-c raid on${R.dl-t<45000?' hurry':''}" data-ax="raid" title="Рейд: деньги копятся в буфере. 100 наборов без длинных пауз — вывод ×1.5, сорвёшь — сгорит">РЕЙД <b>${R.n}/${A.AD.raid.n}</b> ${$m(R.m)} · срыв ${mmss((R.dl-t)/1000)}</button>`
+   (unl('tree')?`<button class="adx-c sig" data-ax="tree" title="Сигнал: Гудок копит его из каждого звонка. Трать в Коммутаторе">${SG}<b>${A_.sig.toLocaleString('ru')}</b></button>`:'')
+  +(unl('freeze')?`<button class="adx-c frz${F.on?' on':''}${F.ch?'':' off'}" data-ax="frz" title="Заморозка (F): множитель и Overdrive не сгорают до 3 минут, автонабор на это время выключен. Заряд — только за каждые 25 наборов">❄ <b>${F.on?mmss(frzLeft):F.ch}</b><kbd>F</kbd></button>`:'')
+  +(unl('bag')?`<button class="adx-c bag${inv?' has':''}" data-ax="bag" title="Рюкзак (B): обломки Тишины из Шума. Включи буст — работает N звонков, активно до 3">🎒 <b>${inv}</b>${act?`<i>${act} акт.</i>`:''}<kbd>B</kbd></button>`:'')
+  +(!unl('raid')?'':R&&R.on?`<button class="adx-c raid on${R.dl-t<45000?' hurry':''}" data-ax="raid" title="Рейд: деньги копятся в буфере. 100 наборов без длинных пауз — вывод ×1.5, сорвёшь — сгорит">РЕЙД <b>${R.n}/${A.AD.raid.n}</b> ${$m(R.m)} · срыв ${mmss((R.dl-t)/1000)}</button>`
     :`<button class="adx-c raid" data-ax="raid" title="Рейд ×1.5: по желанию">РЕЙД</button>`)
-  +(HH?HH.chip():'')
+  +(HH&&unl('hh')?HH.chip():'')
   +(P&&P.pick&&t<P.until?`<span class="adx-c perk" title="${esc((A.PERKS3.find(x=>x.id===P.pick)||{}).t||'')}">★ ${esc((A.PERKS3.find(x=>x.id===P.pick)||{}).n||'')} <i>${Math.ceil((P.until-t)/60000)} мин</i></span>`:'')
   +(warm?`<span class="adx-c warm${ws.left<120000?' hurry':''}" title="Разгон: ×${A.AD.warm.k} XP и $ (кроме BOOKED и DISCOVERY), пока не прошло ${A.AD.warm.min} минут и не сделано ${A.AD.warm.n} наборов">РАЗГОН ×${A.AD.warm.k} <b>${ws.n}/${A.AD.warm.n}</b><i>${Math.floor(ws.left/60000)}:${String(Math.floor(ws.left/1000)%60).padStart(2,'0')}</i></span>`:'')
   +extra()+`<span class="adx-tr" title="Цели дня: ${esc(tr.map(x=>x.name+' '+x.n+' → '+x.rt).join(' · '))}">${tr.map(x=>`<i class="${x.done?'ok':x===cur?'cur':''}" style="--p:${(x.v/x.n*100).toFixed(0)}%"></i>`).join('')}${cur?`<span>${esc(cur.name)} <b>${cur.v}/${cur.n}</b></span>`:'<span>все цели дня ✓</span>'}</span>`;
@@ -54,10 +54,10 @@ export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx
   if(!ok)return;A.raidStart(save,now());persist();sfx('levelup');toast('РЕЙД начат: 100 наборов, не останавливайся','gold');render(1)};
  // ---------- рюкзак / дерево / Слышащие / темы / журнал ----------
  let tab='bag',win=null,sbInfo=null,sbJust=null,colSel=-1;
- const open=(t)=>{tab=t||tab;if(onTab(tab,()=>open(tab))){close();return}if(tab==='ops'&&A.synOk(save)&&!(a().ops.plot|0)&&onSys('col',()=>open('ops'))){close();return}if(!win){win=document.createElement('div');win.className='adw-wrap';win.onclick=e=>{if(e.target===win)close()};document.body.appendChild(win);addEventListener('keydown',kd,true)}draw()};
+ const open=(t)=>{tab=t||tab;if(tab==='ops'?!A.synOk(save):!unl(tab))tab=['bag','tree','look','log'].find(k=>unl(k))||'log';if(onTab(tab,()=>open(tab))){close();return}if(tab==='ops'&&A.synOk(save)&&!(a().ops.plot|0)&&onSys('col',()=>open('ops'))){close();return}if(!win){win=document.createElement('div');win.className='adw-wrap';win.onclick=e=>{if(e.target===win)close()};document.body.appendChild(win);addEventListener('keydown',kd,true)}draw()};
  const close=()=>{if(!win)return;removeEventListener('keydown',kd,true);win.remove();win=null;render(1)};
  const kd=e=>{if(!win)return;if(e.code==='Escape'||(e.code==='KeyB'&&tab==='bag')){e.preventDefault();e.stopPropagation();close()}else if(!['Tab'].includes(e.code))e.stopPropagation()};
- const tabsH=()=>[['bag','Рюкзак'],['tree','Коммутатор'],['ops','Слышащие'],['look','Темы'],['log','Журнал']].map(([k,n])=>`<button class="${tab===k?'on':''}" data-t="${k}">${n}</button>`).join('');
+ const tabsH=()=>[['bag','Рюкзак'],['tree','Коммутатор'],['ops','Слышащие'],['look','Темы'],['log','Журнал']].filter(([k])=>k==='ops'?A.synOk(save):unl(k)).map(([k,n])=>`<button class="${tab===k?'on':''}" data-t="${k}">${n}</button>`).join('');
  const body=()=>{const A_=a(),t=now();
   if(tab==='bag'){const inv=Object.entries(A_.inv),act=A_.act;
    return`<p class="adw-sub">Обломки Тишины, которые Гудок выловил из Шума. Буст работает на N статусов; одновременно — до 3.</p>
@@ -82,7 +82,7 @@ export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx
   return`<h4>Последний лут</h4>${D.length?`<ul class="adw-log">${D.map(x=>{const L=A.lootById(x.id);return`<li style="--c:${TC(x.tier)}"><b>${IC[x.tier]} ${esc(L?L.n:x.id)}</b> ${x.chest?'· сундук':''} <span>${new Date(x.t).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span></li>`}).join('')}</ul>`:'<p class="adw-empty">Пока ничего.</p>'}
    <h4>Ночная чистка</h4>${P.length?`<ul class="adw-log">${P.map(x=>`<li class="${x.shield?'ok':'bad'}"><b>${x.k}</b> ${x.n}/${A.AD.norm} наборов · ${x.shield?'щит сработал':`−${x.dx} прогресса, −${$m(x.dm)}${x.op?', ушёл Слышащий':''}`}</li>`).join('')}</ul>`:'<p class="adw-empty">Пока ARCHON к тебе не приходил.</p>'}
    <p class="adw-foot">Норма: ${A.AD.norm} наборов в рабочий день. Серия дней с нормой: <b>${A_.normDays}</b> (+${Math.min(A.AD.normDay.max,A_.normDays)}% XP и $). Шумов поймано: ${A_.stats.spins}, сундуков: ${A_.stats.chests}, легенд: ${A_.stats.legend}</p>`};
- const draw=()=>{if(!win)return;win.innerHTML=`<div class="adw" role="dialog" aria-label="Коммутатор"><header><b class="adw-ttl"><small>ГАРАЖ</small>«ЗАРЯ-12»</b><nav>${tabsH()}</nav><button class="x" aria-label="Закрыть (Esc)"><svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg></button></header><div class="adw-b">${body()}</div></div>`;
+ const draw=()=>{if(!win)return;win.innerHTML=`<div class="adw t-${tab}" role="dialog" aria-label="Коммутатор"><header><b class="adw-ttl"><small>ГАРАЖ</small>«ЗАРЯ-12»</b><nav>${tabsH()}</nav><button class="x" aria-label="Закрыть (Esc)"><svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg></button></header><div class="adw-b">${body()}</div></div>`;
   win.querySelector('.x').onclick=close;if(tab==='tree')requestAnimationFrame(()=>fitCords(win));{const sw=win.querySelector('[data-sw]');if(sw)sw.onclick=()=>{(save.story||(save.story={})).sw=1;persist();draw()}}win.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;if(onTab(tab,()=>open(tab))){close();return}if(tab==='ops'&&A.synOk(save)&&!(a().ops.plot|0)&&onSys('col',()=>open('ops'))){close();return}draw()});
   win.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const r=A.activate(save,b.dataset.use);if(!r.ok)toast(r.why,'bad');else{sfx('levelup');persist()}draw()});
   win.querySelectorAll('[data-info]').forEach(b=>b.onclick=()=>{const v=b.dataset.info||null;sbInfo=sbInfo===v?null:v;draw()});
@@ -137,24 +137,25 @@ export function makeAddict({holdAuto=()=>{},ses,save,persist,toast,sfx=()=>{},fx
   if(P.length){const dx=P.reduce((s,x)=>s+x.dx,0),dm=P.reduce((s,x)=>s+x.dm,0),op=P.reduce((s,x)=>s+x.op,0),ls=Math.max(...P.map(x=>x.lostStreak||0));
    await ask({title:'Ночная чистка',tone:'bad',ok:'Понял',cancel:'Журнал',text:`ARCHON прошёлся ночью по линиям, где было тихо. ${P.map(x=>`<b>${x.k}</b>: ${x.n} из ${A.AD.norm} наборов`).join(', ')}.<br>Стёрто: <b>−${dx} прогресса района</b>${dm?`, <b>−${$m(dm)}</b>`:''}${op?`, ушёл <b>${op} Слышащий</b>`:''}${ls?`. Серия дней с нормой (${ls}) обнулилась`:''}.<br><br>Чем ближе к ${A.AD.norm}, тем меньше он забирает. Щит из Шума отменяет одну чистку.`}).then(v=>{if(!v)open('log')})}
   if(S.length)toast(`Ночная чистка прошла мимо: щит сработал (${S.map(x=>x.k).join(', ')})`,'gold');render(1)};
- const key=e=>{if(spinning)return true;if(e.code==='KeyF'){freeze();return true}if(e.code==='KeyB'){win?close():open('bag');return true}return false};
+ const key=e=>{if(spinning)return true;if(e.code==='KeyF'&&unl('freeze')){freeze();return true}if(e.code==='KeyB'&&unl('bag')){win?close():open('bag');return true}return false};
  const dayLine=n=>{const A_=a();return n>=A.AD.norm?`норма ✓${A_.normDays?` · серия ${A_.normDays} дн.`:''}`:`до нормы ${A.AD.norm-n}`};
  const style=(t,G_)=>{const c=now()-15*60000,talk=(G_.undo||[]).some(u=>u.t>c&&['TALK','CALLBACK','BOOKED','DISCOVERY'].includes(u.cls));return A.styleRank(t.rate||0,talk)};
  // D6 v2: итог смены — что ты сделал сегодня против своих рекордов и «обычного себя». Неделя — только в пятницу (конец рабочей недели).
+ const pl=(n,a,b,c)=>{n=Math.abs(n)%100;const m=n%10;return n>10&&n<20?c:m===1?a:m>=2&&m<=4?b:c};
  const summary=()=>{const t=now(),k=dayKey(t),days=save.days||{},g=save.gh||{},A_=a(),dd=days[k]||{n:0,c:{}},n=dd.n,R=g.rec||{},R0=g.rec0||{};
   const T=g.k===k?g.t:[];let b10=0,f20=null;for(let x=0,y=0;x<T.length;x++){while(T[x]-T[y]>6e5)y++;b10=Math.max(b10,x-y+1);if(x>=19){const v=T[x]-T[x-19];if(f20==null||v<f20)f20=v}}
   let p20b=0;{const P=g.k===k?(g.pt||[]):[];for(let x=0,y=0;x<P.length;x++){while(P[x]-P[y]>12e5)y++;p20b=Math.max(p20b,x-y+1)}}
-  const pt=['TALK','CALLBACK','BOOKED','DISCOVERY'].reduce((s_,c)=>s_+((dd.c||{})[c]||0),0),rate=n?Math.round(pt/n*100):0;
-  const past=Object.entries(days).filter(([x,v])=>x<k&&v&&v.n>=20).slice(-10).map(([,v])=>{const p=['TALK','CALLBACK','BOOKED','DISCOVERY'].reduce((s_,c)=>s_+((v.c||{})[c]||0),0);return p/v.n*100}),ur=past.length?Math.round(past.reduce((x,y)=>x+y,0)/past.length):0;
+  const ptOf=v=>v.p!=null?v.p:((v.c||{}).BOOKED||0)+((v.c||{}).DISCOVERY||0),pt=ptOf(dd),rate=n?Math.round(pt/n*100):0;   // J1: питч = pitched / booked / discovery
+  const past=Object.entries(days).filter(([x,v])=>x<k&&v&&v.n>=20&&v.p!=null).slice(-10).map(([,v])=>ptOf(v)/v.n*100),ur=past.length?Math.round(past.reduce((x,y)=>x+y,0)/past.length):0;
   const broke=Object.keys(g.shown||{}).filter(id=>g.k===k),RN={p20:'питчи за 20 минут',f20:'быстрые 20',b10:'10 минут',b60:'час',p100:'питчи на 100',ft:'первый питч',day:'наборы за день'};
   const fri=new Date(t).getDay()===5;let wk=0;if(fri)for(let x=0;x<5;x++)wk+=((days[dayKey(t-x*864e5)]||{}).n||0);const wb=(g.wk&&g.wk.b0)||0;
   const sigD=A_.tr.k===k?A_.sigLife-(A_.tr.sig0||0):0,drops=A_.drops.filter(x=>dayKey(x.t)===k).length;
   return`<div class="sm-g"><div><span>Рекорды сегодня</span><b>${broke.length}</b><i>${broke.length?broke.map(x=>RN[x]).join(', '):'ни одного — завтра шанс'}</i></div>
-   <div><span>Лучшие 10 минут</span><b>${b10}</b><i>рекорд ${R.b10||b10}</i></div>
+   <div><span>Лучшие 10 минут</span><b>${b10} <small>${pl(b10,'звонок','звонка','звонков')}</small></b><i>рекорд: ${R.b10||b10} ${pl(R.b10||b10,'звонок','звонка','звонков')} за 10 минут</i></div>
    <div><span>Быстрые 20 наборов</span><b>${f20!=null?A.mmssR(f20):'—'}</b><i>${R.f20?'рекорд '+A.mmssR(R.f20):'нужно 20 наборов'}</i></div>
-   <div><span>Питчей на 100 наборов</span><b>${rate}</b><i>${ur&&rate>=ur?`обычно ${ur} <em class="up">${rate>ur?'+'+(rate-ur):'вровень'}</em>`:`лучшие 20 минут: ${p20b} питч.`}</i></div>
+   <div><span>Питчи на каждые 100 звонков</span><b>${rate} <small>${pl(rate,'питч','питча','питчей')}</small></b><i>${ur&&rate>=ur?`обычно ${ur} <em class="up">${rate>ur?'+'+(rate-ur):'вровень'}</em>`:`лучшие 20 минут: ${p20b} ${pl(p20b,'питч','питча','питчей')}`}</i></div>
    <div><span>Норма ${A.AD.norm}</span><b>${n>=A.AD.norm?'✓':n+'/'+A.AD.norm}</b><i>${!isWork(t)?'выходной: чистки нет':n>=A.AD.norm?'Ночная чистка не придёт':'ночью придёт ARCHON: −'+Math.round((1-n/A.AD.norm)*A.AD.purge.share*100)+'% района'}</i></div>
-   ${fri?`<div><span>Неделя (пн–пт)</span><b>${wk}</b><i>${wb?`лучшая неделя ${Math.max(wb,wk)}${wk>wb?' — это она!':''}`:'первая неделя в учёте'}</i></div>`:`<div><span>Сигнал и Шум</span><b>${sigD}</b><i>Шум за день: ${drops}</i></div>`}</div>`};
+   ${fri?`<div><span>Неделя (пн–пт)</span><b>${wk} <small>${pl(wk,'звонок','звонка','звонков')}</small></b><i>${wb?`лучшая неделя ${Math.max(wb,wk)}${wk>wb?' — это она!':''}`:'первая неделя в учёте'}</i></div>`:`<div><span>Сигнал и Шум</span><b>${sigD}</b><i>Шум за день: ${drops}</i></div>`}</div>`};
  addEventListener('resize',()=>{if(win&&tab==='tree')fitCords(win)});
  theme();setTimeout(tick,1500);setInterval(tick,36e5);setInterval(()=>{const R=a().raid;if(R&&R.on&&!a().frz.on&&now()>R.dl)tick()},5000);
  return{summary,html,render,pre,onStatus,key,wait:()=>waitMs,open,close,isOpen:()=>!!win||spinning,dayLine,style,tick,freeze,theme}}

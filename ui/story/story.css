@@ -59,6 +59,7 @@
 @keyframes gk-led{50%{opacity:.3}}
 /* анимации внутри сцен */
 .sc-flick{animation:sc-flick 3.7s infinite}@keyframes sc-flick{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.55}50%{opacity:.95}52%{opacity:.7}}
+.sc-beacon{animation:sc-bc 2.2s infinite}@keyframes sc-bc{50%{opacity:.45}}
 .sc-blink{animation:sc-bl 1.6s infinite}@keyframes sc-bl{50%{opacity:.15}}
 .sc-smoke{animation:sc-sm 6s ease-out infinite;animation-delay:calc(var(--i)*-2s);transform-box:fill-box;transform-origin:center}@keyframes sc-sm{from{transform:translateY(0) scale(.6);opacity:.3}to{transform:translateY(-220px) scale(2.2);opacity:0}}
 .sc-lan{animation:sc-lan 2.4s ease-in-out infinite alternate;animation-delay:calc(var(--i)*-.3s)}@keyframes sc-lan{to{opacity:.55}}

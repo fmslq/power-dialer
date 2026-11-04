@@ -90,7 +90,7 @@ export function makePanel(o){
   <section class="cc-sec"><button class="wk-btn cc-wide" data-go="base">${icon('base')}Открыть базу<kbd>⇧H</kbd></button></section>`};
  const rankHtml=()=>{const G=o.G(),now=o.now(),dm=dominance(o.save,now),ri=rankOf(dm.pts),nx=nextRank(dm.pts),rc=RANKC[ri],lv=levelOf(G.lifeXp||0),L0=LEVELS[lv],L1=LEVELS[lv+1];
   const days=o.save.days||{},hist=Array.from({length:14},(_,i)=>{const t=now-(13-i)*DAY,k=dayKey(t),x=days[k];return{k,v:x?x.pts:0,n:x?x.n:0,w:new Date(t).getDay()%6===0,in:dm.keys.includes(k)}}),mx=Math.max(40,...hist.map(h=>h.v));
-  return banner('rank','РАНГ','Влияние за 3 рабочих дня')+`<section class="cc-sec cc-rk" style="--a:${rc}">${emblem(ri,rc)}<div><b>${esc(RANKS[ri][1])}</b><span>${dm.pts} очков влияния</span>${nx?`<em>до ${esc(nx.name)}: ${nx.left}</em>`:'<em>высший ранг</em>'}<em class="cc-rkb">бонус ранга: ${RANK_BONUS[ri]?`+${RANK_BONUS[ri]}% XP и $`:'нет'}${nx?` · дальше +${RANK_BONUS[ri+1]}%`:''}</em></div></section>
+  return banner('rank','РАНГ','Влияние за 3 рабочих дня')+`<section class="cc-sec cc-rk" style="--a:${rc}">${emblem(ri,rc)}<div><b>${esc(RANKS[ri][1])}</b><span>${dm.pts} очков влияния</span>${nx?`<em>до ${esc(nx.name)}: ${nx.left}</em>`:'<em>высший ранг</em>'}<em class="cc-rkb">бонус ранга: ${RANK_BONUS[ri]?`+${RANK_BONUS[ri]}% к опыту и деньгам`:'нет'}${nx?` · следующий ранг: +${RANK_BONUS[ri+1]}%`:''}</em></div></section>
   <section class="cc-sec">${nx?bar(pct(dm.pts-RANKS[ri][0],RANKS[ri+1][0]-RANKS[ri][0]),'r'):bar(100,'r')}${dm.idle?'<p class="cc-note warn">3 рабочих дня без звонков — ранг падает до Nobody.</p>':''}</section>
   <section class="cc-sec"><h4>14 ДНЕЙ <em>в окне ранга — ярче</em></h4><div class="cc-hist">${hist.map(h=>`<i class="${h.in?'in':''} ${h.w?'we':''}" style="height:${Math.max(3,h.v/mx*100).toFixed(0)}%" title="${h.k}: ${h.n} статусов, ${h.v} очков"></i>`).join('')}</div></section>
   <section class="cc-sec"><h4>УРОВЕНЬ АККАУНТА</h4><div class="cc-big"><b>${lv+1}</b><span>${esc(L0[1])}</span></div>${L1?bar(pct((G.lifeXp||0)-L0[0],L1[0]-L0[0]),'g'):bar(100,'g')}
@@ -134,14 +134,14 @@ export function makePanel(o){
  const isOpen=()=>el.classList.contains('open');
  const sync=()=>{const m=mode(),open=m==='drawer'?!!el._drawer:ui.panelOpen&&m==='wide'||!!el._over;
   el.dataset.mode=m;el.classList.toggle('open',open);scrim.classList.toggle('on',open&&m!=='wide');
-  el.querySelectorAll('.cc-tab[data-tab]').forEach(b=>{const on=b.dataset.tab===ui.panelTab;b.classList.toggle('on',on&&open);b.setAttribute('aria-selected',on&&open?'true':'false')});
-  const tg=$('#cc-tg');tg.title=open?'Свернуть (C)':'Развернуть (C)';tg.querySelector('span').textContent=open?'Свернуть':'Развернуть';tg.style.display=m==='drawer'?'none':'';
+  el.querySelectorAll('.cc-tab[data-tab]').forEach(b=>{b.hidden=!!o.unl&&!o.unl(b.dataset.tab);b.classList.toggle('nw',!!o.isNew&&o.isNew(b.dataset.tab));const on=b.dataset.tab===ui.panelTab;b.classList.toggle('on',on&&open);b.setAttribute('aria-selected',on&&open?'true':'false')});
+  {const sw=$('#cc-sw');sw.hidden=!!o.unl&&!o.unl('tree');sw.classList.toggle('nw',!!o.isNew&&o.isNew('tree'))}const tg=$('#cc-tg');tg.title=open?'Свернуть (C)':'Развернуть (C)';tg.querySelector('span').textContent=open?'Свернуть':'Развернуть';tg.style.display=m==='drawer'?'none':'';
   o.onLayout&&o.onLayout(m,open);if(open&&lastTab!==ui.panelTab)render(true)};
  const setOpen=v=>{const m=mode();if(m==='wide'){ui.panelOpen=v;o.persist()}else if(m==='rail')el._over=v;else el._drawer=v;if(!v)lastTab='';sync();if(v)render(true)};
  const toggle=()=>setOpen(!isOpen());
- const tab=t=>{if(!R[t])return;o.onTab&&o.onTab(t);const same=ui.panelTab===t&&isOpen();ui.panelTab=t;o.persist();if(same&&mode()!=='wide'){setOpen(false);return}if(!isOpen())setOpen(true);else{sync();render(true)}};
+ const tab=t=>{if(!R[t]||(o.unl&&!o.unl(t)))return;o.seenNew&&o.seenNew(t);o.onTab&&o.onTab(t);const same=ui.panelTab===t&&isOpen();ui.panelTab=t;o.persist();if(same&&mode()!=='wide'){setOpen(false);return}if(!isOpen())setOpen(true);else{sync();render(true)}};
  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
-  if(b.dataset.tab)return tab(b.dataset.tab);if(b.dataset.claim){const[k,id]=b.dataset.claim.split('|');return o.claim&&o.claim(k,id,b)}if(b.id==='cc-tg')return toggle();if(b.id==='cc-sw')return o.openSwitch&&o.openSwitch();
+  if(b.dataset.tab)return tab(b.dataset.tab);if(b.dataset.claim){const[k,id]=b.dataset.claim.split('|');return o.claim&&o.claim(k,id,b)}if(b.id==='cc-tg')return toggle();if(b.id==='cc-sw'){o.seenNew&&o.seenNew('tree');return o.openSwitch&&o.openSwitch()}
   if(b.dataset.dir){const dir=o.save.dir;if(!dir||dir.pick)return;const id=b.dataset.dir,x=DIR.find(q=>q[0]===id)||[id,id,''];
    ask({title:'Директива: '+x[1],text:`<b>${esc(x[2])}</b><br>Точно эту? Директиву <b>нельзя поменять до конца дня</b>. Завтра будут три новые.`,ok:'Выбрать',cancel:'Подумать',skipKey:'dir',tone:'warn'}).then(y=>{
     if(!y||dir.pick)return;dir.pick=id;dir.at=Date.now();o.persist();render();o.toast('Директива дня: '+x[1]+' · до конца дня')});return}

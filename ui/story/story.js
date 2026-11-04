@@ -22,11 +22,11 @@ export const SCENES=[{key:'prologue',t:'Пролог',d:0},...DISTRICTS.flatMap(
 const chap=key=>{const [k,n]=key.split('-'),d=+n;if(k==='prologue')return'ПРОЛОГ';if(k==='sys')return'СИСТЕМЫ · '+((SYS[n]||{}).g||'').toUpperCase();if(k==='shelf')return`ЧЁРНЫЙ РЫНОК · ПОЛКА ${d}`;if(k==='pre')return`РАЙОН ${d} · ЗВОНОК ИЗНУТРИ`;if(k==='finale')return'ФИНАЛ';const arc=ARCS.find(([a,b])=>d>=a&&d<=b);return`РАЙОН ${d} · ${DIST[d-1][0].toUpperCase()}${arc?` · ${arc[2]}`:''}`};
 // панели сцены с фоном: bg = {k:'dist'|'city'|'garage'|'crt'|'wake', d}
 export function panelsOf(key){const [k,n]=key.split('-'),d=+n,X=DISTRICTS[d-1];
- if(k==='prologue')return PROLOGUE.map((p,i)=>({...p,bg:[{k:'city'},{k:'city'},{k:'garage'},{k:'crt'},{k:'city'}][i]||{k:'city'}}));
+ if(k==='prologue')return PROLOGUE.map((p,i)=>({...p,bg:p.bg||[{k:'city'},{k:'city'},{k:'garage'},{k:'crt'},{k:'city'}][i]||{k:'city'}}));
  if(k==='intro')return X.intro.map(p=>({...p,bg:{k:'dist',d}}));
  if(k==='boss')return[{who:'boss',d,mood:'smug',text:X.boss.line,bg:{k:'dist',d,dark:1}},{who:'guide',mood:'worried',text:X.boss.guide,bg:{k:'dist',d,dark:1}}];
  if(k==='capture')return(X.capture||[]).map(p=>({...p,bg:{k:'dist',d,won:1}}));
- if(k==='finale')return FINALE.map((p,i)=>({...p,d:12,bg:[{k:'dist',d:12},{k:'dist',d:12,dark:1},{k:'garage'},{k:'crt'},{k:'crt'},{k:'wake'}][i]}));
+ if(k==='finale')return FINALE.map((p,i)=>({...p,d:12,bg:p.bg||[{k:'dist',d:12},{k:'dist',d:12,dark:1},{k:'garage'},{k:'crt'},{k:'crt'},{k:'wake'}][i]}));
  if(k==='sys')return SYS[n]?SYS[n].panels.map(p=>({...p})):[];
  if(k==='shelf')return SHELF[d]?SHELF[d].map(p=>({...p})):[];
  if(k==='pre')return preScene(d);
@@ -48,8 +48,8 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
   return`<div class="st-st ${p.bg.dark?'dark':''} ${p.bg.won?'won':''} k-${p.bg.k}">${L.map((s,i)=>`<div class="st-p" style="--z:${i}">${s}</div>`).join('')}
    ${p.bg.k==='crt'?`<div class="st-crt">${guideSvg(p.mood||'talking','big')}</div>`:''}${p.bg.k!=='garage'&&p.bg.k!=='crt'?'<div class="st-rain"><i class="far"></i><i class="near"></i></div>':''}<i class="st-shade"></i><i class="st-vig"></i></div>`};
  const type=()=>{clearInterval(typer);const tx=el.querySelector('.st-t');if(reduce()){tx.textContent=full;shown=full.length;return}
-  shown=0;typer=setInterval(()=>{shown=Math.min(full.length,shown+2);tx.textContent=full.slice(0,shown);if(shown>=full.length)clearInterval(typer)},28)};
- const draw=()=>{const p=list[pi];if(!p)return;full=p.text||'';
+  shown=0;tx.textContent='';typer=setInterval(()=>{shown=Math.min(full.length,shown+2);tx.textContent=full.slice(0,shown);if(shown>=full.length)clearInterval(typer)},28)};
+ const draw=()=>{const p=list[pi];if(!p)return;full=p.text||'';clearInterval(typer);{const tx=el.querySelector('.st-t');if(tx)tx.textContent=''}   // J9: прошлая реплика не мелькает в новом окне
   const box=el.querySelector('.st-stw'),old=[...box.querySelectorAll('.st-st')].filter(x=>!x.classList.contains('out')).pop(),sig=bgSig(p);
   // A7: та же картинка — фон не трогаем (без затемнения и без перезапуска анимаций), меняются только текст и портрет
   if(old&&old.dataset.sig===sig){const c=old.querySelector('.st-crt');if(c)c.innerHTML=guideSvg(p.mood||'talking','big')}

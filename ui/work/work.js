@@ -52,6 +52,8 @@ import {makeHH} from './hh.js';
 import * as CO_ from '../../core/collector.js';
 import {TIER as TIER_,ensure as adEnsure_} from '../../core/addict.js';
 import {dayKey} from '../../core/stats.js';
+import {isUnl,unlCheck} from '../../core/unlock.js';
+import {makeNag} from './nag.js';
 import {zlogAdd,zlogDur,zlogImport,backAt as zBackAt} from '../../core/zlog.js';
 import {LEVELS,RANKS} from '../../core/stats.js';
 
@@ -82,6 +84,8 @@ export function startWork(root,{save,au,demo=null}={}){
   backAt:ph=>zBackAt(save,ph,now()),
   canStatus:(k,lead,opt)=>WIN.includes(k)?ses.precheck(k,lead,{late:!!(opt&&opt.late)}):{ok:true}});
  const ses=new Session({root:save,bus:gbus,prov,now});
+ // J11: разделы открываются по ходу района 1 (демо — всё сразу)
+ const UN=k=>isUnl(save,ses.G,k,!!demo&&!save.unlTest),NW=save.unlNew||(save.unlNew={}),isNew=k=>!!NW[k],seenNew=k=>{if(NW[k]){delete NW[k];persistGame();setTimeout(()=>CC.sync(),0)}};
  ses.setGate(()=>{if(!d.t.loaded)return{ok:false,code:'none'};const g=guard(null,{name:d.t.name,head:d.t.h,rows:d.t.L.map(l=>({phone:d.t.ph(l),result:d.t.res(l)}))});return g.ok||g.code==='exhausted'||g.code==='different'?{ok:true}:g});
  ensureDir(save,now());save.shift=save.shift||{start:now()};
  SFX.setVol(d.P.vol??.5);SFX.setMute(!!d.P.mute);SFX.onToast(m=>toast(m));if(kv)SFX.sndInit(kv);
@@ -116,7 +120,7 @@ export function startWork(root,{save,au,demo=null}={}){
  <div class="wk-glow" id="glow" aria-hidden="true"><i class="g g0"></i><i class="g g1"></i><i class="g g2"></i><i class="g g3"></i><i class="au a1"></i><i class="au a2"></i><i class="o o1"></i><i class="o o2"></i><i class="o o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
  // ---------- левая панель «Командный центр» ----------
- const CC=makePanel({openSwitch:()=>AX.open('tree'),onTab:t=>sysOn(SYS_TAB[t]),claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
+ const CC=makePanel({unl:UN,isNew,seenNew,openSwitch:()=>AX.open('tree'),onTab:t=>sysOn(SYS_TAB[t]),claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
   vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;au&&au.setMusic&&au.setMusic(v);MUS.v=v;MUS.apply();persistGame()}}},
   onLayout:(m,open)=>{const mid=$('#mid');mid.dataset.cc=m+(open?' open':'');if(main.firstChild)padW()}});
  // ползунки в верхней полосе (≥1180; уже — в НАСТРОЙКАХ панели и в меню): те же значения, что в настройках
@@ -235,7 +239,7 @@ export function startWork(root,{save,au,demo=null}={}){
  const tout=t=>{clearTimeout(t._t);t.classList.add('out');setTimeout(()=>t.remove(),320)};
  // ---------- награды: ачивки, задания, трофеи, уровень, ранг — по одной, плавно, потом улетают в меню ☰ (позже — во вкладку ТРОФЕИ) ----------
  const RQ=[];let rqBusy=false;
- const MEDAL='<svg viewBox="0 0 40 40" aria-hidden="true"><path class="rb" d="M13 2h6l-3 12h-6zM21 2h6l3 12h-6z"/><circle class="md" cx="20" cy="25" r="11"/><circle class="in" cx="20" cy="25" r="7.5"/><path class="st" d="M20 19.5l1.7 3.5 3.8.5-2.8 2.6.7 3.8-3.4-1.8-3.4 1.8.7-3.8-2.8-2.6 3.8-.5z"/></svg>';
+ const MEDAL='<svg viewBox="0 0 40 40" aria-hidden="true"><path class="rb" d="M13 2h6l-3 12h-6zM21 2h6l3 12h-6z"/><circle class="md" cx="20" cy="25" r="11"/><circle class="in" cx="20" cy="25" r="7.5"/><path class="stp" d="M20 19.5l1.7 3.5 3.8.5-2.8 2.6.7 3.8-3.4-1.8-3.4 1.8.7-3.8-2.8-2.6 3.8-.5z"/></svg>';
  const reward=(kind,title,sub,rar='c')=>{RQ.push({kind,title,sub,rar});if(!rqBusy)nextReward()};
  const nextReward=()=>{const it=RQ.shift();if(!it){rqBusy=false;return}rqBusy=true;const el=document.createElement('div');el.className='wk-rw r-'+it.rar;
   el.innerHTML=`<div class="ic">${MEDAL}</div><div class="tx"><div class="k">${esc(it.kind)}${RQ.length?` <em>+${RQ.length}</em>`:''}</div><div class="n">${esc(it.title)}</div>${it.sub?`<div class="s">${esc(it.sub)}</div>`:''}</div>`;
@@ -383,7 +387,7 @@ export function startWork(root,{save,au,demo=null}={}){
  let frzAuto=null;
  const HH=makeHH({now,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),lead:()=>{const v=d.view();return v.lead?{state:v.lead.state}:null},filterTz:()=>(d.view().filter||{}).tz||'',active:()=>!!(d.t&&d.t.loaded),
   setTz:tz=>{const f=d.view().filter||{};d.setFilter({type:f.type,state:tz?'':f.state,tz});toast(tz?`Звоню по поясу ${tz}: очередь только из него`:'Фильтр пояса снят')}});
- const AX=makeAddict({HH,warmDone:o=>WARM.done(o),onTab:(t,re)=>{if(!sysOn(SYS_TAB[t],re))return false;return true},onSys:(id,re)=>sysOn(id,re),extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,holdAuto:on=>{if(on){if(frzAuto==null){frzAuto=d.auto;d.auto=false}}else if(frzAuto!=null){d.auto=frzAuto;frzAuto=null}},
+ const AX=makeAddict({unl:UN,HH,warmDone:o=>WARM.done(o),onTab:(t,re)=>{if(!sysOn(SYS_TAB[t],re))return false;return true},onSys:(id,re)=>sysOn(id,re),extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,holdAuto:on=>{if(on){if(frzAuto==null){frzAuto=d.auto;d.auto=false}}else if(frzAuto!=null){d.auto=frzAuto;frzAuto=null}},
   lead:()=>{const v=d.view();return v.lead?{state:v.lead.state}:null},dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n});
  const HALL=makeHall({save,toast:m=>toast(m)});
  const WARM=makeWarm({save,persist:persistGame,sfx:n=>SFX.snd&&SFX.snd(n),toast:(m,k)=>toast(m,k),tester,now,dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n,
@@ -393,15 +397,9 @@ export function startWork(root,{save,au,demo=null}={}){
  let chOpen=false;setInterval(()=>{if(chOpen||demo||STORY.isOpen()||ARENA.isOpen()||!stSafe()||document.querySelector('.adr-wrap,.adp-wrap,.ak-wrap,.ch-wrap'))return;const dd=pendingChoice(save,ses.G);if(!dd)return;
   chOpen=true;showChoice({d:dd,save,G:ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n)}).then(()=>{chOpen=false})},4000);
  // события района (beats): при пересечении 25/50/65/75% района — одна реплика; если перескочили несколько — только последняя
- // Пауза без лимита, но игра «агрится»: чем дольше стоишь, тем жёстче (в духе Гоггинса). Минуты появления и тексты — NAG.
- let nagI=0;const NAG=[[2,'Две минуты. Перерыв — это нормально. Привычка к перерывам — нет.'],[5,'Пять минут. Множитель тает. Ты это знаешь.'],
-  [9,'Девять минут. Никто не придёт и не наберёт номер за тебя.'],[14,'Четырнадцать минут. Тот, кто сейчас звонит, забирает твоих клиентов.'],
-  [20,'Двадцать минут. Ты не устал. Тебе просто стало удобно. Встань и набери.'],[28,'Двадцать восемь минут. Серия сгорела. Начинай заново — это и есть работа.'],
-  [38,'Почти сорок минут. Мозг врёт, что ты сделал достаточно. Ты сделал сорок процентов.'],[50,'Пятьдесят минут. Остаться жёстким, когда никто не смотрит, — вот что отличает.'],
-  [65,'Час с лишним. Город снова глохнет. Только ты можешь это остановить.']];
- const nag=ps=>{const m=ps/60;let x=NAG[nagI];if(!x&&nagI>=NAG.length){const extra=65+15*(nagI-NAG.length+1);x=[extra,`${Math.round(m)} минут тишины. Ни одного набора. Это выбор — и ты делаешь его прямо сейчас.`]}
-  if(!x||m<x[0])return;while(NAG[nagI+1]&&m>=NAG[nagI+1][0]){nagI++;x=NAG[nagI]}nagI++;document.querySelectorAll('.wk-nag').forEach(e=>e.remove());const el=document.createElement('div');el.className='wk-nag l'+Math.min(5,Math.floor(nagI/2));el.innerHTML=`<em>ПАУЗА ${mmss(ps)}</em><b>${esc(x[1])}</b><span>P — продолжить</span>`;
-  document.body.appendChild(el);if(SFX.snd)SFX.snd(nagI>4?'del':'chime');setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),400)},6500)};
+ // J3: упрёки за простой (ui/work/nag.js): пауза без звонка, или днём/вечером 5+ минут без звонков. Висят, пока не сменит следующий.
+ let nagI=0,lastAct=Date.now();const NAGX=makeNag({now,fmt:mmss,sfx:n=>SFX.snd&&SFX.snd(n),state:()=>({paused:!!d.paused,onCall:!!(d.calling||(d.call&&d.call.ended==null)),pauseAt:d.pauseAt||now(),lastAct:Math.max(lastAct,ses.G.last||0)})});
+ setInterval(()=>{if(!demo||save.nagTest)NAGX.tick()},1000);const nag=()=>{};
  let bPh=0,sbMax=0,bAmbN=-1;const beats=()=>{const G=ses.G,dd=G.district||1,B=BEATS[dd-1],st=save.story;if(!B||!st||!st.seen||(save.meta&&save.meta.captured&&save.meta.captured[dd]))return;
   const f=G.dxp/districtThr(dd);let hit=null;for(const k of ['rumor','clue','council','lom','call']){if(k==='clue'&&!CLUES[dd])continue;const id='b-'+dd+'-'+k;if(f>=BEAT_AT[k]&&!st.seen[id]){st.seen[id]=Date.now();hit=k}}
   if(hit){persistGame();const v=hit==='clue'?CLUES[dd]:B[hit];COMMS.say(hit==='clue'?{who:'guide',mood:'worried',text:'Обрывок той ночи · '+v.n+'. '+v.t}:hit==='rumor'?{who:'local',name:v.name,text:v.text}:hit==='call'?(v.guide?{who:'guide',mood:'worried',text:v.text}:{who:'local',name:'Входящий · '+v.name,text:v.text}):hit==='lom'?{who:'lom',text:v}:{who:'council',text:v})}
@@ -416,7 +414,7 @@ export function startWork(root,{save,au,demo=null}={}){
   el.className='wk-streak '+w.state;const frac=w.left!=null&&w.allowed?w.left/w.allowed:w.state==='online'?1:0;$('#ringfg').style.strokeDashoffset=String(119.4*(1-frac));
   $('#ringt').textContent=w.state==='online'?'☎':w.left!=null?(w.left>=60?Math.ceil(w.left/60)+'м':w.left):'–';
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
-  $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
+  $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'серия сгорела: следующий статус начнёт заново':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
   {const sub=$('#sk-s'),cd=w.state!=='online'&&w.state!=='lost'&&w.left!=null&&w.mult>1&&!w.od&&!(w.ulta>0);sub.classList.toggle('cd',cd);sub.classList.toggle('hurry',cd&&w.left<=15);if(cd)sub.innerHTML=`x${w.mult} сгорит через <b>${w.left>=60?mmss(w.left):w.left+' с'}</b>`+(w.toNext!=null?` · до x${w.nextMult} ещё ${w.toNext}`:'')}
   glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(w.streak>=8)sbMax=w.streak;if(!w.streak){if(sbMax>=8)COMMS.say({who:'guide',mood:'neutral',text:pick(LINES.streakBreak)},'sb',600000);sbMax=0;prevStreak=0}beats();
   roll('x',$('#r-x'),Math.round(G.lifeXp),v=>v.toLocaleString('ru')+' XP');if(!mLock)roll('m',$('#r-m'),Math.round(G.money),money);else shown.m=Math.round(G.money);sprUi();AX.render();DW.sync();if(MUS.lib&&MUS.playing)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
@@ -430,6 +428,9 @@ export function startWork(root,{save,au,demo=null}={}){
   if(r.refused==='wait'){if(d.call&&d.call.ended==null&&d.P.hangupOnStatus){const h=d.hangup('status');if(h==='unsupported'){d.zoom.peek={reason:'hangup'};zoomUi();toast('Положи трубку в окне Zoom: статус поставлю сам, как только Zoom пришлёт длительность','bad')}}else toast('Проверяю длительность по Zoom…');const t0=now();const loop=()=>{const rr=d.setStatus(k,adWait,{late:now()-t0>=10000});if(rr&&rr.refused==='wait')waitT=setTimeout(loop,1000);else if(rr&&rr.refused)refused(rr)};waitT=setTimeout(loop,1000);return}
   if(r.refused)refused(r)};
  const refused=r=>{SFX.snd('del');const nm=BUTTONS[r.index].name;toast(`Сорри, ${nm} нельзя поставить: разговор ${mmss(r.dur||0)} по Zoom, нужно от ${mmss(r.min)}`,'bad')};
+ // J11: что открылось после статуса — тост, подсветка кнопки и сцена (сюжетное событие)
+ const unlTick=()=>{const nw=unlCheck(save,ses.G,now(),!!demo&&!save.unlTest);if(!nw.length)return;nw.forEach((u,i)=>{NW[u.id]=1;setTimeout(()=>toast('Открыто: '+u.n,'gold'),400+i*900)});CC.sync();AX.render(true);setTimeout(()=>{for(const u of nw)if(sysOn(u.sys))break},1200)};
+ dbus.on('callEnded',()=>{lastAct=now()});
  dbus.on('statusSet',meta=>{const L=meta.lead,f=SFX.FXT[meta.index];
   AX.pre();const out=ses.setStatus(meta.index,{key:L.phone,phone:L.phone,business:L.biz,state:L.state},{had:!!meta.changed,late:!!pendingLate,back:meta.back||null});
   if(out.back)toast('Звонок был '+new Date(out.back).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+': статус записан в тот день');
@@ -446,9 +447,9 @@ export function startWork(root,{save,au,demo=null}={}){
    if(c==='BOOKED'||c==='DISCOVERY')COMMS.say({who:'guide',mood:'happy',text:pick(LINES.booked)},'booked',240000);
    else if(often&&c==='TALK'&&Math.random()<.4)COMMS.say({who:'guide',mood:'talking',text:pick(LINES.talk)},'talk',300000);
    else if(often&&c==='GATEKEEPER'&&Math.random()<.25)COMMS.say({who:'guide',mood:'sarcastic',text:pick(LINES.gate)},'gate',480000)}
-  shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
+  shownSug=-1;unlTick();persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud();CC.refresh();MAP.refresh()});
- dbus.on('callRinging',e=>{if(e&&e.number)zlogAdd(save,{id:e.callId,number:e.number,start:e.at||now(),src:'l'},now())});
+ dbus.on('callRinging',e=>{lastAct=now();NAGX.tick();if(e&&e.number)zlogAdd(save,{id:e.callId,number:e.number,start:e.at||now(),src:'l'},now())});
  dbus.on('callLogged',e=>{zlogDur(save,e.callId,e.duration);const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
  dbus.on('pauseChanged',e=>{nagI=0;$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
  dbus.on('leadChanged',()=>{if(!$('#lead')&&d.view().loaded)layout();else renderLead();leds()});
@@ -492,7 +493,7 @@ export function startWork(root,{save,au,demo=null}={}){
   w.addEventListener('click',e=>{const b=e.target.closest('[data-b]');if(!b)return;if(b.dataset.b==='zlog')copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)');if(b.dataset.b==='retest')openDebug('test');
    // повтор анимации раскрытия текущего района: прогресс не трогаем, фигурка просто встаёт на соседний район
    if(b.dataset.b==='arena'){closeOv();ARENA.open(ses.G.district||1,{intro:true});ARENA.demo();return}
-   if(b.dataset.b.startsWith('st-')){const c=ses.G.district||1,k={'st-pro':'prologue','st-cur':'intro-'+c,'st-boss':'boss-'+c,'st-fin':'finale'}[b.dataset.b];closeOv();if(b.dataset.b==='st-jr')STORY.openJournal();else STORY.play(k,null,true);return}
+   if(b.dataset.b.startsWith('st-')){const c=ses.G.district||1,k={'st-pro':'prologue','st-cur':'intro-'+c,'st-boss':'boss-'+c,'st-cap':'capture-'+Math.min(11,Math.max(1,c>1?c-1:1)),'st-fin':'finale'}[b.dataset.b];closeOv();if(b.dataset.b==='st-jr')STORY.openJournal();else STORY.play(k,null,true);return}
    if(b.dataset.b==='mapdemo'){const c=ses.G.district;closeOv();if(c<2){toast('Раскрывать нечего: открыт только первый район');return}const m=save.map||(save.map={});m.seen=(m.seen||[]).filter(x=>x!==c);m.pos=c-1;MAP.open()}});
   w.querySelectorAll('[data-c]').forEach(i=>i.onchange=()=>{dbgCalc[i.dataset.c]=Math.max(0,+i.value||0);openDebug('bal');const f=ov.querySelector(`[data-c="${i.dataset.c}"]`);if(f)f.focus()})};
  const openJournal=()=>{openOv('jr',journalHtml(save,now()));ov.querySelector('.wk-win').classList.add('dbg-w');$('#jr-x').onclick=closeOv;$('#jr-story').onclick=()=>{closeOv();STORY.openJournal()}};
@@ -514,7 +515,7 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#p-hide').textContent=M.hide?'Показать обработанных':'Скрыть обработанных';
   $('#p-ch').innerHTML=[['tz','ПОЯС'],['state','ШТАТ'],['type','ТИП']].map(([k,l])=>P.chips[k].length?`<div class="wk-chips" style="margin-bottom:6px"><span class="lb">${l}</span>${P.chips[k].map(v=>chip(k,v)).join('')}</div>`:'').join('');
   const dd=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||'');return m?`${+m[3]}.${m[2]}`:esc(v||'')};
-  $('#p-l').innerHTML=(P.up?'<button class="wk-li more" data-more="-1">▲ Показать выше</button>':'')+P.rows.map(r=>`<div role="button" tabindex="0" class="wk-li ${r.now?'now':''} ${r.done?'done':''} ${r.first?'fs':''}" data-i="${r.i}"><div class="r1"><b>${esc(r.biz)}</b>${r.now?'<span class="nw">сейчас</span>':''}${r.result?`<span class="sb" style="--c:${r.color}" title="${esc(r.result)}"><span class="st">${esc(r.result)}</span><i class="x" data-x="${r.i}" title="Убрать статус" role="button" tabindex="0"><svg viewBox="0 0 16 16" width="9" height="9" style="pointer-events:none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></i></span>`:''}</div><div class="r2"><span>${esc(r.type||'—')} · ${esc(r.state||'—')}</span>${r.local?`<span class="lt ${r.local.work?'w':''}" title="${esc(r.tz)}">${esc(r.local.time)} ${esc(r.local.tz)}</span>`:''}${r.date?`<span class="dt" title="Дата статуса">${dd(r.date)}</span>`:''}${r.notes?`<em>${esc(r.notes)}</em>`:''}</div>${r.prep?`<div class="p">${esc(r.prep.slice(0,160))}</div>`:''}</div>`).join('')
+  $('#p-l').innerHTML=(P.up?'<button class="wk-li more" data-more="-1">▲ Показать выше</button>':'')+P.rows.map(r=>`<div role="button" tabindex="0" class="wk-li ${r.now?'now':''} ${r.done?'done':''} ${r.first?'fs':''}" data-i="${r.i}"><div class="r1"><b>${esc(r.biz)}</b>${r.now?'<span class="nw">сейчас</span>':''}${r.result?`<span class="sb" style="--c:${r.color}" title="${esc(r.result)}"><span class="sbt">${esc(r.result)}</span><i class="x" data-x="${r.i}" title="Убрать статус" role="button" tabindex="0"><svg viewBox="0 0 16 16" width="9" height="9" style="pointer-events:none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></i></span>`:''}</div><div class="r2"><span>${esc(r.type||'—')} · ${esc(r.state||'—')}</span>${r.local?`<span class="lt ${r.local.work?'w':''}" title="${esc(r.tz)}">${esc(r.local.time)} ${esc(r.local.tz)}</span>`:''}${r.date?`<span class="dt" title="Дата статуса">${dd(r.date)}</span>`:''}${r.notes?`<em>${esc(r.notes)}</em>`:''}</div>${r.prep?`<div class="p">${esc(r.prep.slice(0,160))}</div>`:''}</div>`).join('')
    +(P.down?'<button class="wk-li more" data-more="1">▼ Показать ниже</button>':'')+(P.rows.length?'':'<div class="wk-ver" style="padding:14px">Ничего не найдено</div>');
   {const ft=$('#p-ft');if(ft)ft.innerHTML=`<span>${P.filtered?'<kbd>Enter</kbd> выбирает первого':'Клик по лиду: очередь пойдёт дальше от него'}</span><span>${P.total} ${P.filtered?'по фильтру':'всего'}</span>`}
   if(first){const nw=$('#p-l .wk-li.now');if(nw)nw.scrollIntoView({block:'center'})}
@@ -599,7 +600,7 @@ export function startWork(root,{save,au,demo=null}={}){
   z.call=e164=>{end();z.got=false;z.sug=-1;const id='test-'+(++n)+'-'+now();cur={id,n:e164,t:now()};const iso=new Date().toISOString().slice(0,19)+'Z';
    msg('zp-call-ringing-event',{callId:id,callee:{phoneNumber:e164},dateTime:iso,direction:'outbound'});setTimeout(()=>{if(cur&&cur.id===id)msg('zp-call-connected-event',{callId:id,callee:{extensionType:'pstn',phoneNumber:e164},dateTime:iso,direction:'outbound'})},800);return'zoom'};
   z.hangup=()=>{if(!cur)return false;setTimeout(end,150);return true};msg('zp-ready',{});z.changed()}
- layout();leds();banner();zoomUi();hud();tempoUi();
+ unlCheck(save,ses.G,now(),!!demo);layout();leds();banner();zoomUi();hud();tempoUi();
  setInterval(()=>{d.tick();hud()},250);
  // местное время контакта идёт само: раз в 10 с обновляем только чип времени (карточку не перерисовываем)
  const ltTick=()=>{const c=document.querySelector('#lead .wk-chip.time');if(!c)return;const v=d.view(),lt=v.lead&&v.lead.local;if(!lt)return;
@@ -607,4 +608,4 @@ export function startWork(root,{save,au,demo=null}={}){
  setInterval(ltTick,10000);addEventListener('visibilitychange',()=>{if(!document.hidden)ltTick()});setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen,COMMS,beats,AX,HALL,KEY,WARM,HH,DW,bossCheck,openPicker}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen,COMMS,beats,AX,HALL,KEY,WARM,HH,DW,bossCheck,openPicker,tempoUi}}

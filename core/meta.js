@@ -7,15 +7,28 @@ export const DIST=[ // [название, акцент, тема, босс, по
  ['Cyber-Downtown','#ffc400','blackgold','Киберсамурай-Аудитор','проверяет твои отчёты катаной'],['Financial Spire','#ffd45a','blackgold','Банкир-призрак','проходит сквозь стены и кредиты'],
  ['Sky District','#e8c35a','blackgold','Барон Облаков','владеет погодой и ипотекой'],['Airport Ring','#7fd7ff','orbital','Адмирал Эфира','командует тишиной'],
  ['The Station','#39ff14','orbital','ARCHON','взбесившийся ИИ станции'],['The Summit','#ffffff','blackgold','Председатель Совета','последний, кто никогда не берёт трубку']];
-const T=[[.5,'дешёвый'],[1.5,'средний'],[4,'showpiece']],S=[ // [дешёвый,средний,showpiece, слот]
- ['Лампочка на проводе','Стол из двери + ЭЛТ','Дизель «Старый Сергей»'],['Стальная дверь с засовом','Стена из ЭЛТ-мониторов','Пресс «Переговорщик»'],
- ['Неоновая вывеска «BOOKED»','Голо-терминал','Лофт в контейнере'],['Тележка с «корпоративным рамен»','Дроны с фонарями','Телохранитель в очках'],
- ['Кожаное кресло','Стеклянная переговорная','Стол из красного дерева'],['Хромированный фонтан','Робот-секретарь','Голо-билборд с лого'],
- ['Панорамное окно','Стена серверов','Охрана в экзоскелетах'],['Золотой биржевой тикер','Дверь хранилища','Личный лифт на крышу'],
- ['Скайбридж-мост','Сад с карпами кои','Вертолёт на крыше'],['Кресло пилота','Рой дронов-охраны','Голо-карта города'],
- ['Окно станции на весь город','ИИ-дворецкий','Стол из обломка антенны'],['Золотой единорог','Голо-совет (кланяется)','Трон CEO']];
-export const SHOP_ITEMS=S.flatMap((r,d)=>r.map((name,t)=>({id:`d${d+1}t${t}`,district:d+1,name,tier:T[t][1],mult:T[t][0],slot:d*3+t,
- price:price(d+1,T[t][0]),description:`${DIST[d][0]}: ${T[t][1]}`,imgPath:`img/hq/d${d+1}t${t}.png`,placeholder:true})));
+// РЫНОК v2 (кусок 18). Предметы больше не «по 3 на район»: в районе их 2–4, и каждый следующий в среднем заметно сильнее
+// прошлого (бонусы — core/buffs.js). Появление полки объясняет сюжет района или конец прошлого (story/systems.js, SHELF).
+// id остаются прежними (спрайты, слоты, сохранения), район у части предметов другой: ЭЛТ-стена — с Ночного Рынка (4),
+// голо-билборд — трофей Лоббиста, появляется после Хром-Плазы (7). Новые: n9 (Высоты), n12 (Вершина).
+// [id, район, ступень, название]; ступень: c — дешёвый, m — средний, m2 — редкий, s — showpiece
+export const TIERS={c:[.5,'дешёвый'],m:[1.5,'средний'],m2:[2.2,'редкий'],s:[4,'showpiece']};
+const CAT=[
+ ['d1t0',1,'c','Лампочка на проводе'],['d1t1',1,'m','Стол из двери + ЭЛТ'],['d1t2',1,'s','Дизель «Ре минор»'],
+ ['d2t0',2,'c','Стальная дверь с засовом'],['d2t2',2,'s','Пресс «Переговорщик»'],
+ ['d3t0',3,'c','Неоновая вывеска «BOOKED»'],['d3t1',3,'m','Голо-терминал'],['d3t2',3,'s','Лофт в контейнере'],
+ ['d4t0',4,'c','Тележка с «корпоративным рамен»'],['d4t1',4,'m','Дроны с фонарями'],['d2t1',4,'m2','Стена из ЭЛТ-мониторов'],['d4t2',4,'s','Телохранитель в очках'],
+ ['d5t0',5,'c','Кожаное кресло'],['d5t1',5,'m','Стеклянная переговорная'],['d5t2',5,'s','Стол из красного дерева'],
+ ['d6t0',6,'c','Хромированный фонтан'],['d6t1',6,'s','Робот-секретарь'],
+ ['d7t0',7,'c','Панорамное окно'],['d6t2',7,'m','Голо-билборд с лого'],['d7t1',7,'m2','Стена серверов'],['d7t2',7,'s','Охрана в экзоскелетах'],
+ ['d8t0',8,'c','Золотой биржевой тикер'],['d8t1',8,'m','Дверь хранилища'],['d8t2',8,'s','Личный лифт на крышу'],
+ ['d9t0',9,'c','Скайбридж-мост'],['d9t1',9,'m','Сад с карпами кои'],['n9',9,'m2','Метеостанция Барона'],['d9t2',9,'s','Вертолёт на крыше'],
+ ['d10t0',10,'c','Кресло пилота'],['d10t1',10,'m','Рой дронов-охраны'],['d10t2',10,'s','Голо-карта города'],
+ ['d11t0',11,'c','Окно станции на весь город'],['d11t1',11,'m','ИИ-дворецкий'],['d11t2',11,'s','Стол из обломка антенны'],
+ ['d12t0',12,'c','Золотой единорог'],['n12',12,'m2','Красный телефон'],['d12t1',12,'m','Голо-совет (кланяется)'],['d12t2',12,'s','Трон CEO']];
+export const SHOP_ITEMS=CAT.map(([id,d,tk,name],slot)=>({id,district:d,name,tk,tier:TIERS[tk][1],mult:TIERS[tk][0],slot,
+ price:price(d,TIERS[tk][0]),description:`${DIST[d-1][0]}: ${TIERS[tk][1]}`,imgPath:`img/hq/${id}.png`,placeholder:true}));
+export const showpiece=d=>SHOP_ITEMS.find(x=>x.district===d&&x.tk==='s');
 export const COSMETICS=[['trail-cyan','Trail: циан',.5],['trail-magenta','Trail: маджента',.5],['trail-gold','Trail: золото',1],['trail-red','Trail: красный',1],
  ['stamp-iron','Печать: чугун',1],['stamp-neon','Печать: неон',1.5],['stamp-gold','Печать: золото',2]].map(([id,name,m])=>({id,name,price:Math.round(m*C.assumedDailyMoney),applies:true,slot:id.split('-')[0]}));
 export function price(d,mult){return Math.round(mult*shiftMoneyAt(d)*PRICE_GROW(d))}
@@ -33,8 +46,8 @@ export function buy(s,meta,id){const it=SHOP_ITEMS.find(x=>x.id===id)||COSMETICS
 export const bossHp=s=>{const t=districtThr(s.district),p=C.bossPhaseShare;return Math.max(0,Math.min(1,(t-s.dxp)/(t*p)))};
 export function runMetaTests(){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
  t('косметика: покупка надевает, повтор снимает, чужое не надеть',()=>{const m=newMeta(),g={money:1e6,undo:[],district:1};buy(g,m,'trail-gold');const a=equipped(m,'trail')==='trail-gold';equip(m,'trail-gold');return a&&!equipped(m,'trail')&&!equip(m,'stamp-gold')});
- t('36 предметов, по 3 на район',()=>SHOP_ITEMS.length===36&&SHOP_ITEMS.every(x=>x.price>0));
- t('цены 0.5/1.5/4 дня дохода района × рост усилия',()=>SHOP_ITEMS[2].price===Math.round(4*C.assumedDailyMoney)&&SHOP_ITEMS[3].price===Math.round(.5*shiftMoneyAt(2)*PRICE_GROW(2)));
+ t('38 предметов, в районе от 2 до 4, у каждого района один showpiece',()=>{const n=d=>SHOP_ITEMS.filter(x=>x.district===d).length;return SHOP_ITEMS.length===38&&SHOP_ITEMS.every(x=>x.price>0)&&Array.from({length:12},(_,i)=>n(i+1)).every(v=>v>=2&&v<=4)&&new Set(Array.from({length:12},(_,i)=>n(i+1))).size>=3&&Array.from({length:12},(_,i)=>showpiece(i+1)).every(Boolean)});
+ t('цены 0.5/1.5/2.2/4 дня дохода района × рост усилия',()=>SHOP_ITEMS[2].price===Math.round(4*C.assumedDailyMoney)&&SHOP_ITEMS[3].price===Math.round(.5*shiftMoneyAt(2)*PRICE_GROW(2))&&SHOP_ITEMS.find(x=>x.id==='d2t1').price===Math.round(2.2*shiftMoneyAt(4)*PRICE_GROW(4)));
  t('покупка: район закрыт / не хватает / ок',()=>{const s={district:1,money:0,undo:[1]},m=newMeta();return buy(s,m,'d2t0').why==='район закрыт'&&buy(s,m,'d1t0').why.startsWith('не хватает')&&(s.money=9999,buy(s,m,'d1t0').ok)&&s.undo.length===0&&buy(s,m,'d1t0').why==='уже куплено'});
  t('HP босса = последние 10% шкалы',()=>{const s={district:3,dxp:0};s.dxp=Math.round(districtThr(3)*.95);const h=bossHp(s);return h>.45&&h<.55});
  t('база растёт: гараж→лофт→офис→башня',()=>[1,4,8,11].map(baseStage).join()==='0,1,2,3');

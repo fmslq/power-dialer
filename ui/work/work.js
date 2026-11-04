@@ -1,5 +1,8 @@
 // РАБОЧИЙ ЭКРАН (R1 ч.4): дайлер (dialer/) + игра (core/Session) + Zoom. Только DOM и связка; логика живёт в dialer/ и core/.
+import {makeWarm} from './warmup.js';
 import {makeAddict} from './addict.js';
+import {SYS,SYN_AT} from '../../story/systems.js';
+import {synOk,happy as hhOf} from '../../core/addict.js';
 import {makeHall} from './hall.js';
 import {showChoice} from './choice.js';
 import {makeKeys} from './keys.js';
@@ -92,11 +95,11 @@ export function startWork(root,{save,au,demo=null}={}){
    <div class="wk-streak idle" id="streak"><div class="wk-ring"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="19"/><circle class="fg" id="ringfg" cx="23" cy="23" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringt">–</b></div>
     <div class="wk-sk"><div class="n" id="sk-n">СЕРИЯ 0<em>x1.0</em></div><div class="s" id="sk-s">начни звонить</div></div></div>
    <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-r"><div class="wk-flow-p" id="flow-p"></div><div class="wk-spr" id="spr" title="Спринт: 25 звонков подряд. Белая черта — где ты был бы, если идти в темпе своего лучшего спринта"><i id="spr-f"></i><u id="spr-g"></u><b id="spr-t">0 / 25</b></div></div></div>
-   <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
-   <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
+   <div class="wk-rt"><div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
+   <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div></div>
    <div class="adx" id="adx"></div><div class="adx-gh" id="adx-gh" aria-live="polite"></div>
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен · множитель и Overdrive горят как обычно<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
-   <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
+   <div class="wk-banner test ${tester?'on':''}" id="bn-test"><strong>РЕЖИМ ТЕСТИРОВЩИКА</strong><span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
   <section class="wk-dw" id="dwin" aria-label="Окно в район"></section>
   <div class="wk-mid" id="mid"><div class="wk-mw" id="mw"><main class="wk-main" id="main"></main></div></div>
@@ -105,7 +108,7 @@ export function startWork(root,{save,au,demo=null}={}){
  <div class="wk-glow" id="glow" aria-hidden="true"><i class="g g0"></i><i class="g g1"></i><i class="g g2"></i><i class="g g3"></i><i class="au a1"></i><i class="au a2"></i><i class="o o1"></i><i class="o o2"></i><i class="o o3"></i></div><div class="wk-ov" id="ov"></div><div class="wk-toasts" id="toasts"></div>`;
  const W=$('#wk'),main=$('#main'),ov=$('#ov');
  // ---------- левая панель «Командный центр» ----------
- const CC=makePanel({claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
+ const CC=makePanel({onTab:t=>sysOn(SYS_TAB[t]),claim:(k,id,b)=>doClaim(k,id,b),save,G:()=>ses.G,now,d:()=>(save.days||{})[dayKey(now())],secs:SECS,tempo:()=>d.tempo(),onVol:()=>volUi(),openSettings:s=>openSettings(s),shiftEnd:()=>shiftEnd(),persist:persistGame,toast:m=>toast(m),act:a=>act(a),
   vol:{get:()=>({sfx:d.P.vol??.5,music:S.music??.3}),set:(k,v)=>{if(k==='sfx'){d.P.vol=v;d.sp();SFX.setVol(v)}else{S.music=v;au&&au.setMusic&&au.setMusic(v);MUS.v=v;MUS.apply();persistGame()}}},
   onLayout:(m,open)=>{const mid=$('#mid');mid.dataset.cc=m+(open?' open':'');if(main.firstChild)padW()}});
  // ползунки в верхней полосе (≥1180; уже — в НАСТРОЙКАХ панели и в меню): те же значения, что в настройках
@@ -140,10 +143,26 @@ export function startWork(root,{save,au,demo=null}={}){
   try{await CFX(card,r)}catch(e){mLock=false}document.querySelectorAll('.wk-m-float').forEach(f=>{f.classList.add('out');setTimeout(()=>f.remove(),400)});claiming=false;hud();CC.refresh();MAP.refresh&&MAP.refresh()};
  // база и Чёрный Рынок (R4): полный экран, модальный
  const applyCos=()=>{document.body.dataset.stamp=(equipped(save.meta,'stamp')||'').replace('stamp-','')};applyCos();
- const BASE=makeBase({onEquip:()=>applyCos(),mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
+ const BASE=makeBase({pre:(keys,dd)=>{if(dd)for(let i=1;i<dd;i++)STORY.mark('shelf-'+i);story(keys.filter(k=>!STORY.seen(k)))},onEquip:()=>applyCos(),mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
   dark:()=>(save.rank??0)===0&&!!save.wasNobody,today:()=>d.ses.tot,onBuy:()=>{applyCos();hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
  const stFlush=()=>{const q=stQ();if(!q.length||!stSafe()||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||document.querySelector(".tut"))return;const k=q.splice(0);persistGame();const ar=k.filter(x=>x.startsWith('arena-')),sc=k.filter(x=>!x.startsWith('arena-'));
   const go=()=>{if(ar.length){const dd=+ar.at(-1).split('-')[1];if(dd===ses.G.district)arenaIntro(dd);else ar.forEach(x=>STORY.mark('boss-'+x.split('-')[1]))}};if(sc.length)story(sc,{force:true,cb:go});else go()};
+ // СЦЕНЫ СИСТЕМ (кусок 19, story/systems.js): первое открытие вкладки или первое появление системы.
+ // Вкладки — сразу (если не идёт серия); сами системы — по одной, не чаще раза в 3 минуты, чтобы не засыпать сценами старое сохранение.
+ const SYS_TAB={shift:'shift',map:'map',rank:'rank',dossier:'dossier',trophy:'trophy',tree:'switch',ops:'ops',look:'themes'};
+ const sysOn=(id,cb)=>{const k='sys-'+id;if(!id||!SYS[id]||STORY.seen(k)||STORY.isOpen())return false;if(id==='ops'&&!synOk(save))return false;
+  if(stMode()==='off'){STORY.mark(k);return false}if(!stSafe()){story([k]);return false}story([k],{force:true,cb});return true};
+ let sysT=0;
+ const sysCheck=()=>{if(STORY.isOpen()||BASE.isOpen()||ARENA.isOpen()||document.querySelector('.tut,.ch-wrap,.wu-wrap,.adw-wrap,.adp-wrap')||now()-sysT<180000)return;
+  const G=ses.G,a=save.ad||{},dn=((save.days||{})[dayKey(now())]||{n:0}).n,q=stQ(),L=d.view&&d.view().lead,w=[];
+  for(const [id,[dd,f]] of Object.entries(SYN_AT))if(G.district>dd||(G.district===dd&&G.dxp/districtThr(dd)>=f))w.push(id);
+  if((G.streak|0)>=3)w.push('streak');if(dn>=3)w.push('goals');if(a.frz&&a.frz.ch>0)w.push('freeze');
+  if(Object.keys(a.inv||{}).length||(a.drops||[]).length)w.push('noise');if(a.perk&&a.perk.opts)w.push('perk');
+  if(a.purge&&a.purge.chk&&Object.keys(save.days||{}).length>=2)w.push('purge');if(L&&L.state&&hhOf(L.state,now()))w.push('hh');
+  if(save.dir&&save.dir.pick)w.push('directive');if(save.legacy&&save.legacy.pts>0)w.push('legacy');if(allyDistricts(save).length)w.push('allies');if(needKey(save,G))w.push('keys');
+  const k=w.map(x=>'sys-'+x).find(x=>!STORY.seen(x)&&!q.includes(x));if(!k)return;sysT=now();
+  if(k==='sys-syn')(save.story||(save.story={})).syn=1;story([k])};
+ setInterval(sysCheck,4000);
  // первый запуск с сюжетом (save.story.v нет): старому сохранению открываем пройденное (в Журнал), новой игре играем пролог
  {const st=save.story=save.story||{seen:{},queue:[]},cur=ses.G.district||1,fresh=cur===1&&!(ses.G.lifeXp>0);st.seen=st.seen||{};
   if(!st.v){st.v=1;if(!fresh){const t=Date.now(),sn=st.seen;sn.prologue=t;for(let k=1;k<cur;k++){sn['intro-'+k]=t;sn['boss-'+k]=t;sn['capture-'+k]=t}sn['intro-'+cur]=t}persistGame()}
@@ -176,7 +195,8 @@ export function startWork(root,{save,au,demo=null}={}){
  // босс вышел впервые в этом районе: интро сейчас (если можно) или в очередь сцен
  const bossCheck=()=>{const G=ses.G,dd=G.district,m=save.meta||(save.meta={});m.bossIntro=m.bossIntro||{};if(bossState(G)==='scenery'||m.bossIntro[dd])return;
   m.bossIntro[dd]=Date.now();persistGame();if(stMode()==='off'){STORY.mark('boss-'+dd);return}
-  if(stSafe()&&!STORY.isOpen())arenaIntro(dd);else{const q=stQ();if(!q.includes('arena-'+dd))q.push('arena-'+dd);toast(`Вышел босс: ${DIST[dd-1][3]}. Арена откроется после серии`,'gold')}};
+  const pre='pre-'+dd,pp=!STORY.seen(pre)&&dd<12;
+  if(stSafe()&&!STORY.isOpen()){if(pp)story([pre],{force:true,cb:()=>arenaIntro(dd)});else arenaIntro(dd)}else{const q=stQ();if(pp&&!q.includes(pre))q.push(pre);if(!q.includes('arena-'+dd))q.push('arena-'+dd);toast(`Вышел босс: ${DIST[dd-1][3]}. Арена откроется после серии`,'gold')}};
  // карта мира (R2): полный экран поверх работы, звонок не прерывается
  const MAP=makeMap({trail:()=>TRAIL_COL[equipped(save.meta,'trail')]||null,save,G:()=>ses.G,persist:persistGame,toast:m=>toast(m),fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),
   onReveal:(d,cb)=>story(d>1?['capture-'+(d-1),'intro-'+d]:['intro-'+d],{cb}),onOpen:()=>stFlush(),
@@ -340,9 +360,12 @@ export function startWork(root,{save,au,demo=null}={}){
  // Addiction update: полоса Сигнала/Заморозки/Рюкзака/Рейда, рулетка Шума, перк, призрак, Ночная чистка (ui/work/addict.js)
  let keyTold=0;const KEY=makeKeys({save,G:()=>ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),onGot:()=>{hud()}});
  let frzAuto=null;
- const AX=makeAddict({extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,holdAuto:on=>{if(on){if(frzAuto==null){frzAuto=d.auto;d.auto=false}}else if(frzAuto!=null){d.auto=frzAuto;frzAuto=null}},
+ const AX=makeAddict({onTab:(t,re)=>{if(!sysOn(SYS_TAB[t],re))return false;return true},onSys:(id,re)=>sysOn(id,re),extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,holdAuto:on=>{if(on){if(frzAuto==null){frzAuto=d.auto;d.auto=false}}else if(frzAuto!=null){d.auto=frzAuto;frzAuto=null}},
   lead:()=>{const v=d.view();return v.lead?{state:v.lead.state}:null},dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n});
  const HALL=makeHall({save,toast:m=>toast(m)});
+ const WARM=makeWarm({save,persist:persistGame,sfx:n=>SFX.snd&&SFX.snd(n),toast:(m,k)=>toast(m,k),tester,now,dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n,
+  ready:()=>!demo&&!!(d.t&&d.t.L&&d.t.L.length)&&!((d.ses&&d.ses.tot)>0),busy:()=>{const on=d.calling||(d.call&&d.call.ended==null);return on||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||!!(MAP.isOpen&&MAP.isOpen())||!!document.querySelector('.tut,.gm,.wk-ov.open,.ch-wrap,.adr-wrap,.adp-wrap,.ak-wrap,.adw-wrap,.st-wrap')},onAnswer:()=>{AX.render(1);setTimeout(()=>sysOn('warm'),400)}});
+ setInterval(()=>WARM.check(),1500);
  // E5: выбор после босса — когда сцены закрыты и серия не идёт
  let chOpen=false;setInterval(()=>{if(chOpen||demo||STORY.isOpen()||ARENA.isOpen()||!stSafe()||document.querySelector('.adr-wrap,.adp-wrap,.ak-wrap,.ch-wrap'))return;const dd=pendingChoice(save,ses.G);if(!dd)return;
   chOpen=true;showChoice({d:dd,save,G:ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n)}).then(()=>{chOpen=false})},4000);

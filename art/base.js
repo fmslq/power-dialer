@@ -27,6 +27,9 @@ const SP={
  d7t0:()=>`<rect x="-200" y="-280" width="400" height="260" fill="#1a2030" ${L(4)}/>${winCity(-188,-268,376,236,.35,17,'#ffd76a')}<path d="M0-280v260M-200-150h400" stroke="#1a2030" stroke-width="10"/>`,
  d7t1:()=>[-90,0,90].map(x=>`<path d="M${x-40} 0v-300h80V0z" fill="#111618" ${L()}/>${Array.from({length:9},(_,i)=>`<circle class="it-led" style="--i:${i}" cx="${x-20+(i%3)*20}" cy="${-280+(i/3|0)*90}" r="4" fill="#39ff14"/>`).join('')}`).join(''),
  d7t2:()=>[-70,70].map(x=>`<path d="M${x-36} 0l6-200h60l6 200z" fill="#1a160c" ${L()}/><rect x="${x-24}" y="-250" width="48" height="50" rx="10" fill="#2a2414" ${L()}/><path d="M${x-16}-226h32" stroke="#ff1f3d" stroke-width="5"/><path d="M${x-40}-180h80" stroke="#ffc400" stroke-width="6"/>`).join(''),
+// новые предметы рынка v2 (кусок 18)
+ n9:()=>`<path d="M-70 0h140v-18h-140z" fill="#3a3a38" ${L()}/><path d="M-6-18v-250h12v250z" fill="#6a6a66" ${L(2)}/><rect x="-50" y="-150" width="100" height="78" rx="8" fill="#e8e0c8" ${L()}/><circle cy="-111" r="26" fill="#fffaf0" ${L(2)}/><path d="M0-111l16-14" stroke="#c0392b" stroke-width="4" stroke-linecap="round"/><path d="M-56-268h112M0-300v64" stroke="#333" stroke-width="5"/>${[[-56,-268],[56,-268]].map(([x,y])=>`<path d="M${x-14} ${y}a14 14 0 0 1 28 0z" fill="#e8c35a" ${L(2)}/>`).join('')}<path d="M0-322l64 12-64 12z" fill="#e8c35a" ${L(2)}/><circle class="it-glow" cy="-268" r="7" fill="#3ad7ff"/>`,
+ n12:()=>`<path d="M-46 0l10-150h72l10 150z" fill="#141414" ${L()}/><path d="M-66-150h132v-16h-132z" fill="#2a2a2a" ${L()}/><path d="M-58-166q0-54 58-54t58 54z" fill="#c8102e" ${L()}/><circle cy="-192" r="22" fill="#f2e6d0" ${L(2)}/>${Array.from({length:8},(_,i)=>`<circle cx="${(14*Math.cos(i*.785)).toFixed(1)}" cy="${(-192+14*Math.sin(i*.785)).toFixed(1)}" r="3" fill="#333"/>`).join('')}<path d="M-76-228q76-36 152 0l-10 18q-66-26-132 0z" fill="#c8102e" ${L()}/><circle class="it-glow" cx="44" cy="-176" r="7" fill="#ff1f3d"/><circle cx="44" cy="-176" r="30" fill="#ff1f3d" fill-opacity=".12" class="it-glow"/>`,
  d8t0:()=>`<rect x="-200" y="-40" width="400" height="34" fill="#0a0806" stroke="#ffd45a" stroke-width="3"/><path class="it-tick" d="M-190-23h380" stroke="#ffd45a" stroke-width="10" stroke-dasharray="16 10"/><path d="M-6-6v6h12v-6" fill="#222"/>`,
  d8t1:()=>`<circle cy="-150" r="150" fill="#3a3428" ${L(5)}/><circle cy="-150" r="120" fill="#5a503c" ${L()}/>${[0,60,120].map(a=>`<path d="M0-150l${Math.cos(a/57.3)*100} ${Math.sin(a/57.3)*100}M0-150l${-Math.cos(a/57.3)*100} ${-Math.sin(a/57.3)*100}" stroke="#ffd45a" stroke-width="8"/>`).join('')}<circle cy="-150" r="24" fill="#ffd45a" ${L()}/>`,
  d8t2:()=>`<path d="M-80 0v-360h160V0z" fill="#3a2e14" ${L()}/>${Array.from({length:7},(_,i)=>`<path d="M${-70+i*23}-350v340" stroke="#c8a040" stroke-width="3"/>`).join('')}<path d="M-80-380h160v20h-160z" fill="#ffd45a" ${L(2)}/>`,
@@ -61,6 +64,7 @@ export const BASE_SLOTS={
  d9t0:[1200,FLOOR-180,1,'wall'],d9t1:[600,FLOOR+90,1,'front'],d9t2:[1950,FLOOR-330,.9,'wall'],
  d10t0:[1040,FLOOR+40,1,'front'],d10t1:[1500,FLOOR,1,'floor'],d10t2:[1400,FLOOR+50,1,'front'],
  d11t0:[420,FLOOR,1,'wall'],d11t1:[880,FLOOR+40,1,'front'],d11t2:[1200,FLOOR+70,1,'front'],
+ n9:[2120,FLOOR,.85,'floor'],n12:[1900,FLOOR+50,.85,'front'],
  d12t0:[1700,FLOOR-130,.8,'wall'],d12t1:[1200,FLOOR+10,1,'floor'],d12t2:[1200,FLOOR+60,1,'front'],
  'trail-cyan':[300,230,.8,'wall'],'trail-magenta':[300,280,.8,'wall'],'trail-gold':[300,330,.8,'wall'],'trail-red':[300,380,.8,'wall'],
  'stamp-iron':[2050,330,1,'wall'],'stamp-neon':[2150,330,1,'wall'],'stamp-gold':[2250,330,1,'wall']};
@@ -68,10 +72,18 @@ export const BASE_SLOTS={
 export const STAGES=[['Гараж','гараж на свалке'],['Лофт','лофт в контейнерах доков'],['Офис','этаж в Downtown'],['Башня','пентхаус над облаками']];
 const winCity=(x,y,w,h,lit,seed,col='#ffc400')=>{const r=rng(seed);let b='',wi='';for(let xx=x;xx<x+w;){const bw=30+r()*70,bh=h*.2+r()*h*.7;b+=`M${xx} ${y+h}V${y+h-bh}h${bw}V${y+h}z`;for(let yy=y+h-bh+10;yy<y+h-8;yy+=16)for(let k=xx+6;k<xx+bw-8;k+=14)if(r()<lit)wi+=`M${k} ${yy}h6v8h-6z`;xx+=bw+4}
  return`<clipPath id="wc${seed}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#wc${seed})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#0a1016"/><path d="${b}" fill="#05080a"/><path d="${wi}" fill="${col}"/></g>`};
-export function stageBack(st,lit=.1,dark=false){const lamp=dark?0:1;
+// ворота гаража (кусок 18): рольставня, приподнятая на треть, под ней ночная свалка. Проём 400×380 — в 1,35 раза выше двери
+// (дверь 280), как у настоящего гаража: ворота шире и чуть выше двери, а не «дыра в стене» в две двери.
+const garageGate=(lit,shut)=>{const X=1930,Y=FLOOR-380,W=400,H=380,open=shut?0:150,sl=Array.from({length:Math.ceil((H-open)/26)},(_,i)=>`<path d="M${X+4} ${Y+12+i*26}h${W-8}" stroke="#20262a" stroke-width="3"/><path d="M${X+4} ${Y+16+i*26}h${W-8}" stroke="#3b4549" stroke-width="1.5"/>`).join('');
+ return`<rect x="${X-22}" y="${Y-26}" width="${W+44}" height="${H+26}" fill="#1d2320"/><rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#07090a"/>
+  ${winCity(X,FLOOR-open,W,open,lit*.6,9,'#ff7a2b')}<path d="M${X+10} ${FLOOR}l70-90 50 40 60-80 80 130z" fill="#1a1410"/><path d="M${X+250} ${FLOOR}l40-50 30 20 40-40 40 70z" fill="#141010"/>
+  <rect x="${X}" y="${Y}" width="${W}" height="${H-open}" fill="#2c3337"/>${sl}${open?'':''}<rect x="${X}" y="${FLOOR-open-14}" width="${W}" height="14" fill="#3a4246" ${L(2)}/><rect x="${X+W/2-30}" y="${FLOOR-open-10}" width="60" height="6" rx="3" fill="#8a8f86"/>
+  <rect x="${X-26}" y="${Y-40}" width="${W+52}" height="26" rx="4" fill="#2a3134" ${L(3)}/><path d="M${X-8} ${Y}V${FLOOR}M${X+W+8} ${Y}V${FLOOR}" stroke="#151a1c" stroke-width="14"/>
+  <path d="M${X+40} ${Y-27}h${W-80}" stroke="#ffc400" stroke-width="5" stroke-dasharray="22 14" opacity=".55"/>`};
+export function stageBack(st,lit=.1,dark=false,shut=false){const lamp=dark?0:1;
  if(st===0)return`<rect width="${BW}" height="${FLOOR}" fill="#151a17"/>${Array.from({length:60},(_,i)=>`<path d="M${i*40} 0V${FLOOR}" stroke="#0e1210" stroke-width="10"/>`).join('')}
   <rect x="1000" y="180" width="420" height="260" fill="none" stroke="#2a3430" stroke-width="16"/>${winCity(1008,188,404,244,lit,5)}<path d="M1210 180v260M1000 310h420" stroke="#2a3430" stroke-width="8"/>
-  <rect x="1900" y="200" width="460" height="${FLOOR-200}" fill="#07090a"/><path d="M1900 200h460" stroke="#3a4440" stroke-width="10"/>${winCity(1904,420,452,FLOOR-420,lit*.6,9,'#ff7a2b')}<path d="M1920 ${FLOOR}l80-140 60 60 70-120 90 200z" fill="#1a1410"/>`;
+  ${garageGate(lit,shut)}`;
  if(st===1)return`<rect width="${BW}" height="${FLOOR}" fill="#3a1a14"/>${Array.from({length:80},(_,i)=>`<path d="M${i*30} 0V${FLOOR}" stroke="#2a100c" stroke-width="8"/>`).join('')}<path d="M0 260H${BW}" stroke="#1a0806" stroke-width="20"/>
   <circle cx="1210" cy="330" r="150" fill="#0a0612" stroke="#5a3a30" stroke-width="22"/><clipPath id="lp"><circle cx="1210" cy="330" r="140"/></clipPath><g clip-path="url(#lp)">${winCity(1060,190,300,280,lit,7,'#ff7ae8')}</g>`;
  if(st===2)return`<rect width="${BW}" height="${FLOOR}" fill="#10141c"/>${winCity(140,80,2120,600,lit,11,'#ffd76a')}${Array.from({length:8},(_,i)=>`<rect x="${120+i*300}" y="60" width="40" height="${FLOOR-60}" fill="#1a2030"/>`).join('')}<path d="M0 60H${BW}M0 ${FLOOR-60}H${BW}" stroke="#1a2030" stroke-width="40"/>`;
@@ -122,7 +134,7 @@ export const LOM_LINES={welcome:['Заходи. Тут всё списанное
  short:['Не хватает. Позвони ещё кому-нибудь.','Приходи с деньгами. Я подожду. Я всегда жду.'],locked:['Это не продаётся. Пока. Сначала район.','Видишь силуэт? Это всё, что я могу показать.'],
  sold:['Продано. Возврата нет, гарантия — моё честное слово.','Хороший выбор. Ну, нормальный.'],empty:['Ты купил всё. Мне даже неловко.']};
 export function runBaseArtTests(SHOP_ITEMS,COSMETICS){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
- t('BASE_SLOTS: 36 + 7 слотов',()=>SHOP_ITEMS.every(x=>BASE_SLOTS[x.id])&&COSMETICS.every(x=>BASE_SLOTS[x.id])&&Object.keys(BASE_SLOTS).length===43);
+ t('BASE_SLOTS: 38 + 7 слотов',()=>SHOP_ITEMS.every(x=>BASE_SLOTS[x.id])&&COSMETICS.every(x=>BASE_SLOTS[x.id])&&Object.keys(BASE_SLOTS).length===45);
  t('спрайт есть у каждого предмета',()=>[...SHOP_ITEMS,...COSMETICS].every(x=>itemSprite(x.id)));
  t('4 стадии базы',()=>[0,1,2,3].every(s=>stageBack(s).length>100&&stageFloor(s)));
  return o}

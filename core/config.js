@@ -17,10 +17,10 @@ export const CONFIG={
  minTalkSec:{TALK:15,CALLBACK:20,BOOKED:180,DISCOVERY:300}, // BOOKED/DISCOVERY короче этого по Zoom = статус НЕЛЬЗЯ поставить
  bossPhaseShare:.1,finishFromDistrict:3,
  cancelStatusId:0,countInbound:false,logWaitMin:10,staleRingingMin:60,health:{lagYellowMs:8000,fullYellow:.9,fullRed:.6,minCalls:5},autoStatusOnCancel:false,
- // Баланс v2 (кусок 17): [номер, имя, «рабочих дней» наборов по плану, рост наград за звонок].
- // Дни растут на 19% за район: каждый район заметно дольше прошлого, но не вдвое. Награды за звонок растут отдельно (y),
- // порог XP и цены умножаются на y и на ожидаемые бонусы, поэтому главная мерка — именно число звонков.
- districts:[[1,'Scrapyard',1.0,1],[2,'Industrial Zone',1.19,1.2],[3,'Neon Docks',1.42,1.45],[4,'Night Market',1.69,1.75],[5,'Commercial Hub',2.01,2.1],[6,'Chrome Plaza',2.39,2.5],[7,'Cyber-Downtown',2.84,3],[8,'Financial Spire',3.38,3.6],[9,'Sky District',4.02,4.3],[10,'Airport Ring',4.79,5.2],[11,'The Station',5.69,6.2],[12,'The Summit',6.78,7.5]]
+ // Баланс v3 (кусок 18): [номер, имя, «рабочих дней» наборов по плану, рост наград за звонок].
+ // Рост дней от района к району случайно-разный, от 10 до 30% (просьба пользователя): +14,+27,+11,+22,+29,+13,+19,+25,+12,+28,+17%.
+ // Награды за звонок растут отдельно (y), порог XP и цены умножаются на y и на ожидаемые бонусы, поэтому главная мерка — число звонков.
+ districts:[[1,'Scrapyard',1.0,1],[2,'Industrial Zone',1.14,1.2],[3,'Neon Docks',1.45,1.45],[4,'Night Market',1.61,1.75],[5,'Commercial Hub',1.96,2.1],[6,'Chrome Plaza',2.53,2.5],[7,'Cyber-Downtown',2.86,3],[8,'Financial Spire',3.4,3.6],[9,'Sky District',4.25,4.3],[10,'Airport Ring',4.76,5.2],[11,'The Station',6.09,6.2],[12,'The Summit',7.13,7.5]]
 };
 // [название (как в таблице), класс, клавиша дайлера]. Порядок = индексы ST в дайлере.
 export const STATUS=[

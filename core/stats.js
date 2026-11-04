@@ -4,6 +4,8 @@ const p2=n=>String(n).padStart(2,'0'),DAY=864e5;
 export const dayKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())};
 export const isWork=t=>{const g=new Date(t).getDay();return g>0&&g<6};
 export const RANKS=[[0,'Nobody'],[100,'Rookie'],[250,'Enforcer'],[400,'Syndicate Boss'],[650,'Apex Predator']];
+// кусок 19: ранг даёт постоянный % к XP и $ (пока держишь ранг): Nobody, Rookie, Enforcer, Syndicate Boss, Apex Predator
+export const RANK_BONUS=[0,3,6,10,15];
 export const LEVELS=[[0,'Cold Caller Noob'],[1500,'Dial Tone Apprentice'],[5e3,'Voicemail Whisperer'],[12e3,'Gatekeeper Slayer'],[25e3,'Pickup Hunter'],[45e3,'Objection Handler'],[75e3,'Closer Trainee'],[12e4,'Deal Maker'],[18e4,'Corporate Raider'],[26e4,'Market Shark'],[36e4,'Syndicate Boss'],[48e4,"Founder's Champion"],[65e4,'Titan of Industry'],[85e4,'Cold-Call Demigod'],[11e5,'Reliance Legend']];
 const life=r=>r.life||(r.life={calls:0,gk:0,booked:0,disc:0,since:0,spent:0});
 export function record(root,e,now,streak){if(e.spam)return null;const days=root.days||(root.days={}),k=dayKey(now),d=days[k]||(days[k]={n:0,pts:0,xp:0,money:0,c:{},od:0,first:now,last:now});

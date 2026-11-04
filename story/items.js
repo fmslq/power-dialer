@@ -5,9 +5,9 @@
 export const ITEM_LORE={
  d1t0:{lore:'Первая лампа в гараже. Провод от неё уходит куда-то в стену, и никто не знает, кто платит за свет. Мигает, когда кто-то в городе почти берёт трубку.',lom:'Не тряси её. Она это не любит.',art:'a bare light bulb hanging on a twisted wire with a pull chain, warm amber glow'},
  d1t1:{lore:'Дверь сняли с офиса, который закрылся двадцать лет назад. На ней до сих пор табличка «Не беспокоить». Теперь это твой стол, и беспокоить — твоя работа.',lom:'Стол из двери. Двери из стола не будет, не проси.',art:'a desk made of an old office door laid on two rusty barrels, a small CRT monitor on top'},
- d1t2:{lore:'Генератор пережил трёх хозяев и одну войну за электричество. Заводится с третьего пинка и гудит в ре миноре. Гудок утверждает, что они родственники.',lom:'Сергей старый, но честный. Как я.',art:'a rusty old diesel generator with exhaust pipe and a hand-painted name plate without letters'},
+ d1t2:{lore:'Генератор пережил трёх хозяев и одну войну за электричество. Заводится с третьего пинка и гудит ровно в ре миноре, за что и получил имя. Гудок утверждает, что они родственники.',lom:'Ре минор — не поломка. Это характер.',art:'a rusty old diesel generator with exhaust pipe and a hand-painted name plate without letters'},
  d2t0:{lore:'Стальная дверь из цеха №4, снятая вместе с косяком. Засов закрывается так громко, что гейткиперы вздрагивают в соседнем районе. За ней можно спокойно звонить.',lom:'Отличная дверь. От всех, кроме кредиторов.',art:'a heavy steel door with a big sliding bolt and rivets, scratched paint'},
- d2t1:{lore:'Сорок мониторов из диспетчерской завода, и на каждом твой пайплайн. Один показывает только шум, но его никто не выключает. Гудок говорит, что это его окно.',lom:'Тот, что с шумом, не трогай. Это для настроения.',art:'a wall stacked with dozens of old CRT monitors glowing green'},
+ d2t1:{lore:'Сорок мониторов, скупленных на Ночном Рынке у диспетчеров, которые двадцать лет смотрели в пустые экраны. Теперь на каждом твой пайплайн. Один показывает только шум, и Гудок говорит, что это его окно.',lom:'Тот, что с шумом, не трогай. Это для настроения.',art:'a wall stacked with dozens of old CRT monitors glowing green'},
  d2t2:{lore:'Пресс Ржавого, на котором выжимали план до последней капли. Говорят, им отжимали возражения до сухого «давайте». Стоит в углу и внушает уважение посетителям.',lom:'Тяжёлый. Как договор без запятых.',art:'an industrial hydraulic press with orange warning stripes and pressure gauges'},
  d3t0:{lore:'Неоновая вывеска с причала, где Контрабандист назначал встречи. Горит, только когда ты в ударе. В плохой день она тактично гаснет.',lom:'Буквы не мои. Трубка — моя.',art:'a magenta neon tube sign shaped as a simple calendar check mark, mounted on a brick'},
  d3t1:{lore:'Терминал, через который Контрабандист продавал тишину оптом. Теперь он продаёт её обратно, тебе, по себестоимости. Голограмма немного врёт, но красиво.',lom:'Голограмма немного врёт. Как и всё в доках.',art:'a holographic terminal projecting a cyan wireframe city above a metal console'},
@@ -39,6 +39,8 @@ export const ITEM_LORE={
  d12t0:{lore:'Золотой единорог Председателя: подарок от стартапа, которому он так и не перезвонил. Рог настоящий, золото — нет. Как и многое в этой башне.',lom:'Рог настоящий. Золото — нет. Как и вся их башня.',art:'a golden unicorn statue on a marble base'},
  d12t1:{lore:'Двенадцать голограмм директоров Совета, которые кланяются, когда ты входишь. Раньше они кланялись Председателю. Лом настроил их ещё и аплодировать.',lom:'Можно настроить, чтобы аплодировали. Я уже настроил.',art:'a circle of holographic figures bowing around a table'},
  d12t2:{lore:'Трон CEO на вершине Саммита. Двадцать лет на нём сидел человек, который не брал трубку. Теперь на нём ты, и телефон на подлокотнике звонит.',lom:'Это всё. Больше мне тебе продать нечего. Почти горжусь.',art:'a tall white-gold throne-like executive chair with a phone on its armrest'},
+ n9:{lore:'Барон Облаков двадцать лет продавал погоду: кому солнце, кому дождь на чужой свадьбе. Его метеостанция чует, когда город тянется к телефону. Стрелка дёргается за минуту до счастливого часа.',lom:'Флюгер врёт только про ветер. Про людей — никогда.',art:'a brass rooftop weather station with anemometer cups, a weather vane and a round barometer dial'},
+ n12:{lore:'Прямая линия Совета. Двадцать лет по ней никто не звонил, а лампочка всё равно мигала — на всякий случай. Когда снимаешь трубку, город на секунду замирает и слушает.',lom:'Не набирай с него просто так. Он помнит каждый номер.',art:'a red rotary telephone on a black pedestal with a small blinking red lamp'},
 };
 export const COSMETIC_LORE={
  'trail-cyan':{lore:'След фигурки на карте цвета голо-циана. Выглядит дорого, стоит дёшево. Лом клянётся, что это не краска из-под принтера.',art:'a glowing cyan light trail ribbon'},
@@ -50,7 +52,7 @@ export const COSMETIC_LORE={
  'stamp-gold':{lore:'Золотая печать из хранилища Шпиля. Её ставили на сделки, которые меняли районы. Теперь её ставишь ты.',art:'a golden ornate stamp with a sunburst seal'},
 };
 export function runItemLoreTests(SHOP_ITEMS,COSMETICS){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
- t('лор есть у всех 36 предметов',()=>SHOP_ITEMS.every(x=>ITEM_LORE[x.id]?.lore&&ITEM_LORE[x.id].lom&&ITEM_LORE[x.id].art)&&Object.keys(ITEM_LORE).length===36);
+ t('лор есть у всех 38 предметов',()=>SHOP_ITEMS.every(x=>ITEM_LORE[x.id]?.lore&&ITEM_LORE[x.id].lom&&ITEM_LORE[x.id].art)&&Object.keys(ITEM_LORE).length===38);
  t('лор есть у всех 7 косметик',()=>COSMETICS.every(x=>COSMETIC_LORE[x.id]?.lore&&COSMETIC_LORE[x.id].art)&&Object.keys(COSMETIC_LORE).length===7);
  t('лор предметов: 2–4 предложения, ≤220 знаков',()=>Object.values(ITEM_LORE).every(x=>{const n=(x.lore.match(/[.!?…](\s|$)/g)||[]).length;return n>=2&&n<=4&&x.lore.length<=220}));
  return o}

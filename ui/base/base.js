@@ -16,7 +16,7 @@ const ALL=[...SHOP_ITEMS,...COSMETICS];
 const byId=id=>ALL.find(x=>x.id===id);
 const LAYER={wall:'на стене',floor:'на полу',front:'на переднем плане'};
 export const DOOR_X=1810,LEVER_X=70,GK_X=700;          // точки интерьера (координаты сцены)
-const tierCls=it=>it.district?['t0','t1','t2'][SHOP_ITEMS.indexOf(it)%3]:'cos';
+const tierCls=it=>it.district?({c:'t0',m:'t1',m2:'t1',s:'t2'}[it.tk]||'t1'):'cos';
 const tierName=it=>it.district?it.tier:'косметика';
 const loreOf=id=>(ITEM_LORE[id]||COSMETIC_LORE[id]||{});
 export const powerOf=n=>n<=0?0:n<10?1:n<40?2:n<80?3:4; // свет базы: 0 / 1–9 / 10–39 / 40–79 / 80+ звонков за сегодня
@@ -37,7 +37,7 @@ export function makeBase(o){
   const lay=l=>own.filter(x=>BASE_SLOTS[x.id]&&BASE_SLOTS[x.id][3]===l).map(x=>itemG(x.id,!seen[x.id],seen[x.id]?0:n++)).join('');
   const desk=owned('d1t1');
   return`<svg class="hq-svg" viewBox="0 0 ${BW} ${BH}" preserveAspectRatio="xMidYMax slice">
-   ${stageBack(st,dark?.03:[.015,.08,.18,.26,.34][pw()],dark||pw()===0)}<g transform="translate(${DOOR_X} ${FLOOR})">${HATCH}</g>${lay('wall')}${stageFloor(st)}
+   ${stageBack(st,dark?.03:[.015,.08,.18,.26,.34][pw()],dark||pw()===0,owned('d2t0'))}<g transform="translate(${DOOR_X} ${FLOOR})">${HATCH}</g>${lay('wall')}${stageFloor(st)}
    ${desk?'':`<path d="M${GK_X-70} ${FLOOR}h140v-90h-140z" fill="#4a3a26" stroke="#050505" stroke-width="3"/><path d="M${GK_X-70} ${FLOOR-45}h140" stroke="#2a2016" stroke-width="4"/>`}
    ${lay('floor')}${lay('front')}<g transform="translate(${LEVER_X} ${FLOOR+150}) scale(.9)">${LEVER}</g><g pointer-events="none">${stageLight(st,dark||pw()===0,[0,.5,1,1.35,1.7][pw()])}</g></svg>`};
  const hot=(cls,x,y,w,h,label,k)=>`<button class="hq-hot ${cls}" data-k="${k}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px" aria-label="${esc(label)}"><span class="hq-lbl">${esc(label)}</span></button>`;
@@ -98,7 +98,7 @@ export function makeBase(o){
   o.persist&&o.persist();o.sfx&&o.sfx('ching');lom('happy',loreOf(id).lom||pick(LOM_LINES.sold));drawShop();
   const c=bm.querySelector(`.crd[data-id="${id}"]`);if(c){c.classList.add('sold');!reduce()&&c.classList.add('just')}
   const mo=el&&el.querySelector('#hq-money');mo&&(mo.textContent=$m(G().money));o.onBuy&&o.onBuy(it)};
- const openShop=()=>{if(!el)open();if(bm)return;const d=G().district||1;tab=Math.min(d,12);
+ const openShop=()=>{if(!el)open();if(bm)return;const d=G().district||1;o.pre&&o.pre(['shelf-'+Math.min(d,12)],d);tab=Math.min(d,12);
   bm=document.createElement('div');bm.className='bm';
   bm.innerHTML=`<div class="bm-in"><header class="bm-hd"><div class="bm-lom" id="bm-lom">${lomSvg('welcome')}</div>
    <div class="bm-talk"><small>ЧЁРНЫЙ РЫНОК · продавец Лом</small><p class="bm-say" id="bm-say"></p></div>
@@ -124,7 +124,7 @@ export function makeBase(o){
   el.onclick=e=>{if(justDragged){justDragged=false;return}if(bm&&bm.contains(e.target))return;const k=e.target.closest('[data-k]');
    if(k){const v=k.dataset.k;if(v==='gk')gk();else if(v==='shop')openShop();else if(v==='go')close();else if(v==='ins')el.classList.toggle('ins');return}
    const it=e.target.closest('.it');if(it&&!e.target.closest('.hq-card'))showCard(it.dataset.id)}};
- function open(){if(el){return}const m=o.mount||document.body;el=document.createElement('div');el.className='hq pw'+pw()+(o.dark()?' dark':'')+(reduce()?' rm':'');el.innerHTML=html();m.appendChild(el);
+ function open(){if(el){return}o.pre&&o.pre(['sys-base']);const m=o.mount||document.body;el=document.createElement('div');el.className='hq pw'+pw()+(o.dark()?' dark':'')+(reduce()?' rm':'');el.innerHTML=html();m.appendChild(el);
   bind();layout();center(innerWidth<700?GK_X+120:1200);apply();addEventListener('resize',layout);requestAnimationFrame(()=>el&&el.classList.add('in'));
   const s=bs(),st=stage();s.stage=st;if((s.seenStage??0)<st){s.seenStage=st;banner(st);o.persist&&o.persist()}
   setTimeout(()=>{if(!el)return;bubble(pick(o.dark()?LINES.baseDark:pw()===0?LINES.baseOff:pw()>=3&&Math.random()<.5?LINES.baseLit:LINES.base));markSeen()},reduce()?50:900)}

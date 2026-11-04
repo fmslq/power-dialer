@@ -4,8 +4,9 @@
 // Рейд — Гудок держит деньги в буфере ЭЛТ, пока линия не замолчит; Слышащие — люди, которые услышали тебя и пришли работать.
 // Цифры — черновик до общего пересмотра баланса (E3/Q24): все в AD.
 import {CONFIG as C} from './config.js';
-import {dayKey,isWork} from './stats.js';
+import {dayKey,isWork,RANK_BONUS} from './stats.js';
 import {TZ} from '../dialer/geo.js';
+import {itemHH} from './buffs.js';
 export const AD={
  norm:100,                                                         // дневная норма наборов (B4); пользователь может поменять позже
  hh:[{from:480,to:570,k:2,name:'Утренний час'},{from:1110,to:1200,k:1.5,name:'Вечерний час'}], // B2: местное время лида 8:00–9:30 ×2, 18:30–20:00 ×1.5
@@ -14,7 +15,7 @@ export const AD={
  w:{c:56,u:26,r:12,e:5,l:1},wChest:{e:80,l:20},                    // веса редкостей; сундук гаранта = эпик+
  pity:[30,70],                                                     // C1: порог неудач — случайно 30–70
  freeze:{per:25,max:3,sec:180},                                    // E1: заряд за каждые 25 наборов дня, максимум 3, до 3 минут
- warm:{n:5,hour:10,share:.05,sig:20},                              // C6: «Разгон» 5 наборов → 5% дневных $ района и 20 Сигнала
+ warm:{n:5,k:3,share:.05,sig:20},                                 // C6 v2 (кусок 18): «Разгон» — входящий вызов при 0 наборов за день. Принял → первые 5 наборов ×3 XP и $ (кроме BOOKED/DISCOVERY), после 5-го ещё 5% дневных $ и 20 Сигнала. Отклонил — до завтра
  purge:{share:.10,mShare:.10,maxDays:5,lookback:7},                           // B4: до 10% прогресса района и 10% денег за невыполненный рабочий день
  raid:{n:100,k:1.5,gap:{TRASH:180,GATEKEEPER:180,MINOR:180,TALK:300,CALLBACK:360,BOOKED:1500,DISCOVERY:1500}}, // C3
  cap:1.8,                                                          // потолок ×XP и ×$ от всех постоянных и временных бонусов (без счастливых часов)
@@ -51,7 +52,12 @@ export const LOOT=[
  {id:'medal',n:'Медаль Станции',r:'l',relic:{mAll:2},t:'Реликвия: +2% $ навсегда'},
  {id:'shard',n:'Осколок Тишины',r:'l',relic:{fast:5},t:'Реликвия: +5 с к окну серии навсегда'},
  {id:'disc',n:'Позолоченный диск',r:'l',jack:.5,sigNow:300,t:'Минуты связи (полсмены) и +300 Сигнала'},
- {id:'watch',n:'Часы Председателя',r:'l',relic:{odSec:60},t:'Реликвия: Overdrive +60 с навсегда'}];
+ {id:'watch',n:'Часы Председателя',r:'l',relic:{odSec:60},t:'Реликвия: Overdrive +60 с навсегда'},
+ // кусок 19 (документ Addiction): уникальный лут только в счастливые часы — «вещи, которые любят рассвет»
+ {id:'dawn',n:'Рассветная катушка',r:'u',hh:1,xAll:15,mAll:15,calls:25,t:'Только в счастливый час: +15% XP и $ на 25 звонков'},
+ {id:'dusk',n:'Вечерний штекер',r:'r',hh:1,fast:10,mAll:20,calls:40,t:'Только в счастливый час: +20% $ и +10 с к окну серии на 40 звонков'},
+ {id:'sun',n:'Солнечный кварц',r:'e',hh:1,sigK:3,xAll:25,calls:40,t:'Только в счастливый час: Сигнал ×3 и +25% XP на 40 звонков'},
+ {id:'rooster',n:'Петух с крыши «Зари»',r:'l',hh:1,relic:{xAll:2,mAll:2},t:'Только в счастливый час. Реликвия: +2% XP и $ навсегда'}];
 export const dk=dayKey;
 export const lootById=id=>LOOT.find(x=>x.id===id);
 // Дерево «Коммутатор» — пульт «Заря-12» из-под брезента в гараже (библия §12, §13) (B3 мид-цель, C4 экспонента): 6 веток × 6 уровней, цена 60 × 2.2^уровень Сигнала.
@@ -102,16 +108,23 @@ export function adTotals(root,now){const a=ensure(root),t={xAll:0,mAll:0,x:{},m:
  for(const id in a.relic){const L=lootById(id);if(L&&L.relic)add(L.relic)}
  for(const x of a.act){const L=lootById(x.id);if(L&&x.left>0)add({xAll:L.xAll,mAll:L.mAll,x:L.x,m:L.m,fast:L.fast,odSec:L.odSec,luck:L.luck,sigK:L.sigK})}
  if(a.perk&&a.perk.pick&&now<a.perk.until){const p=PERKS3.find(x=>x.id===a.perk.pick);if(p)add(p)}
- const ops=a.ops.n*OPS.perOp;t.xAll+=ops;t.mAll+=ops;
+ const ops=(a.ops.n+(a.ops.def||[]).length)*OPS.perOp;t.xAll+=ops;t.mAll+=ops;
+ const rb=RANK_BONUS[root.rank|0]||0;t.xAll+=rb;t.mAll+=rb;t.rank=rb;
  const nd=Math.min(AD.normDay.max,a.normDays*AD.normDay.per);t.xAll+=nd;t.mAll+=nd;return t}
 // слить в модификаторы движка (после директивы и предметов): потолок AD.cap на итоговые ×XP/×$, затем счастливый час
+const WARMC=['TRASH','GATEKEEPER','MINOR','TALK','CALLBACK'];
+// Разгон: предложить ли входящий вызов (0 наборов сегодня и сегодня ещё не отвечал; тестировщику — при каждой загрузке)
+export function warmOffer(root,now,dayN,tester=false){const a=ensure(root),k=dayKey(now);if(dayN>0)return false;return tester||!(a.warm.k===k&&a.warm.ans)}
+export function warmAnswer(root,now,yes){const a=ensure(root),k=dayKey(now);if(a.warm.k!==k)a.warm={k,done:0};a.warm.ans=yes?1:-1;a.warm.at=now;return a.warm}
 export function withAd(mods,root,now,state,dayN=0){const t=adTotals(root,now),hh=happy(state,now),r={...mods,m:{...(mods.m||{})},x:{...(mods.x||{})}};
  r.xAll=Math.min(AD.cap,(mods.xAll||1)*(1+t.xAll/100));r.mAll=Math.min(AD.cap,(mods.mAll||1)*(1+t.mAll/100));
  for(const k in t.x)r.x[k]=(r.x[k]||1)*(1+t.x[k]/100);for(const k in t.m)r.m[k]=(r.m[k]||1)*(1+t.m[k]/100);
  const a=ensure(root),k=dayKey(now);if(a.tr.k===k&&a.tr.done.t1)r.mAll*=1.1;          // награда цели «Наборы I»: ×1.1 $ до конца дня
- if(hh){r.xAll*=hh.k;r.mAll*=hh.k;r.hh=hh}r.fast=(mods.fast||0)+t.fast;r.odSec=(mods.odSec||0)+t.odSec;return r}
+ if(a.warm.k===k&&a.warm.ans===1&&!a.warm.done&&dayN<AD.warm.n){for(const c of WARMC){r.x[c]=(r.x[c]||1)*AD.warm.k;r.m[c]=(r.m[c]||1)*AD.warm.k}r.warm=AD.warm.k}
+ if(hh){const ih=1+itemHH(root.meta&&root.meta.owned)/100;r.xAll*=hh.k*ih;r.mAll*=hh.k*ih;r.hh=hh}r.fast=(mods.fast||0)+t.fast;r.odSec=(mods.odSec||0)+t.odSec;return r}
 const rollTier=(w,rnd)=>{const tot=Object.values(w).reduce((a,b)=>a+b,0);let x=rnd()*tot;for(const[k,v]of Object.entries(w)){if((x-=v)<0)return k}return'c'};
-export function pickLoot(tier,rnd=Math.random){const p=LOOT.filter(x=>x.r===tier);return p[rnd()*p.length|0]}
+// hh — идёт счастливый час: в пул добавляются вещи с hh:1 (двойной вес); вне часа их нет
+export function pickLoot(tier,rnd=Math.random,hh=false){const p=LOOT.filter(x=>x.r===tier&&(!x.hh||hh)),q=hh?[...p,...p.filter(x=>x.hh)]:p;return q[rnd()*q.length|0]}
 // выдать предмет: мгновенные срабатывают сразу, бусты в рюкзак, реликвии навсегда (повтор реликвии = Сигнал)
 export function grant(root,G,id,y=1){const a=ensure(root),L=lootById(id),out={id,instant:[]};if(!L)return out;
  if(L.relic){if(a.relic[id]){a.sig+=200;a.sigLife+=200;out.instant.push('+200 Сигнала (реликвия уже есть)')}else{a.relic[id]=Date.now();out.instant.push('реликвия навсегда')}a.stats.legend++;return out}
@@ -132,14 +145,14 @@ export function adAfter(root,G,ev,now,{state,dayN=0,lead='',rnd=Math.random,hhMo
  // заморозка: заряд за каждые 25 наборов дня
  if(a.frz.k!==k){a.frz.k=k;a.frz.got=0}const shouldHave=Math.floor(dayN/AD.freeze.per);if(shouldHave>a.frz.got){const mx=AD.freeze.max+t.frz;const add=shouldHave-a.frz.got;a.frz.got=shouldHave;const b=a.frz.ch;a.frz.ch=Math.min(mx,a.frz.ch+add);if(a.frz.ch>b)o.freeze=a.frz.ch}
  // разгон
- if(a.warm.k!==k)a.warm={k,done:0};if(!a.warm.done&&dayN>=AD.warm.n){a.warm.done=now;const m=Math.round(AD.warm.share*C.assumedDailyMoney*y);G.money+=m;a.sig+=AD.warm.sig;a.sigLife+=AD.warm.sig;o.warm={money:m,sig:AD.warm.sig}}
+ if(a.warm.k!==k)a.warm={k,done:0};if(a.warm.ans===1&&!a.warm.done&&dayN>=AD.warm.n){a.warm.done=now;const m=Math.round(AD.warm.share*C.assumedDailyMoney*y);G.money+=m;a.sig+=AD.warm.sig;a.sigLife+=AD.warm.sig;o.warm={money:m,sig:AD.warm.sig}}
  // гарант
  if(!a.pity.at)a.pity.at=AD.pity[0]+Math.floor(rnd()*(AD.pity[1]-AD.pity[0]+1));
  const win=cls==='BOOKED'||cls==='DISCOVERY';if(win)a.pity.n=0;else a.pity.n++;
- if(!win&&a.pity.n>=Math.max(10,a.pity.at-t.pity)){a.pity.n=0;a.pity.at=AD.pity[0]+Math.floor(rnd()*(AD.pity[1]-AD.pity[0]+1));const tier=rollTier(AD.wChest,rnd),it=pickLoot(tier,rnd);o.spin={chest:1,tier,id:it.id,got:grant(root,G,it.id,y)};a.stats.chests++}
+ if(!win&&a.pity.n>=Math.max(10,a.pity.at-t.pity)){a.pity.n=0;a.pity.at=AD.pity[0]+Math.floor(rnd()*(AD.pity[1]-AD.pity[0]+1));const tier=rollTier(AD.wChest,rnd),it=pickLoot(tier,rnd,!!hh);o.spin={chest:1,tier,id:it.id,got:grant(root,G,it.id,y)};a.stats.chests++}
  // рулетка Шума
  else if(AD.roul.from.includes(cls)){const ch=Math.min(AD.roul.cap,(AD.roul.base+a.pity.n*AD.roul.perFail+t.luck)*(hh?AD.roul.hh:1)*t.luckK);
-  if(rnd()<ch){const tier=rollTier(AD.w,rnd),it=pickLoot(tier,rnd);o.spin={chest:0,tier,id:it.id,got:grant(root,G,it.id,y)};a.stats.spins++}}
+  if(rnd()<ch){const tier=rollTier(AD.w,rnd),it=pickLoot(tier,rnd,!!hh);o.spin={chest:0,tier,id:it.id,got:grant(root,G,it.id,y)};a.stats.spins++}}
  if(o.spin){a.drops.unshift({t:now,id:o.spin.id,tier:o.spin.tier,chest:o.spin.chest});a.drops=a.drops.slice(0,40)}
  // цели дня
  if(a.tr.k!==k)a.tr={k,done:{},hh:0,sig0:a.sigLife-sg};if(hh)a.tr.hh=(a.tr.hh||0)+1;
@@ -163,7 +176,8 @@ export function buyTree(root,id){const a=ensure(root),n=TREE.find(x=>x.id===id);
  const c=treeCost(l);if(a.sig<c)return{ok:false,why:'нужно '+c+' Сигнала'};a.sig-=c;a.tree[id]=l+1;return{ok:true,lv:l+1,cost:c}}
 // Слышащие
 export function buyRoom(root,G){const a=ensure(root);if(a.ops.rooms>=OPS.maxRooms)return{ok:false,why:'все комнаты построены'};const c=OPS.roomCost(a.ops.rooms);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.rooms++;return{ok:true,cost:c}}
-export function hireOp(root,G){const a=ensure(root);if(a.ops.n>=a.ops.rooms*OPS.roomCap)return{ok:false,why:'нет места: построй комнату'};const c=OPS.opCost(a.ops.n);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.n++;return{ok:true,cost:c}}
+export const synOk=root=>{const st=root.story||{};return !!(st.syn||(st.seen||{})['sys-syn']||((root.ad||{}).ops||{}).n>0)};
+export function hireOp(root,G){const a=ensure(root);if(!synOk(root))return{ok:false,why:'Слышащих пока нет: о них расскажут в районе 2'};if(a.ops.n>=a.ops.rooms*OPS.roomCap)return{ok:false,why:'нет места: построй комнату'};const c=OPS.opCost(a.ops.n);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.n++;return{ok:true,cost:c}}
 // заморозка
 export function freezeOn(root,now){const a=ensure(root);if(a.frz.on)return{ok:false,why:'уже заморожено'};if(a.frz.ch<1)return{ok:false,why:a.frz.got?'заряды кончились':'первый заряд — после 25 наборов'};a.frz.ch--;a.frz.on=1;a.frz.at=now;a.stats.frz=(a.stats.frz||0)+1;return{ok:true}}
 export function freezeOff(root,now){const a=ensure(root);if(!a.frz.on)return 0;const d=Math.min(now-a.frz.at,AD.freeze.sec*1000);a.frz.on=0;if(a.raid&&a.raid.on)a.raid.dl+=d;return d}
@@ -191,23 +205,23 @@ export function nightly(root,G,now){const a=ensure(root),today=dayKey(now),days=
 const TALKC=['TALK','CALLBACK','BOOKED','DISCOVERY'],MEETC=['BOOKED','DISCOVERY'];
 const slotOf=now=>Math.floor((now-new Date(new Date(now).toDateString()).getTime())/6e5);
 export const mmssR=ms=>{const t=Math.round(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
-const REC_N={f20:'Быстрые 20 наборов',b10:'Лучшие 10 минут',b60:'Лучший час',p100:'Питчей на 100 наборов',ft:'Первый питч дня',day:'Наборов за день'};
+const REC_N={p20:'Питчей за 20 минут',f20:'Быстрые 20 наборов',b10:'Лучшие 10 минут',b60:'Лучший час',p100:'Питчей на 100 наборов',ft:'Первый питч дня',day:'Наборов за день'};
 export function ghostRec(root,now,cls){const g=root.gh||(root.gh={k:'',t:[],bestH:0,days:{}}),k=dayKey(now);g.rec=g.rec||{};
- if(g.k!==k){g.k=k;g.t=[];g.ms=[];g.tl=0;g.mt=0;g.ft=0;g.rec0={...g.rec};g.shown={}}
- g.rec0=g.rec0||{...g.rec};g.shown=g.shown||{};g.tk=g.tk||{};g.t.push(now);const isT=TALKC.includes(cls);if(isT){g.tl=(g.tl||0)+1;if(!g.ft)g.ft=g.t.length}if(MEETC.includes(cls))g.mt=(g.mt||0)+1;
+ if(g.k!==k){g.k=k;g.t=[];g.pt=[];g.ms=[];g.tl=0;g.mt=0;g.ft=0;g.rec0={...g.rec};g.shown={}}
+ g.rec0=g.rec0||{...g.rec};g.shown=g.shown||{};g.tk=g.tk||{};g.t.push(now);g.pt=g.pt||[];const isT=TALKC.includes(cls);if(isT){g.pt.push(now);g.tl=(g.tl||0)+1;if(!g.ft)g.ft=g.t.length}if(MEETC.includes(cls))g.mt=(g.mt||0)+1;
  g.r100=((g.r100||'')+(isT?'1':'0')).slice(-100);
- const T=g.t,n=T.length,h=T.filter(x=>x>now-36e5).length,m10=T.filter(x=>x>now-6e5).length,f20=n>=20?now-T[n-20]:null,p100=g.r100.length>=100?[...g.r100].filter(c=>c==='1').length:null;
+ const T=g.t,n=T.length,h=T.filter(x=>x>now-36e5).length,m10=T.filter(x=>x>now-6e5).length,f20=n>=20?now-T[n-20]:null,p100=g.r100.length>=100?[...g.r100].filter(c=>c==='1').length:null,p20=g.pt.filter(x=>x>now-12e5).length;
  g.bestH=Math.max(g.bestH||0,h);
  const slot=slotOf(now),day=g.days[k]||(g.days[k]={});day[slot]=n;const tk=g.tk[k]||(g.tk[k]={});tk[slot]=g.tl||0;
  const ks=Object.keys(g.days).sort();for(const x of ks.slice(0,-31)){delete g.days[x];delete g.tk[x]}
  // обновить рекорды; объявлять, только если побит рекорд прошлых дней (а не тот, что сам поставил минуту назад) и не чаще раза в 10 мин на рекорд
- const cur={b10:m10,b60:h,day:n,f20,p100,ft:isT&&g.tl===1?g.ft:null},better={b10:(a,b)=>a>b,b60:(a,b)=>a>b,day:(a,b)=>a>b,p100:(a,b)=>a>b,f20:(a,b)=>a<b,ft:(a,b)=>a<b};
- const min={b10:8,b60:20,day:30,p100:3,f20:1,ft:1},ms=[];
+ const cur={b10:m10,b60:h,day:n,f20,p100,p20,ft:isT&&g.tl===1?g.ft:null},better={p20:(a,b)=>a>b,b10:(a,b)=>a>b,b60:(a,b)=>a>b,day:(a,b)=>a>b,p100:(a,b)=>a>b,f20:(a,b)=>a<b,ft:(a,b)=>a<b};
+ const min={p20:3,b10:8,b60:20,day:30,p100:3,f20:1,ft:1},ms=[];
  for(const id in cur){const v=cur[id];if(v==null)continue;const old=g.rec[id];if(old==null||better[id](v,old))g.rec[id]=v;
   const r0=g.rec0[id];if(r0!=null&&better[id](v,r0)&&(id==='f20'||id==='ft'||v>=min[id])&&(!g.shown[id]||now-g.shown[id]>6e5)){g.shown[id]=now;
    const fm=x=>id==='f20'?mmssR(x):x;ms.push({k:'win',id,t:`РЕКОРД · ${REC_N[id]}: ${fm(v)}${id==='ft'?' набора':''} (был ${fm(r0)})`});g.rec0[id]=v}}
  const wc=weekCheck(root,now);if(wc)ms.push(wc);
- return{h,m10,f20,p100,slot,n,cls,ms}}
+ return{h,m10,f20,p100,p20,slot,n,cls,ms}}
 const cumAt=(day,slot)=>{let v=0;for(const s in day)if(+s<=slot)v=Math.max(v,day[s]);return v};
 const sg=v=>(v>0?'+':v<0?'−':'±')+Math.abs(v);
 // «обычный ты»: среднее по последним 5 дням с наборами к этому же времени
@@ -216,8 +230,16 @@ export function ghostLine(root,now,i=0,rec=null){const g=root.gh;if(!g||!g.t.len
  const k=dayKey(now),slot=slotOf(now),n=g.t.length,R=g.rec0||{},tm=new Date(now).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
  const cls=rec&&rec.cls,m10=rec?rec.m10:g.t.filter(x=>x>now-6e5).length,h=rec?rec.h:g.t.filter(x=>x>now-36e5).length;
  if(cls&&MEETC.includes(cls))return{k:'up',t:`Встреча №${g.mt} сегодня · на ${n} наборов`};
- if(cls&&TALKC.includes(cls)){const p=rec&&rec.p100;if(p!=null&&R.p100)return{k:p>=R.p100?'up':p>=R.p100-2?'near':'down',t:`Питч №${g.tl} · на последние 100 наборов ${p} питчей, рекорд ${R.p100}`};
-  const u=usual(g.tk,k,slot);return u?{k:g.tl>=u?'up':'down',t:`Питч №${g.tl} · обычно к ${tm} у тебя ${u} (${sg(g.tl-u)})`}:{k:'up',t:`Питч №${g.tl} сегодня`}}
+ // питч (кусок 18): только хорошие новости — обогнал, сравнялся, почти сравнялся. Если до рекорда далеко — просто счёт за 20 минут.
+ if(cls&&TALKC.includes(cls)){const p=rec&&rec.p100,p20=rec&&rec.p20!=null?rec.p20:(g.pt||[]).filter(x=>x>now-12e5).length;
+  if(p!=null&&R.p100){if(p>R.p100)return{k:'up',t:`Питч №${g.tl} · на последние 100 наборов ${p} питчей — больше рекорда ${R.p100}`};
+   if(p===R.p100)return{k:'up',t:`Питч №${g.tl} · на 100 наборов ${p} питчей — вровень с рекордом`};
+   if(p>=R.p100-2)return{k:'near',t:`Питч №${g.tl} · на 100 наборов ${p} — до рекорда ${R.p100} ещё ${R.p100-p+(p<R.p100?0:1)}`}}
+  if(R.p20&&p20>=2){if(p20>R.p20)return{k:'up',t:`Питч №${g.tl} · ${p20} питчей за 20 минут — больше рекорда ${R.p20}`};
+   if(p20===R.p20)return{k:'up',t:`Питч №${g.tl} · ${p20} питчей за 20 минут — вровень с рекордом`};
+   if(p20===R.p20-1)return{k:'near',t:`Питч №${g.tl} · ${p20} за 20 минут — ещё один, и рекорд ${R.p20} догнан`}}
+  const u=usual(g.tk,k,slot);if(u&&g.tl>=u)return{k:'up',t:`Питч №${g.tl} · обычно к ${tm} у тебя ${u}${g.tl>u?` — ты впереди на ${g.tl-u}`:' — идёшь вровень'}`};
+  return{k:'up',t:`Питч №${g.tl} сегодня${p20>1?` · ${p20} за последние 20 минут`:''}`}}
  const L=[];
  // идёшь на рекорд
  if(R.b10>=8&&m10>=R.b10-3&&m10<=R.b10)L.push({k:'near',t:`10 минут: ${m10} наборов · рекорд ${R.b10} — ещё ${R.b10-m10+1} и он твой`});

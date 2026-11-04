@@ -89,3 +89,8 @@
 
 /* Гудок уже говорит с большого экрана сцены — второй портрет в плашке не рисуем */
 .st-cap.nopor .st-por{display:none}
+/* кусок 19: портреты Лома и людей в сценах */
+.st-por .lom{width:112px;height:auto}.st-por .npc{width:118px;height:auto}
+.who-lom .st-who{color:#ffb020}.who-npc .st-who{color:#9fe8ff}
+.sj-c .lom{width:44px;height:52px}
+@media (max-width:640px){.st-por .lom,.st-por .npc{width:70px}}

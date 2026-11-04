@@ -8,11 +8,18 @@ import {guideSvg} from '../../art/guide.js';
 import {crest,caller} from '../../art/world.js';
 import {hasArt} from '../../art/overrides.js';
 import {splitAnim} from '../kit/fx.js';
+import {SYS,SYS_KEYS} from '../../story/systems.js';
+import {SHELF,PRE,preScene} from '../../story/shelves.js';
+import {npcSvg} from '../../art/people.js';
+import {lomSvg} from '../../art/base.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RM=typeof matchMedia!=='undefined'?matchMedia('(prefers-reduced-motion: reduce)'):{matches:false};
 // порядок сцен для Журнала истории
-export const SCENES=[{key:'prologue',t:'Пролог',d:0},...DISTRICTS.flatMap(x=>[{key:'intro-'+x.d,t:'Заход',d:x.d},{key:'boss-'+x.d,t:'Босс',d:x.d},...(x.capture?[{key:'capture-'+x.d,t:'Захват',d:x.d}]:[])]),{key:'finale',t:'Финал',d:12}];
-const chap=key=>{const [k,n]=key.split('-'),d=+n;if(k==='prologue')return'ПРОЛОГ';if(k==='finale')return'ФИНАЛ';const arc=ARCS.find(([a,b])=>d>=a&&d<=b);return`РАЙОН ${d} · ${DIST[d-1][0].toUpperCase()}${arc?` · ${arc[2]}`:''}`};
+export const SCENES=[{key:'prologue',t:'Пролог',d:0},...DISTRICTS.flatMap(x=>[{key:'intro-'+x.d,t:'Заход',d:x.d},{key:'boss-'+x.d,t:'Босс',d:x.d},...(x.capture?[{key:'capture-'+x.d,t:'Захват',d:x.d}]:[])]),{key:'finale',t:'Финал',d:12},
+ ...Object.keys(PRE).map(d=>({key:'pre-'+d,t:'Звонок изнутри '+d,g:'Звонки изнутри'})),
+ ...SYS_KEYS.map(k=>({key:'sys-'+k,t:SYS[k].t,g:SYS[k].g})),
+ ...Object.keys(SHELF).map(d=>({key:'shelf-'+d,t:'Полка '+d,g:'Чёрный Рынок'}))];
+const chap=key=>{const [k,n]=key.split('-'),d=+n;if(k==='prologue')return'ПРОЛОГ';if(k==='sys')return'СИСТЕМЫ · '+((SYS[n]||{}).g||'').toUpperCase();if(k==='shelf')return`ЧЁРНЫЙ РЫНОК · ПОЛКА ${d}`;if(k==='pre')return`РАЙОН ${d} · ЗВОНОК ИЗНУТРИ`;if(k==='finale')return'ФИНАЛ';const arc=ARCS.find(([a,b])=>d>=a&&d<=b);return`РАЙОН ${d} · ${DIST[d-1][0].toUpperCase()}${arc?` · ${arc[2]}`:''}`};
 // панели сцены с фоном: bg = {k:'dist'|'city'|'garage'|'crt'|'wake', d}
 export function panelsOf(key){const [k,n]=key.split('-'),d=+n,X=DISTRICTS[d-1];
  if(k==='prologue')return PROLOGUE.map((p,i)=>({...p,bg:[{k:'city'},{k:'city'},{k:'garage'},{k:'crt'},{k:'city'}][i]||{k:'city'}}));
@@ -20,10 +27,13 @@ export function panelsOf(key){const [k,n]=key.split('-'),d=+n,X=DISTRICTS[d-1];
  if(k==='boss')return[{who:'boss',d,mood:'smug',text:X.boss.line,bg:{k:'dist',d,dark:1}},{who:'guide',mood:'worried',text:X.boss.guide,bg:{k:'dist',d,dark:1}}];
  if(k==='capture')return(X.capture||[]).map(p=>({...p,bg:{k:'dist',d,won:1}}));
  if(k==='finale')return FINALE.map((p,i)=>({...p,d:12,bg:[{k:'dist',d:12},{k:'dist',d:12,dark:1},{k:'garage'},{k:'crt'},{k:'crt'},{k:'wake'}][i]}));
+ if(k==='sys')return SYS[n]?SYS[n].panels.map(p=>({...p})):[];
+ if(k==='shelf')return SHELF[d]?SHELF[d].map(p=>({...p})):[];
+ if(k==='pre')return preScene(d);
  return[]}
 const layersOf=bg=>bg.k==='dist'?districtLayers(bg.d):bg.k==='garage'||bg.k==='crt'?garageLayers():cityLayers(bg.k==='wake');
-const portrait=p=>p.who==='guide'?guideSvg(p.mood||'talking'):p.who==='boss'?`<div class="st-boss">${crest((p.d||1)-1,'boss')}</div>`:p.who==='caller'?caller():'';
-const whoName=p=>p.who==='guide'?'ГУДОК':p.who==='boss'?DIST[(p.d||1)-1][3]:p.who==='caller'?'ТЫ':p.who==='lom'?'ЛОМ':'';
+const portrait=p=>p.who==='guide'?guideSvg(p.mood||'talking'):p.who==='boss'?`<div class="st-boss">${crest((p.d||1)-1,'boss')}</div>`:p.who==='caller'?caller():p.who==='lom'?lomSvg(p.mood||'welcome'):p.who==='npc'?npcSvg(p.pic,p.mood):'';
+const whoName=p=>p.who==='guide'?'ГУДОК':p.who==='boss'?DIST[(p.d||1)-1][3]:p.who==='caller'?'ТЫ':p.who==='lom'?'ЛОМ':p.who==='npc'?(p.nm||''):'';
 
 export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', sfx(name)}
  let el=null,list=[],pi=0,key='',queue=[],done=null,typer=0,full='',shown=0,jr=null;
@@ -76,7 +86,7 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
  // ---------- Журнал истории ----------
  const jrHtml=()=>{let last=-1;return`<div class="sj-in"><header><b>ЖУРНАЛ ИСТОРИИ</b><span>${Object.keys(root().seen).length} из ${SCENES.length} сцен</span><button class="sj-x" aria-label="Закрыть">✕</button></header>
   <div class="sj-g">${SCENES.map(s=>{const ok=seen(s.key),hd=s.d!==last?(last=s.d,`<h4>${s.d?`${s.d}. ${esc(DIST[s.d-1][0])}`:'Начало'}</h4>`):'';
-   return hd+`<button class="sj-c ${ok?'':'lk'}" data-k="${s.key}" ${ok?'':'disabled'}>${s.d?crest(s.d-1,ok?'':'locked'):guideSvg('neutral')}<span>${ok?esc(s.t):'???'}</span></button>`}).join('')}</div>
+   return hd+`<button class="sj-c ${ok?'':'lk'}" data-k="${s.key}" ${ok?'':'disabled'}>${s.d?crest(s.d-1,ok?'':'locked'):s.g==='Чёрный Рынок'?lomSvg(ok?'welcome':'closed'):guideSvg('neutral')}<span>${ok?esc(s.t):'???'}</span></button>`}).join('')}</div>
   <footer>Сцена открывается, когда ты до неё дошёл. Клик — пересмотреть.</footer></div>`};
  const openJournal=()=>{if(jr)return;jr=document.createElement('div');jr.className='sj';jr.setAttribute('role','dialog');jr.setAttribute('aria-label','Журнал истории');jr.innerHTML=jrHtml();o.mount.append(jr);
   jr.addEventListener('click',e=>{const b=e.target.closest('.sj-c');if(b&&!b.disabled){closeJournal();play(b.dataset.k,()=>openJournal(),true);return}if(e.target.closest('.sj-x')||e.target===jr)closeJournal()});
@@ -88,5 +98,6 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
 export function runStoryUiTests(){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
  t('у каждой сцены журнала есть панели',()=>SCENES.every(s=>panelsOf(s.key).length>0));
  t('у каждой панели есть фон',()=>SCENES.every(s=>panelsOf(s.key).every(p=>p.bg&&p.bg.k)));
- t('сцены: пролог, 12 заходов, 12 боссов, 11 захватов, финал',()=>SCENES.length===1+12+12+11+1);
+ t('сцены: пролог, 12 заходов, 12 боссов, 11 захватов, финал + звонки изнутри, системы, полки',()=>SCENES.length===1+12+12+11+1+11+SYS_KEYS.length+12);
+ t('npc и Лом в сценах — с портретом и именем',()=>SCENES.every(s=>panelsOf(s.key).every(p=>(p.who!=='npc'&&p.who!=='lom')||(portrait(p).includes('<svg')&&whoName(p)))));
  return o}

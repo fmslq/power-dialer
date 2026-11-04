@@ -13,6 +13,8 @@ function noise(t,d,g,fc,q){const a=ac();if(!a)return;if(!NB){NB=a.createBuffer(1
  const T=a.currentTime+t,s=a.createBufferSource(),f=a.createBiquadFilter(),v=a.createGain();s.buffer=NB;f.type="bandpass";f.frequency.value=fc;f.Q.value=q||1;
  v.gain.setValueAtTime(Math.max(.0002,g*VOL),T);v.gain.exponentialRampToValueAtTime(.0001,T+d);s.connect(f);f.connect(v);v.connect(a.destination);s.start(T,Math.random());s.stop(T+d+.03)}
 const SND={
+ dialgo(){tone(90,0,.18,"sine",.5,45);noise(0,.06,.35,1800,1.2);tone(520,.02,.16,"triangle",.18,1040);tone(1560,.09,.12,"sine",.08,2100);tone(780,.14,.22,"sine",.07,1170)}, // I9: нажатие «Позвонить» — удар, взлёт, искра
+ dialhover(){tone(1200,0,.05,"sine",.025,1500)},
  tick(){noise(0,.04,.25,3000,1);tone(180,0,.05,"square",.12,90)},
  whoosh(){noise(0,.22,.16,900,.4)},
  whip(){noise(0,.16,.4,3500,.7);tone(1400,0,.14,"sawtooth",.18,300)},

@@ -79,9 +79,9 @@ export class Dialer{
  setStatus(k,waitFn,opt={}){const t=this.t,l=this.cur;if(!l)return null;const had=t.res(l),v=sheetValue(k,this.P.map);
   if(had==v){this.clearStatus(l);return{cleared:true}}
   if(this.env.canStatus){const c=this.env.canStatus(k,{phone:t.ph(l)},opt);if(c&&!c.ok){const r={refused:c.why,dur:c.dur,min:c.min,index:k};this.emit('statusRefused',r);return r}}
-  t.put(l,"Result",v);t.put(l,"Date Engaged",today(new Date(this.env.now())));this.q.touch(l);const wasCalling=this.calling;this.calling=false;
+  const back=this.env.backAt?this.env.backAt(t.ph(l)):null;t.put(l,"Result",v);t.put(l,"Date Engaged",today(new Date(back||this.env.now())));this.q.touch(l);const wasCalling=this.calling;this.calling=false;
   this.persist();this.sheets.sync(l,1);const hang=wasCalling||this.call&&this.call.ended==null?this._autoHang('status'):'none';
-  const ms=had?null:this.tally(l),meta={index:k,name:BUTTONS[k].name,value:v,changed:!!had,prev:had,win:WIN.includes(k),milestone:ms,lead:{biz:t.get(l,"Business"),state:lstate(t,l),phone:t.ph(l)},hangup:hang};
+  const ms=had?null:this.tally(l),meta={index:k,name:BUTTONS[k].name,value:v,changed:!!had,prev:had,win:WIN.includes(k),milestone:ms,lead:{biz:t.get(l,"Business"),state:lstate(t,l),phone:t.ph(l)},hangup:hang,back};
   this.emit('statusSet',meta);
   const fresh=this.q.advance(),wait=waitFn?waitFn(meta):(ms&&ms.kind=='hundred')?2800:meta.win?1000:0,tgt=this.cur;this.emit('leadChanged',this.view());
   if(fresh&&this.auto&&!this.paused&&tgt){if(wait)this.env.setTimeout(()=>{if(this.cur===tgt&&!this.paused&&!this.calling)this.dial()},wait);else this.dial()}
@@ -102,7 +102,8 @@ export class Dialer{
  setNotes(v){const l=this.cur;if(!l)return;this.t.put(l,"Notes",v);this.persistSoon()}
  setCallback(v){const l=this.cur;if(!l)return;this.t.put(l,"Callback?",v);this.persistSoon()}
  // ---- выбор лида и фильтры ----
- picker(M){return pickerData(this.t,this.q,M,this.cur)}
+ picker(M){return pickerData(this.t,this.q,M,this.cur,this.P.map,this.env.now())}
+ unstatus(i){const l=this.t.L[i];return l?this.clearStatus(l):false}
  saveScope(){const p=this.P.files[this.t.name]||(this.P.files[this.t.name]={});p.start=this.q.start;Object.assign(p,this.q.f);this.sp()}
  pickLead(i,f={}){this.q.pick(i,f);this.saveScope();this.calling=false;this.emit('leadChanged',this.view())}
  setFilter(f,clear){this.q.slice(f,clear);this.saveScope();this.emit('leadChanged',this.view())}

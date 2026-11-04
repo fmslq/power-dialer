@@ -13,7 +13,7 @@ export function record(root,e,now,streak){if(e.spam)return null;const days=root.
  const hr=new Date(now).getHours();d.h=d.h||{};d.h[hr]=(d.h[hr]||0)+1;   // тепловая карта часов (вкладка ДОСЬЕ)
  const L=life(root);L.calls++;if(e.cls==='GATEKEEPER')L.gk++;if(e.cls==='DISCOVERY')L.disc++;if(e.cls==='BOOKED'){L.booked++;L.since=0}else L.since++;
  const R=root.recent||(root.recent=[]);R.push(e.cls);if(R.length>20)R.shift();return d}
-export function unrecord(root,u){const d=root.days&&root.days[dayKey(u.t)];if(!d||!u.cls)return;d.n=Math.max(0,d.n-1);d.pts=Math.max(0,d.pts-C.classes[u.cls].pts);d.xp-=u.x;d.money-=u.m;d.c[u.cls]=Math.max(0,(d.c[u.cls]||0)-1);if(d.h){const hr=new Date(u.t).getHours();if(d.h[hr])d.h[hr]--}
+export function unrecord(root,u){const d=root.days&&root.days[dayKey(u.rt||u.t)];if(!d||!u.cls)return;d.n=Math.max(0,d.n-1);d.pts=Math.max(0,d.pts-C.classes[u.cls].pts);d.xp-=u.x;d.money-=u.m;d.c[u.cls]=Math.max(0,(d.c[u.cls]||0)-1);if(d.h){const hr=new Date(u.rt||u.t).getHours();if(d.h[hr])d.h[hr]--}
  const L=life(root);L.calls=Math.max(0,L.calls-1);if(u.cls==='GATEKEEPER')L.gk--;if(u.cls==='BOOKED')L.booked--;if(u.cls==='DISCOVERY')L.disc--}
 // Окно Dominance: сегодня + предыдущие дни, пока не набрано 3 рабочих (выходные внутри окна считаются, если там звонили)
 export function window3(now){const keys=[];let w=0,t=now;for(let i=0;i<14&&w<3;i++,t-=DAY){keys.push(dayKey(t));if(isWork(t))w++}return keys}

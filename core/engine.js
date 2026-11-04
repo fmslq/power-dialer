@@ -67,10 +67,10 @@ export const bossState=s=>{const t=districtThr(s.district),f=s.dxp/t;return f<1-
 
 // Индикатор серии для HUD: множитель, сколько до следующей ступени, и таймер окна (когда серия сгорит).
 // onLine: сейчас идёт звонок => таймер заморожен (разговор не в счёт). mode: 'zoom' (от конца звонка) | 'status'.
-export function windowState(s,now,{onLine=false,zoom=true}={}){if(s.paused!=null&&now>s.paused)now=s.paused;   // пауза/Заморозка: таймеры на экране стоят
+export function windowState(s,now,{onLine=false,zoom=true}={}){if(s.paused!=null&&now>s.paused&&s.paused>=Math.max(s.last||0,s.lastEnd||0))now=s.paused;   // I2: старая пауза (до последнего звонка) не замораживает таймер   // пауза/Заморозка: таймеры на экране стоят
 const k=(s.ulta>0||(s.od&&now<s.od.until))?steps.length-1:s.step,next=steps[s.step+1];
  const base={streak:s.streak,step:s.step,mult:C.heat.money[k],toNext:next!=null?next-s.streak:null,nextMult:next!=null?C.heat.money[s.step+1]:null,ulta:s.ulta,od:s.od&&now<s.od.until?Math.round((s.od.until-now)/MS):0,odProg:Math.max(0,s.streak-s.odBase),odNeed:C.od.streak,odTalk:s.odTalk||0,odTalkNeed:C.od.needTalk||0,debt:s.debt||0};
  if(s.last==null||!s.streak)return{...base,state:'idle',left:null};
  if(onLine)return{...base,state:'online',left:null};
  const z=zoom&&s.lastEnd!=null,from=z?s.lastEnd:s.last,allowed=z?afterCall(s.lastId):C.classes[s.lastCls].win?C.winMaxGapMin*60:C.fastSec+(C.statusGapSec[s.lastId]!=null?C.statusGapSec[s.lastId]-C.fastSec:C.crmFrom.includes(s.lastCls)?C.crmSec:0);
- const left=Math.ceil((from+allowed*MS-now)/MS);return{...base,state:left>0?(left<=10?'hurry':'ok'):'lost',left:Math.max(0,left),allowed,mode:z?'zoom':'status'}}
+ const left=Math.min(allowed,Math.ceil((from+allowed*MS-now)/MS));return{...base,state:left>0?(left<=10?'hurry':'ok'):'lost',left:Math.max(0,left),allowed,mode:z?'zoom':'status'}}

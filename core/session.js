@@ -12,6 +12,7 @@ import {withItems} from './buffs.js';
 import {STATUS,CONFIG as C} from './config.js';
 import {withAllies,allyTrack} from './allies.js';
 import {keysInit,needKey,keyTrack} from './keys.js';
+import {laterHoldOf} from './bosslater.js';
 import {withAd,adAfter,ghostRec,ensure as adEnsure,nightly,raidCheck} from './addict.js';
 
 // Чистка: трофей, у которого в журнале статусов найден НЕ победный статус того же лида и времени, убирается.
@@ -41,7 +42,7 @@ export class Session{
   // Можно ли поставить статус (дайлер спрашивает ДО записи в таблицу): {ok, why, dur, min}
   precheck(id,lead,{now=this.now(),late=false}={}){const c=this.prov.takeCall(now),w=winCheck(id,c,{phone:lead&&lead.phone},now,{late});
     return{ok:w.v==='ok'||w.v==='nodata',why:w.v,dur:w.dur,min:w.min,unverified:w.v==='nodata'}}
-  setStatus(id,lead,{had=false,now=this.now(),isKnown,late=false}={}){const root=this.root,G=this.G;
+  setStatus(id,lead,{had=false,now=this.now(),isKnown,late=false,back=null}={}){const root=this.root,G=this.G;
     const g=this.gate?this.gate():{ok:true};if(!g||!g.ok){const out={ev:null,meta:null,blocked:g&&g.code||'locked',achv:[],missions:[]};this.emit('blocked',out.blocked);return out}
     if(had)this.dropLead(lead.key,now);
     const side=sideSnapshot(root,now),d0=(root.days||{})[dayKey(now)]||{n:0},dir=root.dir&&root.dir.k===dayKey(now)?root.dir.pick:null;
@@ -50,9 +51,10 @@ export class Session{
     if(r.blocked){const out={ev:null,meta:r.meta,blocked:r.blocked,dur:r.dur,min:r.min,achv:[],missions:[]};this.emit('statusRefused',out);return out}
     const out={ev:r.ev,meta:r.meta,achv:[],missions:[],rankUp:null,levelUp:null,trophy:null};
     if(!r.ev){this.emit('offList',r.meta);return out}
-    const u=r.entry;u.lead=lead.key;
+    const u=r.entry;u.lead=lead.key;if(back!=null&&back<now)u.rt=back;out.back=u.rt||null;   // I8: звонили в прошлый день — статус в статистику того дня
     // E4: без ключа прогресс района копится в G.keyHold (XP и $ игроку идут как обычно)
     if(needKey(root,G)){const h=G.district===dd0?Math.max(0,G.dxp-dx0):G.dxp;if(h>0){G.dxp-=h;G.keyHold=(G.keyHold||0)+h;u.held=h;out.held=h}}
+    else{const lh=laterHoldOf(G,dx0,dd0);if(lh){u.lh=lh;out.later=lh}}   // I6: бой отложен — урон боссу копится
     for(const x of G.undo)if(x!==u)delete x.side;         // боковой снимок только у последней записи
     u.side=side;
     // re-статус тоже записывается: старая запись только что снята dropLead, иначе звонок пропадал из дня (баг черновика);
@@ -60,7 +62,7 @@ export class Session{
     if(!r.ev.spam)this.after(r,u,lead,out,now);
     this.emit('status',r.ev);return out}
   after(r,u,lead,out,now){const root=this.root,G=this.G,ev=r.ev,sinceBefore=(root.life||{}).since||0;
-    const d=record(root,{...ev},now,G.streak);if(!d)return;u.rec=1;
+    const d=record(root,{...ev},u.rt||now,G.streak);if(!d)return;u.rec=1;
     const sc=STATUS[u.id]&&STATUS[u.id].cls;   // трофей ТОЛЬКО за CALL BOOKED / CONDUCTED DISCOVERY CALL: и класс события, и сам статус кнопки
     if((ev.cls==='BOOKED'||ev.cls==='DISCOVERY')&&sc===ev.cls){const t={st:STATUS[u.id].name,id:'t'+now,kind:ev.cls==='BOOKED'?'gold':'platinum',company:lead.business||'?',state:lead.state||'',t:now,lead:lead.key,sealed:0,
       verified:r.meta.verified||u.verified||null,mode:r.meta.mode};(root.trophies||(root.trophies=[])).push(t);out.trophy=t}
@@ -77,7 +79,8 @@ export class Session{
   // Снять статус / откатить: «full» (последний, ≤undoSec) откатывает всё по снимку, иначе «worth»: ровно то, что статус принёс.
   dropLead(key,now=this.now()){const G=this.G,root=this.root;
     for(let i=G.undo.length-1;i>=0;i--){const u=G.undo[i];if(u.lead!==key)continue;
-      if(u.held&&!(i===G.undo.length-1&&now-u.t<=C.undoSec*1000)){const b=Math.min(u.held,G.keyHold||0);G.keyHold-=b;G.dxp+=b}   // worth-undo: вернуть удержанное ключом в шкалу, чтобы откат снял его
+      if(u.held&&!(i===G.undo.length-1&&now-u.t<=C.undoSec*1000)){const b=Math.min(u.held,G.keyHold||0);G.keyHold-=b;G.dxp+=b}
+      if(u.lh&&!(i===G.undo.length-1&&now-u.t<=C.undoSec*1000)){const b=Math.min(u.lh,G.laterHold||0);G.laterHold-=b;G.dxp+=b}   // worth-undo: вернуть удержанное ключом в шкалу, чтобы откат снял его
       const side=u.side,how=gUndo(G,now,i);
       if(how==='full'&&side)sideRestore(root,side);                    // полный откат: ачивки, задания, recent, максимумы, трофей
       else{if(u.rec)unrecord(root,u);root.trophies=(root.trophies||[]).filter(t=>t.lead!==key||t.t!==u.t); // старый статус: ВСЁ, что он принёс

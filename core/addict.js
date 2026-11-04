@@ -7,6 +7,7 @@ import {CONFIG as C} from './config.js';
 import {dayKey,isWork,RANK_BONUS} from './stats.js';
 import {TZ} from '../dialer/geo.js';
 import {itemHH} from './buffs.js';
+import {colEnsure,capOf,opsBonus,opLeft,build as colBuild} from './collector.js';
 export const AD={
  norm:100,                                                         // дневная норма наборов (B4); пользователь может поменять позже
  hh:[{from:480,to:570,k:2,name:'Утренний час'},{from:1110,to:1200,k:1.5,name:'Вечерний час'}], // B2: местное время лида 8:00–9:30 ×2, 18:30–20:00 ×1.5
@@ -15,7 +16,7 @@ export const AD={
  w:{c:56,u:26,r:12,e:5,l:1},wChest:{e:80,l:20},                    // веса редкостей; сундук гаранта = эпик+
  pity:[30,70],                                                     // C1: порог неудач — случайно 30–70
  freeze:{per:25,max:3,sec:180},                                    // E1: заряд за каждые 25 наборов дня, максимум 3, до 3 минут
- warm:{n:5,k:3,share:.05,sig:20},                                 // C6 v2 (кусок 18): «Разгон» — входящий вызов при 0 наборов за день. Принял → первые 5 наборов ×3 XP и $ (кроме BOOKED/DISCOVERY), после 5-го ещё 5% дневных $ и 20 Сигнала. Отклонил — до завтра
+ warm:{n:5,k:3,share:.05,sig:20,min:10,ask:10,early:10,late:[13,59]},   // I1 v3: принять — за ask мин; бонус — min мин ИЛИ n наборов (что раньше); открыл до early:00 и не принял — второй шанс с late                                 // C6 v2 (кусок 18): «Разгон» — входящий вызов при 0 наборов за день. Принял → первые 5 наборов ×3 XP и $ (кроме BOOKED/DISCOVERY), после 5-го ещё 5% дневных $ и 20 Сигнала. Отклонил — до завтра
  purge:{share:.10,mShare:.10,maxDays:5,lookback:7},                           // B4: до 10% прогресса района и 10% денег за невыполненный рабочий день
  raid:{n:100,k:1.5,gap:{TRASH:180,GATEKEEPER:180,MINOR:180,TALK:300,CALLBACK:360,BOOKED:1500,DISCOVERY:1500}}, // C3
  cap:1.8,                                                          // потолок ×XP и ×$ от всех постоянных и временных бонусов (без счастливых часов)
@@ -95,11 +96,23 @@ export function tracksFor(k){const r=rngOf(H('tr'+k)),pick=a=>a[r()*a.length|0],
   {id:'t2',kind:'dials',n:pick([130,150,170]),name:'Наборы',rew:'chest',rt:'Редкий сундук'},{id:'t3',kind:'dials',n:300,name:'Берсерк',rew:'epic',rt:'Эпический сундук и +200 Сигнала'}]}
 export const DEF=()=>({sig:0,sigLife:0,tree:{},inv:{},act:[],relic:{},pity:{n:0,at:0},frz:{ch:0,got:0,k:'',on:0,at:0},shield:0,warm:{k:'',done:0},
  tr:{k:'',done:{}},perk:{k:'',at:0,opts:null,pick:null,until:0},raid:null,purge:{chk:'',log:[]},normDays:0,ops:{rooms:0,n:0},theme:'base',drops:[],stats:{spins:0,chests:0,legend:0}});
-export const ensure=root=>{const a=root.ad||(root.ad=DEF()),d=DEF();for(const k in d)if(a[k]===undefined)a[k]=d[k];return a};
+export const ensure=root=>{const a=root.ad||(root.ad=DEF()),d=DEF();for(const k in d)if(a[k]===undefined)a[k]=d[k];colEnsure(a);return a};
 // местное время лида по штату → минуты от полуночи
 export function leadMin(state,now){const z=TZ[String(state||'').toUpperCase()];if(!z)return null;try{const p=new Intl.DateTimeFormat('en-US',{timeZone:z,hour:'numeric',minute:'numeric',hour12:false}).formatToParts(new Date(now));
  const h=+p.find(x=>x.type==='hour').value%24,m=+p.find(x=>x.type==='minute').value;return h*60+m}catch(e){return null}}
-export function happy(state,now){const m=leadMin(state,now);if(m==null)return null;const w=new Date(now).getDay();if(w===0||w===6)return null;const h=AD.hh.find(x=>m>=x.from&&m<x.to);return h?{...h,min:m,left:h.to-m}:null}
+// I5 (кусок 20): день недели и минуты — по часам ЛИДА (раньше брался день браузера: в пятницу вечером у Тихого океана уже «суббота» у нас)
+const WDN={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+export function zoneClock(z,now){try{const p=new Intl.DateTimeFormat('en-US',{timeZone:z,hour:'numeric',minute:'numeric',weekday:'short',hour12:false}).formatToParts(new Date(now)),g=k=>(p.find(x=>x.type===k)||{}).value;
+ return{m:(+g('hour')%24)*60+(+g('minute')),wd:WDN[g('weekday')]??new Date(now).getDay(),sec:new Date(now).getUTCSeconds()}}catch(e){return null}}
+const hhAt=(m,wd)=>wd===0||wd===6?null:AD.hh.find(x=>m>=x.from&&m<x.to)||null;
+// ближайшее окно после now: {name,k,in (мин)} — ищем до 7 дней вперёд, выходные пропускаем
+export function hhNextAt(c){if(!c)return null;for(let d=0;d<8;d++){const wd=(c.wd+d)%7;if(wd===0||wd===6)continue;for(const h of AD.hh){const st=d*1440+h.from-c.m;if(st>0)return{name:h.name,k:h.k,in:st-c.sec/60}}}return null}
+export function happy(state,now){const z=TZ[String(state||'').toUpperCase()];if(!z)return null;const c=zoneClock(z,now);if(!c)return null;const h=hhAt(c.m,c.wd);return h?{...h,min:c.m,left:h.to-c.m-c.sec/60}:null}
+export function hhNext(state,now){const z=TZ[String(state||'').toUpperCase()];return z?hhNextAt(zoneClock(z,now)):null}
+// «Волна»: рассвет идёт с востока на запад — у каждого пояса свой час. Для панели и тостов.
+export const HHZ=[['Eastern','America/New_York','ET'],['Central','America/Chicago','CT'],['Mountain','America/Denver','MT'],['Pacific','America/Los_Angeles','PT']];
+export function hhZones(now){return HHZ.map(([tz,z,ab])=>{const c=zoneClock(z,now);if(!c)return{tz,ab,on:null,next:null};const h=hhAt(c.m,c.wd);
+ return{tz,ab,m:c.m,wd:c.wd,on:h?{name:h.name,k:h.k,left:h.to-c.m-c.sec/60,len:h.to-h.from}:null,next:hhNextAt(c)}})}
 // сумма бонусов Addiction (дерево, реликвии, активные бусты, перк, Слышащие, серия норм) → {xAll,mAll (доли), x,m {cls:%}, fast, odSec, luck, sigK}
 export function adTotals(root,now){const a=ensure(root),t={xAll:0,mAll:0,x:{},m:{},fast:0,odSec:0,luck:0,luckK:1,sigK:1,pity:0,purge:0,frz:0,themes:0};
  const add=b=>{if(!b)return;t.xAll+=b.xAll||0;t.mAll+=b.mAll||0;t.fast+=b.fast||0;t.odSec+=b.odSec||0;t.luck+=b.luck||0;t.pity+=b.pity||0;t.purge+=b.purge||0;t.frz+=b.frz||0;t.themes+=b.themes||0;
@@ -108,19 +121,29 @@ export function adTotals(root,now){const a=ensure(root),t={xAll:0,mAll:0,x:{},m:
  for(const id in a.relic){const L=lootById(id);if(L&&L.relic)add(L.relic)}
  for(const x of a.act){const L=lootById(x.id);if(L&&x.left>0)add({xAll:L.xAll,mAll:L.mAll,x:L.x,m:L.m,fast:L.fast,odSec:L.odSec,luck:L.luck,sigK:L.sigK})}
  if(a.perk&&a.perk.pick&&now<a.perk.until){const p=PERKS3.find(x=>x.id===a.perk.pick);if(p)add(p)}
- const ops=(a.ops.n+(a.ops.def||[]).length)*OPS.perOp;t.xAll+=ops;t.mAll+=ops;
+ const ops=opsBonus(a);t.xAll+=ops;t.mAll+=ops;
  const rb=RANK_BONUS[root.rank|0]||0;t.xAll+=rb;t.mAll+=rb;t.rank=rb;
  const nd=Math.min(AD.normDay.max,a.normDays*AD.normDay.per);t.xAll+=nd;t.mAll+=nd;return t}
 // слить в модификаторы движка (после директивы и предметов): потолок AD.cap на итоговые ×XP/×$, затем счастливый час
 const WARMC=['TRASH','GATEKEEPER','MINOR','TALK','CALLBACK'];
 // Разгон: предложить ли входящий вызов (0 наборов сегодня и сегодня ещё не отвечал; тестировщику — при каждой загрузке)
-export function warmOffer(root,now,dayN,tester=false){const a=ensure(root),k=dayKey(now);if(dayN>0)return false;return tester||!(a.warm.k===k&&a.warm.ans)}
-export function warmAnswer(root,now,yes){const a=ensure(root),k=dayKey(now);if(a.warm.k!==k)a.warm={k,done:0};a.warm.ans=yes?1:-1;a.warm.at=now;return a.warm}
+// I1 v3. warm: {k, ans: 1 принял | -1 отклонил | 0 пропустил (время на принятие вышло), at, n0 — наборов на момент принятия, done — пройден, end — кончился, why, tries}
+const minOf=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
+export function warmOffer(root,now,dayN,tester=false,loadedAt=now){const a=ensure(root),k=dayKey(now),w=a.warm;if(dayN>0&&!tester)return false;
+ if(tester)return true;if(w.k!==k||w.ans==null)return true;if(w.ans===1)return false;
+ // второй шанс: страница открыта до 10:00, утром вызов не принят, а сейчас уже 13:59+ и звонков всё ещё нет
+ const late=AD.warm.late[0]*60+AD.warm.late[1];return(w.tries||1)<2&&dayKey(loadedAt)===k&&minOf(loadedAt)<AD.warm.early*60&&minOf(now)>=late&&minOf(w.at||0)<late}
+export function warmAnswer(root,now,yes,dayN=0,miss=false){const a=ensure(root),k=dayKey(now),tries=a.warm.k===k?(a.warm.tries||0)+1:1;a.warm={k,done:0,tries,ans:miss?0:yes?1:-1,at:now,n0:dayN};return a.warm}
+// разгон идёт: принят сегодня, не пройден, не кончился, не вышли ни 10 минут, ни 5 наборов
+export function warmState(root,now,dayN){const w=ensure(root).warm;if(w.k!==dayKey(now)||w.ans!==1)return null;const n=Math.max(0,dayN-(w.n0||0)),left=AD.warm.min*60000-(now-w.at);
+ return{on:!w.done&&!w.end&&left>0&&n<AD.warm.n,n,left:Math.max(0,left),done:!!w.done,end:w.end||0,why:w.why||''}}
+// таймер истёк раньше 5 наборов → разгон закончен без награды (вызывает UI раз в секунду)
+export function warmTick(root,now,dayN){const w=ensure(root).warm,st=warmState(root,now,dayN);if(!st||w.done||w.end)return null;if(st.left<=0&&st.n<AD.warm.n){w.end=now;w.why='time';return{end:'time',n:st.n}}return null}
 export function withAd(mods,root,now,state,dayN=0){const t=adTotals(root,now),hh=happy(state,now),r={...mods,m:{...(mods.m||{})},x:{...(mods.x||{})}};
  r.xAll=Math.min(AD.cap,(mods.xAll||1)*(1+t.xAll/100));r.mAll=Math.min(AD.cap,(mods.mAll||1)*(1+t.mAll/100));
  for(const k in t.x)r.x[k]=(r.x[k]||1)*(1+t.x[k]/100);for(const k in t.m)r.m[k]=(r.m[k]||1)*(1+t.m[k]/100);
  const a=ensure(root),k=dayKey(now);if(a.tr.k===k&&a.tr.done.t1)r.mAll*=1.1;          // награда цели «Наборы I»: ×1.1 $ до конца дня
- if(a.warm.k===k&&a.warm.ans===1&&!a.warm.done&&dayN<AD.warm.n){for(const c of WARMC){r.x[c]=(r.x[c]||1)*AD.warm.k;r.m[c]=(r.m[c]||1)*AD.warm.k}r.warm=AD.warm.k}
+ if(warmState(root,now,dayN)?.on){for(const c of WARMC){r.x[c]=(r.x[c]||1)*AD.warm.k;r.m[c]=(r.m[c]||1)*AD.warm.k}r.warm=AD.warm.k}
  if(hh){const ih=1+itemHH(root.meta&&root.meta.owned)/100;r.xAll*=hh.k*ih;r.mAll*=hh.k*ih;r.hh=hh}r.fast=(mods.fast||0)+t.fast;r.odSec=(mods.odSec||0)+t.odSec;return r}
 const rollTier=(w,rnd)=>{const tot=Object.values(w).reduce((a,b)=>a+b,0);let x=rnd()*tot;for(const[k,v]of Object.entries(w)){if((x-=v)<0)return k}return'c'};
 // hh — идёт счастливый час: в пул добавляются вещи с hh:1 (двойной вес); вне часа их нет
@@ -145,7 +168,7 @@ export function adAfter(root,G,ev,now,{state,dayN=0,lead='',rnd=Math.random,hhMo
  // заморозка: заряд за каждые 25 наборов дня
  if(a.frz.k!==k){a.frz.k=k;a.frz.got=0}const shouldHave=Math.floor(dayN/AD.freeze.per);if(shouldHave>a.frz.got){const mx=AD.freeze.max+t.frz;const add=shouldHave-a.frz.got;a.frz.got=shouldHave;const b=a.frz.ch;a.frz.ch=Math.min(mx,a.frz.ch+add);if(a.frz.ch>b)o.freeze=a.frz.ch}
  // разгон
- if(a.warm.k!==k)a.warm={k,done:0};if(a.warm.ans===1&&!a.warm.done&&dayN>=AD.warm.n){a.warm.done=now;const m=Math.round(AD.warm.share*C.assumedDailyMoney*y);G.money+=m;a.sig+=AD.warm.sig;a.sigLife+=AD.warm.sig;o.warm={money:m,sig:AD.warm.sig}}
+ {const ws=warmState(root,now,dayN),w=a.warm;if(ws&&!w.done&&!w.end&&ws.n>=AD.warm.n&&now-w.at<=AD.warm.min*60000+60000){w.done=now;w.end=now;w.why='done';const m=Math.round(AD.warm.share*C.assumedDailyMoney*y);G.money+=m;a.sig+=AD.warm.sig;a.sigLife+=AD.warm.sig;o.warm={money:m,sig:AD.warm.sig}}}
  // гарант
  if(!a.pity.at)a.pity.at=AD.pity[0]+Math.floor(rnd()*(AD.pity[1]-AD.pity[0]+1));
  const win=cls==='BOOKED'||cls==='DISCOVERY';if(win)a.pity.n=0;else a.pity.n++;
@@ -175,9 +198,9 @@ export function pickPerk(root,id,now){const a=ensure(root),p=PERKS3.find(x=>x.id
 export function buyTree(root,id){const a=ensure(root),n=TREE.find(x=>x.id===id);if(!n)return{ok:false};const l=a.tree[id]|0;if(l>=6)return{ok:false,why:'ветка закрыта до конца'};
  const c=treeCost(l);if(a.sig<c)return{ok:false,why:'нужно '+c+' Сигнала'};a.sig-=c;a.tree[id]=l+1;return{ok:true,lv:l+1,cost:c}}
 // Слышащие
-export function buyRoom(root,G){const a=ensure(root);if(a.ops.rooms>=OPS.maxRooms)return{ok:false,why:'все комнаты построены'};const c=OPS.roomCost(a.ops.rooms);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.rooms++;return{ok:true,cost:c}}
+export function buyRoom(root,G){const a=ensure(root),o=a.ops;if(!o.plot)o.plot=1;const slot=o.bld.findIndex(x=>!x),sl=slot<0?o.bld.length:slot;if(sl>=6)return{ok:false,why:'все комнаты построены'};return colBuild(a,G,sl,'room')}   // старый API: «комната» = Каморка в Коллекторе
 export const synOk=root=>{const st=root.story||{};return !!(st.syn||(st.seen||{})['sys-syn']||((root.ad||{}).ops||{}).n>0)};
-export function hireOp(root,G){const a=ensure(root);if(!synOk(root))return{ok:false,why:'Слышащих пока нет: о них расскажут в районе 2'};if(a.ops.n>=a.ops.rooms*OPS.roomCap)return{ok:false,why:'нет места: построй комнату'};const c=OPS.opCost(a.ops.n);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.n++;return{ok:true,cost:c}}
+export function hireOp(root,G){const a=ensure(root);if(!synOk(root))return{ok:false,why:'Слышащих пока нет: о них расскажут в районе 2'};if(a.ops.n>=capOf(a.ops))return{ok:false,why:'нет места: построй здание в Коллекторе'};const c=OPS.opCost(a.ops.n);if(G.money<c)return{ok:false,why:'нужно $'+c};G.money-=c;a.ops.n++;return{ok:true,cost:c}}
 // заморозка
 export function freezeOn(root,now){const a=ensure(root);if(a.frz.on)return{ok:false,why:'уже заморожено'};if(a.frz.ch<1)return{ok:false,why:a.frz.got?'заряды кончились':'первый заряд — после 25 наборов'};a.frz.ch--;a.frz.on=1;a.frz.at=now;a.stats.frz=(a.stats.frz||0)+1;return{ok:true}}
 export function freezeOff(root,now){const a=ensure(root);if(!a.frz.on)return 0;const d=Math.min(now-a.frz.at,AD.freeze.sec*1000);a.frz.on=0;if(a.raid&&a.raid.on)a.raid.dl+=d;return d}
@@ -196,7 +219,7 @@ export function nightly(root,G,now){const a=ensure(root),today=dayKey(now),days=
   const f=1-n/AD.norm,red=Math.max(0,1-adTotals(root,now).purge)*(root.story&&root.story.ch&&root.story.ch.b7==='wipe'?.5:1);if(a.shield>0){a.shield--;out.push({k,n,shield:1});a.normDays=0;continue}
   if(out.filter(x=>!x.shield).length>=AD.purge.maxDays)continue;
   const dx=Math.round((G.dxp||0)*AD.purge.share*f*red),dm=Math.round(Math.max(0,G.money)*AD.purge.mShare*f*red),op=f>=.5&&a.ops.n>0?1:0;
-  G.dxp=Math.max(0,(G.dxp||0)-dx);G.money-=dm;if(op)a.ops.n--;const lostStreak=a.normDays;a.normDays=0;out.push({k,n,f,dx,dm,op,lostStreak})}
+  G.dxp=Math.max(0,(G.dxp||0)-dx);G.money-=dm;if(op){a.ops.n--;opLeft(a)}const lostStreak=a.normDays;a.normDays=0;out.push({k,n,f,dx,dm,op,lostStreak})}
  a.purge.chk=dayKey(now-864e5);if(out.length){a.purge.log.unshift(...out.map(x=>({...x,at:now})));a.purge.log=a.purge.log.slice(0,30)}return out}
 // Сравнения v3 (кусок 17): личные рекорды и «обычный ты», прямо после статуса, когда внимание свободно.
 // Рекорды (save.gh.rec): f20 — самые быстрые 20 наборов подряд (мс), b10 — лучшие 10 минут, b60 — лучший час, p100 — больше всего

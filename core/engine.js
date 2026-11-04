@@ -24,11 +24,11 @@ export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.
  else if(s.last!=null){
   if(gap>max||o.sinceEndedMs>max){s.step=s.ulta=0;s.streak=1;s.od=null;ev.pen='reset'}
   else if(s.ulta>0&&!(o.callStart!=null&&s.lastEnd!=null&&C.classes[s.lastCls].win&&o.callStart-s.lastEnd>afterCall(s.lastId)*MS)){s.ulta--;s.streak++;s.step=stepOf(s.streak)}
-  else if(s.ulta>0){s.ulta=0;s.step=Math.max(0,s.step-1);s.streak=steps[s.step];ev.pen='drop';ev.timing='zoom'} // после встречи >20 мин по Zoom: Ульта сгорает
+  else if(s.ulta>0){s.ulta=0;s.step=0;s.streak=1;ev.pen='drop';ev.timing='zoom'} // после встречи >20 мин по Zoom: Ульта сгорает
   else{const z=o.callStart!=null&&s.lastEnd!=null,g2=z?o.callStart-s.lastEnd:gap;ev.timing=z?'zoom':'status';
    const allowed=z&&C.classes[s.lastCls].win?afterCall(s.lastId)*MS:C.classes[s.lastCls].win?C.winMaxGapMin*60*MS:!cc.fast?max:z?(afterCall(s.lastId)+(o.mods&&o.mods.fast||0))*MS:(C.fastSec+(o.mods&&o.mods.fast||0)+(C.statusGapSec[s.lastId]!=null?C.statusGapSec[s.lastId]-C.fastSec:C.crmFrom.includes(s.lastCls)?C.crmSec:0))*MS;
    ev.gap=g2;ev.allowed=allowed;
-   if(g2<=allowed){s.streak++;s.step=stepOf(s.streak)}else{s.step=Math.max(0,s.step-1);s.streak=steps[s.step];ev.pen='drop'}}
+   if(g2<=allowed){s.streak++;s.step=stepOf(s.streak)}else{s.step=0;s.ulta=0;s.streak=1;ev.pen='drop'}}   // J4: окно кончилось — серия и множитель сгорают полностью
  }else{s.streak++;s.step=stepOf(s.streak)}
  if(ev.pen){s.odBase=Math.min(s.odBase,s.streak);s.odTalk=0}
  if(!ev.spam&&!ev.re&&!s.od&&hi)s.odTalk=(s.odTalk||0)+1;   // Q10а: «владелец на линии» внутри набора серии к Overdrive
@@ -55,8 +55,11 @@ export function undo(s,now,i=s.undo.length-1){const u=s.undo[i];if(!u)return fal
  if(u.od&&s.od&&!s.undo.slice(i+1).some(x=>x.od))s.od=null;
  s.undo.splice(i,1);return 'worth'}
 export function pause(s,now){if(s.paused==null)s.paused=now}
-export function resume(s,now){if(s.paused==null)return;const d=now-s.paused;s.paused=null;
- if(s.last!=null)s.last+=d;if(s.lastEnd!=null)s.lastEnd+=d;if(s.od)s.od.until+=d}
+export function resume(s,now){if(s.paused==null)return;const p=s.paused,d=Math.max(0,now-p);s.paused=null;
+ // J4: старая пауза (поставлена ДО последнего звонка) ничего не сдвигает — иначе «последний звонок» улетал в будущее и серия не сгорала (1416м)
+ if(p>=Math.max(s.last||0,s.lastEnd||0)){if(s.last!=null)s.last+=d;if(s.lastEnd!=null)s.lastEnd+=d}if(s.od)s.od.until+=d;heal(s,now)}
+// J4: время последнего звонка никогда не в будущем (лечит старые сохранения)
+export function heal(s,now){if(s.last!=null&&s.last>now)s.last=now;if(s.lastEnd!=null&&s.lastEnd>now)s.lastEnd=now;return s}
 // Бонус за время разговора (5.4): только TALK/CALLBACK/BOOKED/DISCOVERY, можно задним числом.
 export function talkBonus(s,entry,dur){if(!C.hi.includes(entry.cls)||!dur)return{x:0,m:0};
  const n=Math.min(C.talkBonus.cap,Math.floor(Math.max(0,dur-C.talkBonus.after)/C.talkBonus.per)),y=C.districts[(entry.d||s.district)-1][3];
@@ -73,4 +76,5 @@ const k=(s.ulta>0||(s.od&&now<s.od.until))?steps.length-1:s.step,next=steps[s.st
  if(s.last==null||!s.streak)return{...base,state:'idle',left:null};
  if(onLine)return{...base,state:'online',left:null};
  const z=zoom&&s.lastEnd!=null,from=z?s.lastEnd:s.last,allowed=z?afterCall(s.lastId):C.classes[s.lastCls].win?C.winMaxGapMin*60:C.fastSec+(C.statusGapSec[s.lastId]!=null?C.statusGapSec[s.lastId]-C.fastSec:C.crmFrom.includes(s.lastCls)?C.crmSec:0);
- const left=Math.min(allowed,Math.ceil((from+allowed*MS-now)/MS));return{...base,state:left>0?(left<=10?'hurry':'ok'):'lost',left:Math.max(0,left),allowed,mode:z?'zoom':'status'}}
+ const left=Math.min(allowed,Math.ceil((from+allowed*MS-now)/MS));if(left<=0)return{...base,streak:0,step:0,mult:C.heat.money[0],toNext:steps[1]!=null?steps[1]:null,nextMult:C.heat.money[1]??null,ulta:0,state:'lost',left:0,allowed,mode:z?'zoom':'status'};   // J4: сгорело — на экране сразу 0 и x1
+ return{...base,state:left>0?(left<=10?'hurry':'ok'):'lost',left:Math.max(0,left),allowed,mode:z?'zoom':'status'}}

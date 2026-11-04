@@ -3,7 +3,7 @@
 // ПОЛНЫЙ UNDO (ТЗ rework §15): вместе с ресурсами откатываются открытые ачивки, выполненные задания
 // (и деньги за них), запись recent, максимумы дня, запечатанный трофей. Для этого перед каждым статусом
 // снимается «боковой снимок» (side) только для ПОСЛЕДНЕЙ записи undo (старые не хранят его: сохранение не пухнет).
-import {newState,undo as gUndo,pause as gPause,resume as gResume} from './engine.js';
+import {newState,undo as gUndo,pause as gPause,resume as gResume,heal as gHeal} from './engine.js';
 import {statusFlow,lateLog,winCheck} from './flow.js';
 import {record,unrecord,dominance,rankOf,levelOf,dayKey} from './stats.js';
 import {evaluate} from './achv.js';
@@ -32,7 +32,7 @@ export const makeCombo=(zp,mp)=>({takeCall(now){const z=zp.takeCall(now),m=mp.ta
 
 export class Session{
   constructor({root,bus,prov,now=Date.now,gate=null}){this.root=root;this.bus=bus;this.prov=prov;this.now=now;this.gate=gate;
-    const g=root.game;this.G=g&&Array.isArray(g.undo)?g:newState(now());root.game=this.G;
+    const g=root.game;this.G=g&&Array.isArray(g.undo)?g:newState(now());root.game=this.G;gHeal(this.G,now());
     root.meta=Object.assign({owned:{},bossIntro:{},staggered:{},captured:{}},root.meta||{});cleanTrophies(root,this.G);keysInit(root,this.G)}
   emit(t,d){this.bus&&this.bus.emit(t,d)}
   // lead: {key, phone, business, state}; had: текущий статус лида (смена статуса = «re»)
@@ -62,13 +62,13 @@ export class Session{
     if(!r.ev.spam)this.after(r,u,lead,out,now);
     this.emit('status',r.ev);return out}
   after(r,u,lead,out,now){const root=this.root,G=this.G,ev=r.ev,sinceBefore=(root.life||{}).since||0;
-    const d=record(root,{...ev},u.rt||now,G.streak);if(!d)return;u.rec=1;
+    const d=record(root,{...ev,sid:u.id},u.rt||now,G.streak);if(!d)return;u.rec=1;
     const sc=STATUS[u.id]&&STATUS[u.id].cls;   // трофей ТОЛЬКО за CALL BOOKED / CONDUCTED DISCOVERY CALL: и класс события, и сам статус кнопки
     if((ev.cls==='BOOKED'||ev.cls==='DISCOVERY')&&sc===ev.cls){const t={st:STATUS[u.id].name,id:'t'+now,kind:ev.cls==='BOOKED'?'gold':'platinum',company:lead.business||'?',state:lead.state||'',t:now,lead:lead.key,sealed:0,
       verified:r.meta.verified||u.verified||null,mode:r.meta.mode};(root.trophies||(root.trophies=[])).push(t);out.trophy=t}
     // Addiction: Сигнал, лут, гарант, цели дня, перк, рейд, призрак. Деньги, которые addict двинул (разгон, джекпот, рейд), — в u.adM для undo.
     const m0=G.money;out.ad=adAfter(root,G,ev,now,{state:lead.state,dayN:d.n,lead:lead.key});u.adM=G.money-m0;u.adSig=out.ad.sig||0;if(out.ad.raidM)u.raidM=out.ad.raidM;
-    out.ghost=ghostRec(root,now,ev&&ev.cls);out.key=keyTrack(root,G,ev,d.n);if(!ev||!ev.spam)allyTrack(root,G,ev);
+    out.ghost=ghostRec(root,now,ev&&ev.cls,u.id);out.key=keyTrack(root,G,ev,d.n);if(!ev||!ev.spam)allyTrack(root,G,ev);
     const dm=dominance(root,now),rk=rankOf(dm.pts),lv=levelOf(G.lifeXp);if(dm.idle)root.wasNobody=1;
     if(root.rank!=null&&rk>root.rank)out.rankUp=rk;if(root.lvl!=null&&lv>root.lvl)out.levelUp=lv;
     out.achv=evaluate({root,G,ev,now,d,L:root.life,rank:rk,meta:root.meta,lvl:lv,sinceBefore});

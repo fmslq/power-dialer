@@ -10,7 +10,7 @@ import {itemHH} from './buffs.js';
 import {colEnsure,capOf,opsBonus,opLeft,build as colBuild} from './collector.js';
 export const AD={
  norm:100,                                                         // дневная норма наборов (B4); пользователь может поменять позже
- hh:[{from:480,to:570,k:2,name:'Утренний час'},{from:1110,to:1200,k:1.5,name:'Вечерний час'}], // B2: местное время лида 8:00–9:30 ×2, 18:30–20:00 ×1.5
+ hh:[{from:450,to:510,k:2,name:'Утренний пик'},{from:510,to:600,k:1.5,name:'Утро'},{from:930,to:1050,k:1.5,name:'Вечер'}], // J14: местное время лида 7:30–8:30 ×2, 8:30–10:00 ×1.5, 15:30–17:30 ×1.5; других окон нет
  sig:{TRASH:1,GATEKEEPER:2,MINOR:1,TALK:3,CALLBACK:4,BOOKED:25,DISCOVERY:40},  // Сигнал за статус. Отказы (TALK) дают больше мусора: «шрамы» (D5)
  roul:{base:.05,perFail:.0006,hh:1.5,cap:.18,from:['TRASH','GATEKEEPER','MINOR'],ms:3600}, // B1: шанс рулетки на мусорном статусе
  w:{c:56,u:26,r:12,e:5,l:1},wChest:{e:80,l:20},                    // веса редкостей; сундук гаранта = эпик+
@@ -27,7 +27,7 @@ export const TIER={c:['Хлам','#9aa3ad'],u:['Годное','#39d98a'],r:['Р�
 // мгновенные: jack (доля дневных $ района), sigNow, freeze (+заряд), shield (щит от Ночной чистки). calls — на сколько статусов.
 // relic — навсегда (легендарные реликвии).
 export const LOOT=[
- {id:'clip',n:'Медная скрепка',r:'c',jack:.03,t:'Немного минут связи сразу'},
+ {id:'clip',n:'Медная скрепка',r:'c',jack:.03,t:'Немного денег сразу'},
  {id:'fuse',n:'Горсть предохранителей',r:'c',sigNow:15,t:'+15 Сигнала сразу'},
  {id:'tape',n:'Изолента',r:'c',xAll:5,calls:15,t:'+5% XP на 15 звонков'},
  {id:'batt',n:'Батарейка «Крона»',r:'c',mAll:5,calls:15,t:'+5% $ на 15 звонков'},
@@ -47,12 +47,12 @@ export const LOOT=[
  {id:'frost',n:'Иней с антенны',r:'r',sigNow:90,t:'+90 Сигнала сразу'},
  {id:'shield',n:'Ключ от щитовой',r:'e',shield:1,t:'Щит: одна Ночная чистка пройдёт мимо'},
  {id:'heart',n:'Сердце глушилки',r:'e',xAll:35,calls:60,t:'+35% XP на 60 звонков'},
- {id:'safe',n:'Сейф-ячейка',r:'e',mAll:35,calls:60,jack:.15,t:'+35% $ на 60 звонков и минуты сразу'},
+ {id:'safe',n:'Сейф-ячейка',r:'e',mAll:35,calls:60,jack:.15,t:'+35% $ на 60 звонков и деньги сразу'},
  {id:'flare',n:'Сигнальная ракета',r:'e',sigNow:150,t:'+150 Сигнала сразу'},
  {id:'phone1',n:'Первая трубка города',r:'l',relic:{xAll:2},t:'Реликвия: +2% XP навсегда'},
  {id:'medal',n:'Медаль Станции',r:'l',relic:{mAll:2},t:'Реликвия: +2% $ навсегда'},
  {id:'shard',n:'Осколок Тишины',r:'l',relic:{fast:5},t:'Реликвия: +5 с к окну серии навсегда'},
- {id:'disc',n:'Позолоченный диск',r:'l',jack:.5,sigNow:300,t:'Минуты связи (полсмены) и +300 Сигнала'},
+ {id:'disc',n:'Позолоченный диск',r:'l',jack:.5,sigNow:300,t:'Деньги за полсмены сразу и +300 Сигнала'},
  {id:'watch',n:'Часы Председателя',r:'l',relic:{odSec:60},t:'Реликвия: Overdrive +60 с навсегда'},
  // кусок 19 (документ Addiction): уникальный лут только в счастливые часы — «вещи, которые любят рассвет»
  {id:'dawn',n:'Рассветная катушка',r:'u',hh:1,xAll:15,mAll:15,calls:25,t:'Только в счастливый час: +15% XP и $ на 25 звонков'},
@@ -63,12 +63,12 @@ export const dk=dayKey;
 export const lootById=id=>LOOT.find(x=>x.id===id);
 // Дерево «Коммутатор» — пульт «Заря-12» из-под брезента в гараже (библия §12, §13) (B3 мид-цель, C4 экспонента): 6 веток × 6 уровней, цена 60 × 2.2^уровень Сигнала.
 export const TREE=[
- {id:'res',n:'Резонанс',t:'+4 с к окну серии за уровень',fx:l=>({fast:4*l})},
- {id:'gold',n:'Добыча',t:'+3% $ за уровень',fx:l=>({mAll:3*l})},
- {id:'xp',n:'Опыт',t:'+3% XP за уровень',fx:l=>({xAll:3*l})},
- {id:'luck',n:'Удача',t:'Шум +1% за уровень, гарант на 3 неудачи раньше',fx:l=>({luck:.01*l,pity:3*l})},
- {id:'grit',n:'Стойкость',t:'Ночная чистка забирает на 8% меньше за уровень',fx:l=>({purge:.08*l})},
- {id:'look',n:'Вид',t:'Новая тема оформления на каждом уровне',fx:l=>({themes:l})}];
+ {id:'res',n:'Резонанс',t:'Больше времени между звонками, чтобы серия не сгорела: +4 секунды за уровень',fx:l=>({fast:4*l})},
+ {id:'gold',n:'Добыча',t:'Больше денег за каждый статус: +3% за уровень',fx:l=>({mAll:3*l})},
+ {id:'xp',n:'Опыт',t:'Больше опыта за каждый статус: +3% за уровень',fx:l=>({xAll:3*l})},
+ {id:'luck',n:'Удача',t:'Находки в Шуме чаще, а гарантированная находка — раньше',fx:l=>({luck:.01*l,pity:3*l})},
+ {id:'grit',n:'Стойкость',t:'Ночная чистка забирает меньше: −8% за уровень',fx:l=>({purge:.08*l})},
+ {id:'look',n:'Вид',t:'Каждый уровень открывает новую тему оформления',fx:l=>({themes:l})}];
 export const THEMES=[['base','Зелёная линия','#39ff14'],['neon','Неон','#ff2bd6'],['gold','Золото','#ffc400'],['ice','Лёд','#3ad7ff'],['rust','Ржавчина','#ff7a2b'],['holo','Голограмма','#b98bff'],['red','Красная тревога','#ff3b4e']];
 // память пульта: чем больше линий включено, тем больше Гудок вспоминает (красная нить, библия §13)
 export const MEM=[[1,'Гнездо загорелось. Я знаю, как этот пульт работает. Я не должен этого знать.'],
@@ -226,12 +226,14 @@ export function nightly(root,G,now){const a=ensure(root),today=dayKey(now),days=
 // питчей (TALK…DISCOVERY) на последние 100 наборов, ft — меньше всего наборов до первого питча дня, day — рекорд наборов за день.
 // Порядок показа: побит рекорд (золото, звук) → питч/встреча (как идёшь против обычного) → «идёшь на рекорд» → темп против обычного дня.
 const TALKC=['TALK','CALLBACK','BOOKED','DISCOVERY'],MEETC=['BOOKED','DISCOVERY'];
+// J1: питч — только «Owner pitched & Hang Up», CALL BOOKED, CONDUCTED DISCOVERY CALL (Owner hung up в начале — не питч)
+export const PITCH_IDS=[3,4,14];export const isPitch=(id,cls)=>id!=null?PITCH_IDS.includes(id):TALKC.includes(cls);
 const slotOf=now=>Math.floor((now-new Date(new Date(now).toDateString()).getTime())/6e5);
 export const mmssR=ms=>{const t=Math.round(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
 const REC_N={p20:'Питчей за 20 минут',f20:'Быстрые 20 наборов',b10:'Лучшие 10 минут',b60:'Лучший час',p100:'Питчей на 100 наборов',ft:'Первый питч дня',day:'Наборов за день'};
-export function ghostRec(root,now,cls){const g=root.gh||(root.gh={k:'',t:[],bestH:0,days:{}}),k=dayKey(now);g.rec=g.rec||{};
+export function ghostRec(root,now,cls,sid=null){const g=root.gh||(root.gh={k:'',t:[],bestH:0,days:{}}),k=dayKey(now);g.rec=g.rec||{};
  if(g.k!==k){g.k=k;g.t=[];g.pt=[];g.ms=[];g.tl=0;g.mt=0;g.ft=0;g.rec0={...g.rec};g.shown={}}
- g.rec0=g.rec0||{...g.rec};g.shown=g.shown||{};g.tk=g.tk||{};g.t.push(now);g.pt=g.pt||[];const isT=TALKC.includes(cls);if(isT){g.pt.push(now);g.tl=(g.tl||0)+1;if(!g.ft)g.ft=g.t.length}if(MEETC.includes(cls))g.mt=(g.mt||0)+1;
+ g.rec0=g.rec0||{...g.rec};g.shown=g.shown||{};g.tk=g.tk||{};g.t.push(now);g.pt=g.pt||[];const isT=isPitch(sid,cls);if(isT){g.pt.push(now);g.tl=(g.tl||0)+1;if(!g.ft)g.ft=g.t.length}if(MEETC.includes(cls))g.mt=(g.mt||0)+1;
  g.r100=((g.r100||'')+(isT?'1':'0')).slice(-100);
  const T=g.t,n=T.length,h=T.filter(x=>x>now-36e5).length,m10=T.filter(x=>x>now-6e5).length,f20=n>=20?now-T[n-20]:null,p100=g.r100.length>=100?[...g.r100].filter(c=>c==='1').length:null,p20=g.pt.filter(x=>x>now-12e5).length;
  g.bestH=Math.max(g.bestH||0,h);
@@ -244,7 +246,7 @@ export function ghostRec(root,now,cls){const g=root.gh||(root.gh={k:'',t:[],best
   const r0=g.rec0[id];if(r0!=null&&better[id](v,r0)&&(id==='f20'||id==='ft'||v>=min[id])&&(!g.shown[id]||now-g.shown[id]>6e5)){g.shown[id]=now;
    const fm=x=>id==='f20'?mmssR(x):x;ms.push({k:'win',id,t:`РЕКОРД · ${REC_N[id]}: ${fm(v)}${id==='ft'?' набора':''} (был ${fm(r0)})`});g.rec0[id]=v}}
  const wc=weekCheck(root,now);if(wc)ms.push(wc);
- return{h,m10,f20,p100,p20,slot,n,cls,ms}}
+ return{h,m10,f20,p100,p20,slot,n,cls,ms,pitch:isT}}
 const cumAt=(day,slot)=>{let v=0;for(const s in day)if(+s<=slot)v=Math.max(v,day[s]);return v};
 const sg=v=>(v>0?'+':v<0?'−':'±')+Math.abs(v);
 // «обычный ты»: среднее по последним 5 дням с наборами к этому же времени
@@ -254,7 +256,7 @@ export function ghostLine(root,now,i=0,rec=null){const g=root.gh;if(!g||!g.t.len
  const cls=rec&&rec.cls,m10=rec?rec.m10:g.t.filter(x=>x>now-6e5).length,h=rec?rec.h:g.t.filter(x=>x>now-36e5).length;
  if(cls&&MEETC.includes(cls))return{k:'up',t:`Встреча №${g.mt} сегодня · на ${n} наборов`};
  // питч (кусок 18): только хорошие новости — обогнал, сравнялся, почти сравнялся. Если до рекорда далеко — просто счёт за 20 минут.
- if(cls&&TALKC.includes(cls)){const p=rec&&rec.p100,p20=rec&&rec.p20!=null?rec.p20:(g.pt||[]).filter(x=>x>now-12e5).length;
+ if(cls&&(rec&&rec.pitch!=null?rec.pitch:TALKC.includes(cls))){const p=rec&&rec.p100,p20=rec&&rec.p20!=null?rec.p20:(g.pt||[]).filter(x=>x>now-12e5).length;
   if(p!=null&&R.p100){if(p>R.p100)return{k:'up',t:`Питч №${g.tl} · на последние 100 наборов ${p} питчей — больше рекорда ${R.p100}`};
    if(p===R.p100)return{k:'up',t:`Питч №${g.tl} · на 100 наборов ${p} питчей — вровень с рекордом`};
    if(p>=R.p100-2)return{k:'near',t:`Питч №${g.tl} · на 100 наборов ${p} — до рекорда ${R.p100} ещё ${R.p100-p+(p<R.p100?0:1)}`}}

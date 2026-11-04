@@ -71,7 +71,7 @@ export function districtLayers(d){const i=d-1,t=TINT[i],up=d>=9;
   wrap(`<radialGradient id="lg${d}"><stop offset="0" stop-color="${t[3]}" stop-opacity=".22"/><stop offset="1" stop-color="${t[3]}" stop-opacity="0"/></radialGradient><ellipse cx="1040" cy="600" rx="620" ry="360" fill="url(#lg${d})"/>`+rim(LMK[i](t),t[2]),'z3'),wrap(fore(d,t)+rain(d*5,d===12?0:110),'z4')]}
 // город целиком: от свалки слева внизу до башни справа
 export function cityLayers(wake=false){const t=['#06080a','#1a1a24','#ffc400','#ff1f3d','#24222c'];
- const tower=`<path d="M1360 760V120h56v640z" fill="#08080a"/><rect x="1352" y="104" width="72" height="26" fill="${wake?'#ffc400':'#ffffff'}" opacity="${wake?.9:.5}"/><circle cx="1388" cy="86" r="8" fill="#ff1f3d" class="sc-blink"/>`;
+ const tower=`<path d="M1360 760V400h56v360z" fill="#08080a"/><rect x="1352" y="384" width="72" height="26" fill="${wake?'#ffc400':'#ffffff'}" opacity="${wake?.9:.5}"/><path d="M1388 384V342" stroke="#08080a" stroke-width="6"/><radialGradient id="bcn"><stop offset="0" stop-color="#ff1f3d" stop-opacity=".75"/><stop offset="1" stop-color="#ff1f3d" stop-opacity="0"/></radialGradient><g class="sc-beacon"><circle cx="1388" cy="334" r="70" fill="url(#bcn)"/><circle cx="1388" cy="334" r="13" fill="#ff3b52"/></g>`;
  return[wrap(sky(t,'c'),'z0'),wrap(row(5,{base:780,h0:60,h1:300,col:'#141620',win:'#ffc400',lit:wake?.5:.02})+tower,'z1'),
   wrap(row(9,{base:840,h0:40,h1:200,w0:60,w1:120,col:'#07080a',win:'#ffc400',lit:wake?.6:.04})+ground(t,840),'z2'),wrap(rain(3,140,.16),'z4')]}
 // гараж Звонаря: интерьер (эталон стиля E1)

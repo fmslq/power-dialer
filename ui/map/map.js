@@ -7,6 +7,8 @@ import {DIST,SHOP_ITEMS} from '../../core/meta.js';
 import {CONFIG as C,districtThr} from '../../core/config.js';
 import {bossState} from '../../core/engine.js';
 import {icon} from '../../art/icons.js';
+import {bossSvg} from '../../art/bosses.js';
+import {laterOn} from '../../core/bosslater.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>Math.round(v||0).toLocaleString('ru');
 const RM=matchMedia('(prefers-reduced-motion: reduce)');
@@ -33,7 +35,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
  // ---------- сборка ----------
  const marker=d=>{const i=d-1,s=ms.state(d),[x,y,R]=NODES[i],lk=s==='locked',name=lk?'???':DIST[i][0];
   return`<button class="wm-m st-${s} ${d===ms.cur+1?'next':''}" data-d="${d}" style="left:${x}px;top:${y-R*.62-8}px" aria-label="${esc(lk?'Район '+d+' в тумане':name)}">
-   ${crest(i,s)}<b>${esc(name)}</b>${lk?'':`<em>${ms.pct(d)}%</em>`}</button>`};
+   ${crest(i,s)}<b>${esc(name)}</b>${lk?'':`<em>${ms.pct(d)}%</em>`}${d===ms.cur&&bossState(o.G())!=='scenery'?`<span class="wm-boss${laterOn(o.G())?' wait':''}" title="${esc(DIST[i][3])}${laterOn(o.G())?' ждёт боя':' в бою'}">${bossSvg(d,{phase:0})}</span>`:''}</button>`};
  const riddle=()=>{const d=ms.cur+1;if(d>12)return'';const [x,y,R]=NODES[d-1];return`<div class="wm-rd" style="left:${x}px;top:${y+R*.35}px"><i>${esc(RIDDLES[d-1])}</i></div>`};
  const embers=()=>{const r=rng(5);let s='';for(let d=ms.cur+1;d<=12;d++){const [x,y,R]=NODES[d-1];for(let k=0;k<3;k++)s+=`<i class="wm-e" style="left:${Math.round(x+(r()-.5)*R*1.6)}px;top:${Math.round(y+(r()-.5)*R)}px;--dl:${(r()*6).toFixed(1)}s;--du:${(4+r()*4).toFixed(1)}s"></i>`}return s};
  const doneD=()=>{let d='';for(let k=1;k<ms.cur;k++)d+=segD(k,k+1);return d};
@@ -166,13 +168,13 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
    <button class="wm-go ${lk?'off':''}" id="wm-go" ${lk||busy?'disabled':''}>${lk?`${icon('lock')}В тумане — захвати район ${ms.cur}`:here?`${icon('map')}Ты здесь · Enter — ближе`:`${icon('map')}Идти сюда<kbd>Enter</kbd>`}</button>`};
  const goalHtml=()=>{const G=o.G(),d=ms.cur,D=DIST[d-1],thr=districtThr(d),b=bossState(G),left=Math.max(0,thr-G.dxp);
   return`<small>${b==='scenery'?'ТЕКУЩАЯ ЦЕЛЬ':b==='boss'?'ФАЗА БОССА':'ФИНАЛЬНЫЙ УДАР'}</small><b>${b==='scenery'?`Захвати ${esc(D[0])}`:b==='boss'?`${esc(D[3])} вышел из тени`:`Добей ${esc(D[3])}`}</b>
-   <span>${b==='finish'?'Нужен BOOKED или DISCOVERY':`осталось ${num(left)} XP`}</span>${ms.reveal.length?`<em>Новый район открыт!</em>`:''}`};
+   <span>${b==='finish'?'Нужен BOOKED или DISCOVERY':`осталось ${num(left)} XP`}</span>${ms.reveal.length?`<em>Новый район открыт!</em>`:''}${laterOn(G)&&o.onFight?`<button class="wm-fight" id="wm-fight">Босс ждёт — начать бой</button>`:''}`};
  const listHtml=()=>NODES.map((_,i)=>{const d=i+1,s=ms.state(d),lk=s==='locked';return`<button class="wm-li st-${s} ${d===sel?'on':''}" data-d="${d}">${crest(i,s)}<b>${d}. ${esc(lk?'???':DIST[i][0])}</b><span>${lk?ST[s]:ms.pct(d)+'%'}</span></button>`}).join('');
  const refresh=()=>{if(!el)return;S();const inf=o.info();$('#wm-tot').textContent=`КОНГЛОМЕРАТ · район ${ms.cur} из 12 · вся карта ${total()}%`;
   $('#wm-stats').innerHTML=`<span><small>Уровень</small><b>${esc(inf.lvl)}</b></span><span><small>XP</small><b>${num(inf.xp)}</b></span><span><small>Деньги</small><b class="m">${esc(inf.money)}</b></span>`;
   $('#wm-goal').innerHTML=goalHtml();card.innerHTML=cardHtml(sel);$('#wm-list').innerHTML=listHtml();placeRing();
   el.querySelectorAll('.wm-m').forEach(m=>m.classList.toggle('on',+m.dataset.d===sel));el.querySelectorAll('[data-th]').forEach(b=>b.classList.toggle('on',b.dataset.th===ms.theme));
-  const g=$('#wm-go');if(g)g.onclick=()=>go(sel)};
+  const g=$('#wm-go');if(g)g.onclick=()=>go(sel);const fb=$('#wm-fight');if(fb)fb.onclick=()=>o.onFight()};
  const select=(d,fly)=>{d=Math.max(1,Math.min(Math.min(12,ms.cur+1),d));sel=d;refresh();if(fly)focus(d,Math.max(1,lvl()))};
  const go=d=>{if(busy)return;const s=ms.state(d);if(s==='locked'){card.classList.remove('no');void card.offsetWidth;card.classList.add('no');return}
   const p=root.map.pos;if(d===p)return focus(d,Math.min(2,lvl()+1));if(lvl()===0)focus(p,1,420);walk(p,d,()=>{sel=d;refresh()})};

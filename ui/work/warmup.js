@@ -1,25 +1,44 @@
-// РАЗГОН v2 (кусок 18, просьба пользователя): при входе, когда список загружен и за день 0 наборов, — большой «входящий вызов».
-// Принять → первые 5 наборов ×3 XP и $ (кроме CALL BOOKED и DISCOVERY), после 5-го — «Разгон пройден» с бонусом.
-// Отклонить → до завтра. Один раз в день; тестировщику — при каждой загрузке страницы.
-// Сюжет (story/systems.js, sys-warm): на «Заре» ночная смена начиналась с пяти пробных соединений — «прогреть пульт».
+// РАЗГОН v3 (кусок 20, просьба пользователя). Входящий вызов, когда список загружен и за день 0 наборов.
+// • На принятие — 10 минут: в окне идёт обратный отсчёт 10:00 → 0:00, потом вызов пропущен.
+// • Принял → ×3 XP и $ (кроме CALL BOOKED и DISCOVERY), пока идут ОБА условия: не прошло 10 минут И не сделано 5 наборов.
+//   Что наступит раньше — то и конец. За 2 минуты до конца — предупреждение; в конце — карточка «Разгон закончился / пройден».
+// • Игра открыта до 10:00, утром вызов не принят и звонков нет → с 13:59 линия звонит ещё раз (при возврате на вкладку).
+// • Тестировщику — при каждой загрузке. Сюжет: story/systems.js, sys-warm («пять пробных соединений»).
 import * as A from '../../core/addict.js';
 const PH='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg>';
-export function makeWarm({save,persist,sfx=()=>{},toast=()=>{},tester=false,now=Date.now,dayN=()=>0,ready=()=>false,busy=()=>false,onAnswer=()=>{}}){
- let shown=false,el=null,ring=0;
- const close=()=>{if(!el)return;clearInterval(ring);removeEventListener('keydown',kd,true);el.classList.add('out');const e=el;el=null;setTimeout(()=>e.remove(),260)};
- const answer=yes=>{if(!el)return;A.warmAnswer(save,now(),yes);persist();close();
-  if(yes){sfx('levelup');toast(`РАЗГОН принят: первые ${A.AD.warm.n} звонков ×${A.AD.warm.k} XP и $`,'gold')}else toast('Вызов отклонён. Завтра линия позвонит снова');onAnswer(yes)};
+const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+export function makeWarm({save,persist,sfx=()=>{},toast=()=>{},tester=false,now=Date.now,dayN=()=>0,ready=()=>false,busy=()=>false,onAnswer=()=>{},onEnd=()=>{}}){
+ const W=A.AD.warm,loadedAt=now();
+ let el=null,ring=0,tick=0,until=0,testerShown=false,warned=false,endEl=null;
+ const close=()=>{if(!el)return;clearInterval(ring);clearInterval(tick);removeEventListener('keydown',kd,true);el.classList.add('out');const e=el;el=null;setTimeout(()=>e.remove(),260)};
+ const answer=(yes,miss=false)=>{if(!el)return;A.warmAnswer(save,now(),yes,dayN(),miss);persist();close();warned=false;
+  if(yes){sfx('levelup');toast(`РАЗГОН принят: ×${W.k} XP и $ — ${W.n} звонков или ${W.min} минут, что раньше`,'gold')}
+  else if(miss){const again=A.warmOffer(save,new Date(new Date(now()).setHours(W.late[0],W.late[1],0,0)).getTime(),0,false,loadedAt);toast(again?'Вызов пропущен. Линия позвонит ещё раз после 14:00, если до тех пор не начнёшь':'Вызов пропущен. Завтра линия позвонит снова')}
+  else toast('Вызов отклонён. Завтра линия позвонит снова');onAnswer(yes)};
  const kd=e=>{if(!el)return;e.stopPropagation();if(e.code==='Enter'||e.code==='Space'||e.code==='KeyY'){e.preventDefault();answer(true)}else if(e.code==='Escape'){e.preventDefault();answer(false)}};
- const open=()=>{if(el)return;shown=true;el=document.createElement('div');el.className='wu-wrap';
+ const open=()=>{if(el)return;until=now()+W.ask*60000;el=document.createElement('div');el.className='wu-wrap';
   el.innerHTML=`<div class="wu" role="alertdialog" aria-label="Входящий вызов: начнём разогрев?">
    <div class="wu-ph"><i></i><i></i><i></i><b>${PH}</b></div>
    <em class="wu-k">ВХОДЯЩИЙ ВЫЗОВ</em><div class="wu-from">ГУДОК · линия разогрева</div>
    <h3>Начнём разогрев?</h3>
    <p class="wu-l">«Линия за ночь остыла. Пять быстрых наборов — и она запоёт. Возьмёшь?»</p>
-   <div class="wu-x"><b>×${A.AD.warm.k}</b><span>XP и $ за первые ${A.AD.warm.n} звонков<small>на все статусы, кроме CALL BOOKED и DISCOVERY · после пятого ещё бонус «Разгон пройден»</small></span></div>
+   <div class="wu-x"><b>×${W.k}</b><span>XP и $ за первые ${W.n} звонков<small>действует ${W.min} минут или ${W.n} звонков — что наступит раньше · на все статусы, кроме CALL BOOKED и DISCOVERY · успеешь все ${W.n} — ещё бонус «Разгон пройден»</small></span></div>
    <div class="wu-b"><button class="no" data-no>${PH}<span>Отклонить</span><kbd>Esc</kbd></button><button class="yes" data-yes>${PH}<span>Принять</span><kbd>Enter</kbd></button></div>
-   <p class="wu-f">Сегодня только одна возможность</p></div>`;
+   <div class="wu-cd" aria-live="off"><span>Вызов сбросится через</span><b id="wu-cd">${mmss(W.ask*60000)}</b><i><em id="wu-cdb"></em></i></div></div>`;
   el.querySelector('[data-yes]').onclick=()=>answer(true);el.querySelector('[data-no]').onclick=()=>answer(false);
-  document.body.appendChild(el);addEventListener('keydown',kd,true);sfx('chime');let n=0;ring=setInterval(()=>{if(++n>5){clearInterval(ring);return}sfx('chime')},2200)};
- const check=()=>{if(shown||el||!ready()||busy())return;if(A.warmOffer(save,now(),dayN(),tester))open();else shown=true};
- return{check,open,close,isOpen:()=>!!el}}
+  document.body.appendChild(el);addEventListener('keydown',kd,true);sfx('chime');let n=0;ring=setInterval(()=>{if(++n>5){clearInterval(ring);return}sfx('chime')},2200);
+  const cd=()=>{if(!el)return;const l=until-now();const b=el.querySelector('#wu-cd'),bar=el.querySelector('#wu-cdb');if(b)b.textContent=mmss(l);if(bar)bar.style.width=(100*l/(W.ask*60000)).toFixed(2)+'%';
+   el.querySelector('.wu-cd').classList.toggle('hurry',l<60000);if(l<=0)answer(false,true)};cd();tick=setInterval(cd,1000)};
+ // карточка в конце разгона (не мешает работать: снизу по центру, сама уходит через 7 с)
+ const endCard=(ok,n,extra='')=>{if(endEl)endEl.remove();endEl=document.createElement('div');endEl.className='wu-end '+(ok?'ok':'over');
+  endEl.innerHTML=`<em>${ok?'РАЗГОН ПРОЙДЕН':'РАЗГОН ЗАКОНЧИЛСЯ'}</em><b>${ok?`${W.n} из ${W.n} за ${W.min} минут`:`Время вышло · ${n} из ${W.n}`}</b><span>${ok?extra||'Линия прогрелась. Дальше — обычный темп.':`Бонус ×${W.k} больше не действует. Завтра — новая попытка.`}</span>`;
+  document.body.appendChild(endEl);endEl.onclick=()=>endEl&&endEl.remove();const e=endEl;setTimeout(()=>{e.classList.add('out');setTimeout(()=>e.remove(),400)},7000)};
+ // раз в секунду: таймер активного разгона, предупреждение, конец по времени
+ const live=()=>{const t=now(),st=A.warmState(save,t,dayN());if(!st||!st.on){if(st&&!st.done){const r=A.warmTick(save,t,dayN());if(r){persist();sfx('fail');endCard(false,r.n);onEnd(false)}}return}
+  if(!warned&&st.left<=120000){warned=true;sfx('tick');toast(`РАЗГОН: осталось ${mmss(st.left)} и ${W.n-st.n} звонк${W.n-st.n===1?'а':'ов'} до бонуса`,'gold')}};
+ setInterval(live,1000);
+ const done=o=>{endCard(true,W.n,`+${o.moneyTxt} и +${o.sig} Сигнала. Линия прогрелась.`);onEnd(true)};
+ const check=()=>{if(el||!ready()||busy()||(typeof document!=='undefined'&&document.visibilityState==='hidden'))return;
+  if(tester&&!testerShown){testerShown=true;open();return}if(A.warmOffer(save,now(),dayN(),false,loadedAt))open()};
+ if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>setTimeout(check,600));
+ return{check,open,close,done,isOpen:()=>!!el,state:()=>A.warmState(save,now(),dayN())}}

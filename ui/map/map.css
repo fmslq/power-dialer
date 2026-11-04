@@ -163,3 +163,10 @@
 #wm-paths path.wm-trail,.wm-trail{visibility:visible;fill:none;stroke:var(--tc)!important;stroke-width:8!important;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px var(--tc)) drop-shadow(0 0 14px var(--tc));opacity:.95;transition:opacity 1.6s ease-out;pointer-events:none}
 #wm-paths path.wm-trail.gone{opacity:0}
 .wm-tr{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+/* I6 (кусок 20): босс стоит у района на карте; «ждёт» — если бой отложен */
+.wm-m{position:absolute}.wm-boss{position:absolute;left:calc(100% + 2px);top:-18px;width:54px;height:60px;filter:drop-shadow(0 0 8px rgba(255,31,61,.55));animation:wmBoss 2.4s ease-in-out infinite;pointer-events:none}
+.wm-boss .bs{width:100%;height:100%;overflow:visible}.wm-boss.wait{filter:drop-shadow(0 0 10px rgba(255,31,61,.9));animation-duration:1.2s}
+@keyframes wmBoss{50%{transform:translateY(-4px)}}
+.wm-fight{display:block;margin-top:8px;border:0;cursor:pointer;padding:8px 12px;border-radius:7px;font:700 12.5px var(--ct-text);text-transform:uppercase;letter-spacing:.06em;color:#fff;background:linear-gradient(180deg,#ff3b55,#b3122a);box-shadow:0 0 16px rgba(255,31,61,.45)}
+.wm-fight:hover{filter:brightness(1.15)}
+@media (prefers-reduced-motion:reduce){.wm-boss{animation:none}}

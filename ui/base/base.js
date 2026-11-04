@@ -84,14 +84,19 @@ export function makeBase(o){
   clearTimeout(lomT);if(mood!=='welcome')lomT=setTimeout(()=>bm&&(bm.querySelector('#bm-lom').innerHTML=lomSvg('welcome')),2600)};
  const tabs=()=>{const d=G().district||1;return Array.from({length:12},(_,i)=>{const n=i+1,lk=n>d,all=SHOP_ITEMS.filter(x=>x.district===n),k=all.filter(x=>owned(x.id)).length;
   return`<button class="bm-tab${tab===n?' on':''}${lk?' lk':''}" data-tab="${n}" title="${esc(DIST[i][0])}"><b>${n}</b><span>${lk?'🔒':k+'/3'}</span></button>`}).join('')+
-  `<button class="bm-tab cos${tab==='cos'?' on':''}" data-tab="cos"><b>КОСМ</b><span>${COSMETICS.filter(x=>owned(x.id)).length}/${COSMETICS.length}</span></button>`};
- const list=()=>tab==='cos'?COSMETICS:SHOP_ITEMS.filter(x=>x.district===tab);
- const grid=()=>{const L=list(),lk=tab!=='cos'&&tab>(G().district||1);
+  `<button class="bm-tab cos${tab==='cos'?' on':''}" data-tab="cos"><b>КОСМ</b><span>${COSMETICS.filter(x=>owned(x.id)).length}/${COSMETICS.length}</span></button>`+
+  (o.dev&&o.dev.on()?(()=>{const S=o.dev.stock();return`<button class="bm-tab dev${tab==='dev'?' on':''}${S.open?' hot':''}" data-tab="dev" title="Девайсы для Слышащих (D)"><b>ДЕВ</b><span>${S.open?S.items.filter(x=>!x.sold).length+' шт':'🔒'}</span></button>`})():'')};
+ const list=()=>tab==='cos'?COSMETICS:tab==='dev'?[]:SHOP_ITEMS.filter(x=>x.district===tab);
+ // I4: девайсы для Слышащих — Лом приносит ящик только в день с 50+ звонками; один девайс в день каждого вида
+ const devGrid=()=>{const S=o.dev.stock();return`<div class="bm-sub"><b>Девайсы для Слышащих</b><span>${S.open?'Сегодняшний ящик. Каждый — один раз. Надеть — в Коллекторе, одному Слышащему.':`Ящик закрыт. «Девайс — не сувенир. Отработай полсотни звонков — спущусь». Сегодня ещё ${S.need}.`}</span></div>
+  <div class="bm-grid bm-devs">${S.items.map(d=>`<div class="bm-dev${S.open?'':' lk'}${d.sold?' sold':''}" style="--dc:${o.dev.tc(d.r)}"><i class="dvi"></i><b>${S.open?esc(d.n):'???'}</b><span>${S.open?esc(d.t):'Лом держит ящик закрытым.'}</span><em>${S.open?'+'+d.b+'% одному Слышащему':''}</em>
+   ${d.sold?'<button disabled>куплено</button>':S.open?`<button data-dev="${d.id}" ${G().money<d.cost?'class="short"':''}>${$m(d.cost)}</button>`:'<button disabled>🔒</button>'}</div>`).join('')}</div>`};
+ const grid=()=>{if(tab==='dev'&&o.dev)return devGrid();const L=list(),lk=tab!=='cos'&&tab>(G().district||1);
   return`<div class="bm-sub">${tab==='cos'?'<b>Косметика</b><span>След фигурки на карте и материал печати статуса. Надето — одно из каждого вида.</span>':`<b>${tab}. ${esc(DIST[tab-1][0])}</b><span>${lk?'Район ещё не твой — только силуэты.':'Три вещи района: дешёвая, средняя, showpiece.'}</span>`}</div>
    <div class="bm-grid">${L.map(it=>card(it,stOf(it))).join('')}</div>`};
  const drawShop=()=>{if(!bm)return;bm.querySelector('#bm-tabs').innerHTML=tabs();bm.querySelector('#bm-body').innerHTML=grid();bm.querySelector('#bm-money').textContent=$m(G().money);fit(bm);
   const t=bm.querySelector('.bm-tab.on');t&&t.scrollIntoView&&t.scrollIntoView({block:'nearest',inline:'nearest'})};
- const setTab=t=>{tab=t;drawShop();const lk=t!=='cos'&&t>(G().district||1),L=list();
+ const setTab=t=>{if(t==='dev'&&!(o.dev&&o.dev.on()))return;tab=t;drawShop();if(t==='dev'){const S=o.dev.stock();lom(S.open?'welcome':'closed',S.open?'Свеженькое, из-под «Зари». Своим ушастым — не жалей.':'Сегодня ты мало звонил. Ящик не открою.');return}const lk=t!=='cos'&&t>(G().district||1),L=list();
   if(lk)lom('closed',pick(LOM_LINES.locked));else if(ALL.every(x=>owned(x.id)))lom('happy',LOM_LINES.empty[0]);else if(L.every(x=>owned(x.id)))lom('welcome','Тут ты всё забрал. Глянь другой район.')};
  const doBuy=id=>{const it=byId(id),r=buy(G(),meta(),id);
   if(!r.ok){if(r.why.startsWith('не хватает')){lom('haggle',pick(LOM_LINES.short));o.sfx&&o.sfx('del')}else lom('closed',r.why);return}
@@ -104,10 +109,11 @@ export function makeBase(o){
    <div class="bm-talk"><small>ЧЁРНЫЙ РЫНОК · продавец Лом</small><p class="bm-say" id="bm-say"></p></div>
    <div class="bm-wal"><small>у тебя</small><b id="bm-money"></b></div><button class="bm-x" data-k="close" aria-label="Закрыть">×</button></header>
    <nav class="bm-tabs" id="bm-tabs"></nav><section class="bm-body" id="bm-body"></section>
-   <p class="bm-foot">1–9, 0 — район · C — косметика · Esc — на базу</p></div>`;
-  el.appendChild(bm);bm.onclick=e=>{const b=e.target.closest('[data-buy],[data-tab],[data-k]');if(!b)return;
+   <p class="bm-foot">1–9, 0 — район · C — косметика${o.dev&&o.dev.on()?' · D — девайсы':''} · Esc — на базу</p></div>`;
+  el.appendChild(bm);bm.onclick=e=>{const b=e.target.closest('[data-buy],[data-tab],[data-k],[data-dev]');if(!b)return;
+   if(b.dataset.dev){const r=o.dev.buy(b.dataset.dev);if(!r.ok){lom(r.why.startsWith('нужно')?'haggle':'closed',r.why.startsWith('нужно')?pick(LOM_LINES.short):r.why);o.sfx&&o.sfx('del')}else{o.persist&&o.persist();o.sfx&&o.sfx('ching');lom('happy',`${r.dev.n}. В ящик Коллектора. Надень кому-нибудь, а то пылится.`);drawShop();const mo=el&&el.querySelector('#hq-money');mo&&(mo.textContent=$m(G().money))}return}
    if(b.dataset.eq){equip(meta(),b.dataset.eq);o.persist&&o.persist();o.onEquip&&o.onEquip();o.sfx&&o.sfx('tick');lom('welcome',equipped(meta(),byId(b.dataset.eq).slot)?'Носи с гордостью. И не мой.':'Снял? Ну и ладно. Я не обиделся.');drawShop();return}
-   if(b.dataset.buy)doBuy(b.dataset.buy);else if(b.dataset.tab)setTab(b.dataset.tab==='cos'?'cos':+b.dataset.tab);else if(b.dataset.k==='close')closeShop()};
+   if(b.dataset.buy)doBuy(b.dataset.buy);else if(b.dataset.tab)setTab(b.dataset.tab==='cos'||b.dataset.tab==='dev'?b.dataset.tab:+b.dataset.tab);else if(b.dataset.k==='close')closeShop()};
   drawShop();lom('welcome',pick(LOM_LINES.welcome));requestAnimationFrame(()=>bm&&bm.classList.add('in'));o.sfx&&o.sfx('tick')};
  const closeShop=()=>{if(!bm)return;const b=bm;bm=null;b.classList.remove('in');setTimeout(()=>b.remove(),reduce()?0:220);if(el)refresh()};
  // ---------- открыть / закрыть ----------
@@ -133,8 +139,8 @@ export function makeBase(o){
  const key=e=>{if(!el)return false;const c=e.code;
   if(el.querySelector('.hq-card')&&(c==='Escape'||c==='Enter'||c==='Space')){el.querySelector('.hq-card').remove();return true}
   if(bm){if(c==='Escape'||c==='KeyM'){closeShop();return true}const n=/^Digit(\d)$/.exec(c);if(n){setTab(+n[1]||10);return true}
-   if(c==='Minus'){setTab(11);return true}if(c==='Equal'){setTab(12);return true}if(c==='KeyC'){setTab('cos');return true}
-   if(c==='ArrowLeft'||c==='ArrowRight'){const t=tab==='cos'?13:tab,nt=Math.max(1,Math.min(13,t+(c==='ArrowLeft'?-1:1)));setTab(nt===13?'cos':nt);return true}return true}
+   if(c==='Minus'){setTab(11);return true}if(c==='Equal'){setTab(12);return true}if(c==='KeyC'){setTab('cos');return true}if(c==='KeyD'&&o.dev&&o.dev.on()){setTab('dev');return true}
+   if(c==='ArrowLeft'||c==='ArrowRight'){const t=tab==='cos'||tab==='dev'?13:tab,nt=Math.max(1,Math.min(13,t+(c==='ArrowLeft'?-1:1)));setTab(nt===13?'cos':nt);return true}return true}
   if(c==='Escape'){if(el.classList.contains('ins'))el.classList.remove('ins');else close();return true}
   if(c==='KeyM'){openShop();return true}if(c==='KeyI'){el.classList.toggle('ins');return true}if(c==='KeyG'){gk();return true}
   if(c==='ArrowLeft'||c==='ArrowRight'){cam.x+=(c==='ArrowLeft'?-1:1)*Math.max(200,innerWidth*.4);apply(!reduce());return true}

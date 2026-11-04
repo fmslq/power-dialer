@@ -136,3 +136,11 @@
 .lom .lom-lens{animation:lom-lens 3.2s ease-in-out infinite}@keyframes lom-lens{50%{opacity:.6}}
 .lom .lom-led{animation:lom-blink 2.4s steps(1) infinite}
 .lom[data-mood=closed] .lom-visor{animation:lom-lens 1.6s ease-in-out infinite}
+/* I4 (кусок 20): девайсы для Слышащих у Лома */
+.bm-tab.dev.hot{box-shadow:inset 0 0 0 1px #ffb020,0 0 10px rgba(255,176,32,.35)}
+.bm-dev{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--dc) 14%,#14110d),#0f0d0a);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dc) 45%,transparent)}
+.bm-dev .dvi{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff 0 6%,var(--dc) 20% 46%,color-mix(in srgb,var(--dc) 30%,#000) 70%);box-shadow:0 0 18px color-mix(in srgb,var(--dc) 60%,transparent)}
+.bm-dev b{font:700 16px var(--ct-display);letter-spacing:.04em;color:#fff}.bm-dev span{font:400 13px/1.4 var(--ct-text);color:#cfc6b4}.bm-dev em{font:600 12px var(--ct-mono);font-style:normal;color:var(--dc)}
+.bm-dev button{margin-top:auto;align-self:flex-start;height:34px;padding:0 14px;border:0;border-radius:7px;font:700 13px var(--ct-mono);cursor:pointer;color:#1b1300;background:linear-gradient(180deg,#ffd23f,#ff9d1f)}.bm-dev button.short{filter:grayscale(.6) brightness(.8)}
+.bm-dev button:disabled{background:rgba(255,255,255,.08);color:#8a8070;cursor:default}
+.bm-dev.lk{filter:grayscale(.8) brightness(.7)}.bm-dev.lk .dvi{background:#1a1611;box-shadow:inset 0 0 0 2px #3a2f22}.bm-dev.sold{opacity:.55}

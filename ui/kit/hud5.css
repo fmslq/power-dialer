@@ -60,3 +60,50 @@
 .ch-pre p{margin:0;font-size:14px;line-height:1.45;color:#d8dee4}
 .cc-rkb{display:block;color:#ffd45a;font-style:normal}
 .adw-base.lk{opacity:.7}
+/* I1 Разгон v3: обратный отсчёт на принятие и карточка конца */
+.wu-cd{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;margin:14px 0 0;font:500 11.5px var(--ct-mono);color:#8fa58a;letter-spacing:.06em;text-align:left}
+.wu-cd b{font:700 18px var(--ct-mono);color:#eaf5e6;font-variant-numeric:tabular-nums}
+.wu-cd i{grid-column:1/-1;height:4px;border-radius:2px;background:rgba(57,255,20,.12);overflow:hidden}.wu-cd i em{display:block;height:100%;background:#39ff14;transition:width 1s linear}
+.wu-cd.hurry b{color:#ffb020;animation:wuHurry 1s steps(2) infinite}.wu-cd.hurry i em{background:#ffb020}@keyframes wuHurry{50%{opacity:.45}}
+.wu-end{position:fixed;left:50%;bottom:28px;z-index:85;transform:translateX(-50%);display:grid;gap:3px;min-width:300px;max-width:92vw;padding:14px 22px;border-radius:16px;text-align:center;cursor:pointer;
+ background:linear-gradient(180deg,#121a10,#080b07);box-shadow:0 0 0 1px rgba(57,255,20,.35),0 18px 50px rgba(0,0,0,.6),0 0 40px rgba(57,255,20,.18);animation:wuEnd .45s cubic-bezier(.2,1.4,.4,1)}
+.wu-end.over{box-shadow:0 0 0 1px rgba(255,176,32,.4),0 18px 50px rgba(0,0,0,.6)}
+.wu-end em{font:700 11px var(--ct-mono);letter-spacing:.3em;font-style:normal;color:#39ff14}.wu-end.over em{color:#ffb020}
+.wu-end b{font:700 24px/1.1 var(--ct-display);color:#fff}.wu-end span{font:400 13px/1.35 var(--ct-text);color:#b7c7b2}
+.wu-end.out{opacity:0;transform:translate(-50%,16px);transition:.4s}@keyframes wuEnd{from{opacity:0;transform:translate(-50%,30px) scale(.9)}}
+.adx-c.warm i{font-style:normal;opacity:.8;margin-left:4px;font-variant-numeric:tabular-nums}.adx-c.warm.hurry{animation:wuHurry 1s steps(2) infinite}
+.fx-off .wu-end{animation:none}
+/* I9 «Позвонить»: манящая и сочная */
+.wk-dial{--tx:0px;--ty:0px;--mx:50%;--my:40%;position:relative;isolation:isolate;overflow:visible;transform:translate(var(--tx),var(--ty));transition:transform .25s cubic-bezier(.2,1.6,.4,1),box-shadow .25s,filter .25s}
+.wk-dial .dl-ph{width:22px;height:22px;flex:none;transform-origin:50% 60%}
+.wk-dial.idle{background:linear-gradient(180deg,#8dff5c 0%,#45f01c 45%,#1fc80a 100%);color:#031204;
+ box-shadow:0 0 0 1px rgba(160,255,120,.9),0 0 22px rgba(57,255,20,.45),0 10px 26px rgba(10,60,0,.5),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -4px 10px rgba(0,60,0,.35);animation:dlBreath 2.6s ease-in-out infinite}
+.wk-dial.idle::before,.wk-dial.idle::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid rgba(110,255,70,.75);pointer-events:none;z-index:-1;animation:dlWave 2.6s cubic-bezier(.1,.6,.3,1) infinite}
+.wk-dial.idle::after{animation-delay:1.3s}
+.wk-dial .dl-glow{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.55),rgba(255,255,255,0) 45%);opacity:.0;transition:opacity .25s}
+.wk-dial.near .dl-glow{opacity:1}
+.wk-dial .dl-shine{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
+.wk-dial .dl-shine::before{content:"";position:absolute;top:-20%;bottom:-20%;width:34%;left:-50%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-18deg);animation:dlShine 3.4s ease-in-out infinite}
+.wk-dial.idle .dl-ph{animation:dlRing 3.4s ease-in-out infinite}
+.wk-dial.idle .dl-t{text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.wk-dial.idle.near{filter:brightness(1.08) saturate(1.1);box-shadow:0 0 0 2px rgba(190,255,150,1),0 0 44px rgba(57,255,20,.7),0 14px 30px rgba(10,60,0,.55),inset 0 1px 0 rgba(255,255,255,.8),inset 0 -4px 10px rgba(0,60,0,.3)}
+.wk-dial.idle.near::before,.wk-dial.idle.near::after{animation-duration:1.5s}
+.wk-dial.idle.near .dl-ph{animation:dlRing 1.1s ease-in-out infinite}
+.wk-dial.press{transform:translate(var(--tx),var(--ty)) scale(.92,.88);transition-duration:.06s;filter:brightness(.95)}
+.wk-dial.boom{animation:dlBoom .6s cubic-bezier(.2,1.8,.4,1)}
+@keyframes dlBreath{0%,100%{box-shadow:0 0 0 1px rgba(160,255,120,.9),0 0 18px rgba(57,255,20,.35),0 10px 26px rgba(10,60,0,.5),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -4px 10px rgba(0,60,0,.35)}50%{box-shadow:0 0 0 1px rgba(200,255,170,1),0 0 40px rgba(57,255,20,.75),0 10px 26px rgba(10,60,0,.5),inset 0 1px 0 rgba(255,255,255,.85),inset 0 -4px 10px rgba(0,60,0,.3)}}
+@keyframes dlWave{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.22,1.6);opacity:0}}
+@keyframes dlShine{0%,55%{left:-50%}85%,100%{left:130%}}
+@keyframes dlRing{0%,70%,100%{transform:rotate(0)}74%{transform:rotate(-16deg)}78%{transform:rotate(14deg)}82%{transform:rotate(-12deg)}86%{transform:rotate(9deg)}90%{transform:rotate(-4deg)}}
+@keyframes dlBoom{0%{transform:translate(var(--tx),var(--ty)) scale(.9,.86)}45%{transform:translate(var(--tx),var(--ty)) scale(1.1,1.12)}100%{transform:translate(var(--tx),var(--ty)) scale(1)}}
+.dl-burst{position:fixed;z-index:90;width:0;height:0;pointer-events:none}
+.dl-burst .w{position:absolute;left:-40px;top:-40px;width:80px;height:80px;border-radius:50%;border:3px solid #8dff5c;box-shadow:0 0 24px #39ff14;animation:dlShock .6s ease-out forwards}
+.dl-burst .w2{border-width:2px;animation-delay:.08s;animation-duration:.75s}
+.dl-burst b{position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#fff 0 30%,#8dff5c 60%,transparent 70%);transform:scale(var(--s));animation:dlSpark var(--d) cubic-bezier(.1,.7,.3,1) forwards}
+@keyframes dlShock{from{transform:scale(.3);opacity:1}to{transform:scale(3.2);opacity:0}}
+@keyframes dlSpark{from{transform:translate(0,0) scale(var(--s));opacity:1}to{transform:translate(var(--x),var(--y)) scale(0);opacity:0}}
+.dl-flash{position:fixed;inset:0;z-index:89;pointer-events:none;box-shadow:inset 0 0 120px rgba(57,255,20,.45);animation:dlFlash .55s ease-out forwards}
+@keyframes dlFlash{from{opacity:1}to{opacity:0}}
+.wk-dial.on .dl-glow,.wk-dial.on .dl-shine{display:none}
+.fx-off .wk-dial,.fx-off .wk-dial::before,.fx-off .wk-dial::after,.fx-off .wk-dial *{animation:none!important}
+@media (prefers-reduced-motion:reduce){.wk-dial,.wk-dial::before,.wk-dial::after,.wk-dial *{animation:none!important}}

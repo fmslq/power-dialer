@@ -59,6 +59,7 @@ export function makePanel(o){
  if(ui.panelOpen==null)ui.panelOpen=true;
  const el=document.createElement('aside');el.className='wk-cc';el.id='cc';
  el.innerHTML=`<nav class="cc-rail" role="tablist" aria-label="Командный центр">${TABS.map(([k,t,ic])=>`<button class="cc-tab" role="tab" data-tab="${k}" title="${t}" style="--a:${ACC[k]}">${icon(ic)}<span>${t}</span></button>`).join('')}
+  <button class="cc-tab cc-sw" id="cc-sw" title="Коммутатор «Заря-12» (Сигнал, Слышащие, темы)" style="--a:#39ff14">${icon('plug')}<span>Коммутатор</span></button>
   <div class="cc-sp"></div><button class="cc-tab cc-tg" id="cc-tg" title="Свернуть / развернуть (C)">${icon('panel')}<span>Свернуть</span></button></nav>
   <div class="cc-body" id="cc-body"><div class="cc-scroll" id="cc-in"></div></div>`;
  const scrim=document.createElement('div');scrim.className='cc-scrim';
@@ -140,7 +141,7 @@ export function makePanel(o){
  const toggle=()=>setOpen(!isOpen());
  const tab=t=>{if(!R[t])return;o.onTab&&o.onTab(t);const same=ui.panelTab===t&&isOpen();ui.panelTab=t;o.persist();if(same&&mode()!=='wide'){setOpen(false);return}if(!isOpen())setOpen(true);else{sync();render(true)}};
  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
-  if(b.dataset.tab)return tab(b.dataset.tab);if(b.dataset.claim){const[k,id]=b.dataset.claim.split('|');return o.claim&&o.claim(k,id,b)}if(b.id==='cc-tg')return toggle();
+  if(b.dataset.tab)return tab(b.dataset.tab);if(b.dataset.claim){const[k,id]=b.dataset.claim.split('|');return o.claim&&o.claim(k,id,b)}if(b.id==='cc-tg')return toggle();if(b.id==='cc-sw')return o.openSwitch&&o.openSwitch();
   if(b.dataset.dir){const dir=o.save.dir;if(!dir||dir.pick)return;const id=b.dataset.dir,x=DIR.find(q=>q[0]===id)||[id,id,''];
    ask({title:'Директива: '+x[1],text:`<b>${esc(x[2])}</b><br>Точно эту? Директиву <b>нельзя поменять до конца дня</b>. Завтра будут три новые.`,ok:'Выбрать',cancel:'Подумать',skipKey:'dir',tone:'warn'}).then(y=>{
     if(!y||dir.pick)return;dir.pick=id;dir.at=Date.now();o.persist();render();o.toast('Директива дня: '+x[1]+' · до конца дня')});return}

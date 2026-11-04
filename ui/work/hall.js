@@ -4,7 +4,7 @@ import {ACH} from '../../core/achv.js';
 import {isClaimed} from '../../core/claim.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SH=[['dial','Наборы',/^(v\d|k\d|early|owl|iw)/],['voice','Голоса',/^(t\d|t5|gk)/],['meet','Встречи',/^(b\d|bper|d\d|b20|b25)/],['heat','Жар и серии',/^(h\d|s\d|od|sss)/],
- ['noise','Шум и рейды',/^(sp1|sp25|ch1|lg1|rl3|rd\d|fz1)$/],['day','Цели дня',/^(wm|hh|tr\d|pk1|nd)/],['scheme','Схема и Слышащие',/^(tree|op|sig)/],['world','Город',/^(c\d|c12|rsb|rap|ret|sp100|show|lvl)/]];
+ ['noise','Шум и рейды',/^(sp1|sp25|ch1|lg1|rl3|rd\d|fz1)$/],['day','Цели дня',/^(wm|hh|tr\d|pk1|nd)/],['scheme','Коммутатор и Слышащие',/^(tree|op|sig)/],['world','Город',/^(c\d|c12|rsb|rap|ret|sp100|show|lvl)/]];
 const FIG={dial:'M7 3h4l2 5-2.5 1.5a11 11 0 0 0 5 5L17 12l5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 5 5a2 2 0 0 1 2-2z',voice:'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11a6 6 0 0 0 12 0M12 17v4M8 21h8',
  meet:'M6 3h12v5a6 6 0 0 1-12 0zM12 14v4M8 21h8M9 18h6M6 5H3a3 3 0 0 0 3 4M18 5h3a3 3 0 0 1-3 4',heat:'M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z',
  noise:'M2 12h3l2-6 3 12 3-9 2 5 2-2h5',day:'M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',

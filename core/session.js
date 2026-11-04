@@ -10,7 +10,7 @@ import {evaluate} from './achv.js';
 import {checkMissions,modsFor} from './missions.js';
 import {withItems} from './buffs.js';
 import {STATUS,CONFIG as C} from './config.js';
-import {withAllies} from './allies.js';
+import {withAllies,allyTrack} from './allies.js';
 import {keysInit,needKey,keyTrack} from './keys.js';
 import {withAd,adAfter,ghostRec,ensure as adEnsure,nightly,raidCheck} from './addict.js';
 
@@ -46,7 +46,7 @@ export class Session{
     if(had)this.dropLead(lead.key,now);
     const side=sideSnapshot(root,now),d0=(root.days||{})[dayKey(now)]||{n:0},dir=root.dir&&root.dir.k===dayKey(now)?root.dir.pick:null;
     const dx0=G.dxp,dd0=G.district;
-    const r=statusFlow(G,id,now,this.prov,{phone:lead.phone},{re:!!had,isKnown,late,mods:withAd(withAllies(withItems(modsFor(dir||'',d0.n),root.meta&&root.meta.owned,d0.n,new Date(now).getHours()),root,G),root,now,lead.state,d0.n)});
+    const r=statusFlow(G,id,now,this.prov,{phone:lead.phone},{re:!!had,isKnown,late,mods:withAd(withAllies(withItems(modsFor(dir||'',d0.n),root.meta&&root.meta.owned,d0.n,new Date(now).getHours()),root,G,now),root,now,lead.state,d0.n)});
     if(r.blocked){const out={ev:null,meta:r.meta,blocked:r.blocked,dur:r.dur,min:r.min,achv:[],missions:[]};this.emit('statusRefused',out);return out}
     const out={ev:r.ev,meta:r.meta,achv:[],missions:[],rankUp:null,levelUp:null,trophy:null};
     if(!r.ev){this.emit('offList',r.meta);return out}
@@ -66,7 +66,7 @@ export class Session{
       verified:r.meta.verified||u.verified||null,mode:r.meta.mode};(root.trophies||(root.trophies=[])).push(t);out.trophy=t}
     // Addiction: Сигнал, лут, гарант, цели дня, перк, рейд, призрак. Деньги, которые addict двинул (разгон, джекпот, рейд), — в u.adM для undo.
     const m0=G.money;out.ad=adAfter(root,G,ev,now,{state:lead.state,dayN:d.n,lead:lead.key});u.adM=G.money-m0;u.adSig=out.ad.sig||0;if(out.ad.raidM)u.raidM=out.ad.raidM;
-    out.ghost=ghostRec(root,now);out.key=keyTrack(root,G,ev,d.n);
+    out.ghost=ghostRec(root,now,ev&&ev.cls);out.key=keyTrack(root,G,ev,d.n);if(!ev||!ev.spam)allyTrack(root,G,ev);
     const dm=dominance(root,now),rk=rankOf(dm.pts),lv=levelOf(G.lifeXp);if(dm.idle)root.wasNobody=1;
     if(root.rank!=null&&rk>root.rank)out.rankUp=rk;if(root.lvl!=null&&lv>root.lvl)out.levelUp=lv;
     out.achv=evaluate({root,G,ev,now,d,L:root.life,rank:rk,meta:root.meta,lvl:lv,sinceBefore});

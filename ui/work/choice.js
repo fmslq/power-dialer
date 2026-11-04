@@ -1,18 +1,26 @@
-// E5: понятный выбор после босса. Две карточки с цифрами: что даёт каждый путь сейчас и навсегда.
-import {ALLY,choose,trophyMoney,showpieceOf,bossName,DISC} from '../../core/allies.js';
+// E5 v2: исход после босса. У каждого босса свой: выбор из 2–3, один итог, итог по прошлым решениям или по игре в районе, награда позже.
+// На каждой карточке — что будет по сюжету и какой бонус (цифрами).
+import {OUT,optsFor,condPick,choose,bossName,shiftMoney} from '../../core/allies.js';
 import {DIST} from '../../core/meta.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $m=v=>'$'+Math.round(v).toLocaleString('ru');
+const KIND={one:'ИТОГ',two:'ВЫБОР',three:'ВЫБОР ИЗ ТРЁХ',cond:'ИТОГ ПО ТВОИМ ДЕЛАМ',late:'ВЫБОР С ОТЛОЖЕННОЙ НАГРАДОЙ'};
 export function showChoice({d,save,G,persist,toast,sfx=()=>{}}){return new Promise(res=>{
- const A=ALLY.find(x=>x.d===d),m=trophyMoney(d),sp=showpieceOf(d),acc=DIST[d-1][1]||'#39ff14',nm=bossName(d);
+ const O=OUT[d],acc=DIST[d-1][1]||'#39ff14',nm=bossName(d);if(!O){res(null);return}
+ const single=O.kind==='one'||O.kind==='cond',list=single?[O.kind==='one'?O.opts[0]:condPick(save,d)]:optsFor(save,d);
+ let why='';if(O.kind==='cond'){if(O.dep){const v=(save.story.ch||{})[O.dep];why=v==='city'?'В Шпиле ты открыл хранилище городу.':'В Шпиле ты забрал золото.'}
+  else{const r=(save.story.dc||{})[d];why=r?`Встреч в этом районе: ${r.met} (нужно ${O.need}).`:'Район пройден до учёта встреч — засчитано в твою пользу.'}}
+ const card=(o,i)=>{const mny=o.eff.money?` (${$m(shiftMoney(d,o.eff.money))})`:'';
+  return`<button data-c="${o.id}" class="${o.ally?'al':'tr'}"><em>${single?'ИТОГ':(o.ally?'СОЮЗ':'СДЕЛКА')}</em><b>${esc(o.t)}</b><p>${esc(o.s)}</p>
+   <ul><li><span>Бонус</span>${esc(o.b)}${mny}</li>${o.eff.from?`<li><span>Когда</span>с района ${o.eff.from}</li>`:''}${o.ally?'<li><span>Потом</span>выходит на связь в рации</li>':''}</ul>${single?'':`<kbd>${i+1}</kbd>`}</button>`};
  const w=document.createElement('div');w.className='ch-wrap';w.style.setProperty('--a',acc);
- w.innerHTML=`<div class="ch" role="dialog" aria-label="Выбор после босса"><h3>${esc(nm)} проиграл</h3><p class="ch-s">Район ${d} твой. Что сделать с боссом? Выбор один раз — оба пути ведут дальше, тупиков нет.</p>
-  <div class="ch-c"><button data-c="ally"><em>ОТПУСТИТЬ</em><b>${esc(nm)} станет союзником</b>
-    <ul><li><span>Сейчас</span>денег нет</li><li><span>Навсегда</span>${esc(A.t)}</li><li><span>Потом</span>иногда выходит на связь в рации</li></ul><kbd>1</kbd></button>
-   <button data-c="trophy"><em>ЗАБРАТЬ ТРОФЕЙ</em><b>Лом скупит трофей босса</b>
-    <ul><li><span>Сейчас</span>+${$m(m)} (полсмены этого района)</li><li><span>Скидка</span>−${DISC*100}% на «${esc(sp?sp.name:'showpiece')}»${sp?` (${$m(sp.price)} → ${$m(sp.price*(1-DISC))})`:''}</li><li><span>Навсегда</span>бонуса нет</li></ul><kbd>2</kbd></button></div>
-  <p class="ch-f">Гудок не осуждает ни один выбор. Но запоминает.</p></div>`;
- const done=how=>{const r=choose(save,G,d,how);removeEventListener('keydown',kd,true);w.remove();if(r.ok){persist();sfx(how==='ally'?'levelup':'ching');
-   toast(how==='ally'?`${nm} — союзник: ${A.t}`:`Трофей босса продан: +${$m(r.money)}, скидка ${DISC*100}% на showpiece района`,'gold')}res(how)};
- const kd=e=>{e.stopPropagation();if(e.code==='Digit1'){e.preventDefault();done('ally')}else if(e.code==='Digit2'){e.preventDefault();done('trophy')}};
- w.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>done(b.dataset.c));addEventListener('keydown',kd,true);document.body.appendChild(w)})}
+ w.innerHTML=`<div class="ch k-${O.kind}" role="dialog" aria-label="Исход босса"><em class="ch-k">${KIND[O.kind]}</em><h3>${esc(nm)} дослушал</h3><p class="ch-s">${esc(O.why)}${why?` <b>${esc(why)}</b>`:''}</p>
+  <div class="ch-c n${list.length}">${list.map(card).join('')}</div>
+  ${single?'<div class="ch-b"><button class="pri" data-ok>Дальше <kbd>Enter</kbd></button></div>':''}
+  <p class="ch-f">${single?'Здесь нет выбора: так решили город и твои звонки.':'Выбор один раз. Тупиков нет — все пути ведут дальше.'}</p></div>`;
+ const done=id=>{const r=choose(save,G,d,id);removeEventListener('keydown',kd,true);w.remove();if(r.ok){persist();sfx(r.opt.ally?'levelup':'ching');
+   toast(`${nm}: ${r.opt.t} — ${r.opt.b}${r.money?` · +${$m(r.money)}`:''}`,'gold')}res(r.ok?r.opt.id:null)};
+ const kd=e=>{e.stopPropagation();if(single&&(e.code==='Enter'||e.code==='Space')){e.preventDefault();done(list[0].id);return}
+  const n=+(e.code.match(/^Digit([1-3])$/)||[])[1];if(n&&list[n-1]){e.preventDefault();done(list[n-1].id)}};
+ w.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>done(b.dataset.c));const ok=w.querySelector('[data-ok]');if(ok)ok.onclick=()=>done(list[0].id);
+ addEventListener('keydown',kd,true);document.body.appendChild(w)})}

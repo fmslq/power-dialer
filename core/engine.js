@@ -20,7 +20,7 @@ export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.
  if(s.od&&now>=s.od.until){ev.odEnd=s.od;s.od=null}
  const gap=o.gapMs!=null?o.gapMs:s.last==null?0:now-s.last,max=((o.mods&&o.mods.maxGap)||C.maxGapMin)*60*MS;
  if(o.re)ev.re=true;
- else if(s.last!=null&&now-s.last<C.antispamSec*MS&&!(o.callStart!=null&&o.callStart>s.last)){ev.spam=true;ev.spamGap=now-s.last} // антиспам: 2 статуса чаще 4 с. Если по Zoom был настоящий звонок ПОСЛЕ прошлого статуса — это не спам
+ else if(s.last!=null&&now-s.last<C.antispamSec*MS&&!(o.callStart!=null&&o.callStart>s.last)){ev.spam=true;ev.spamGap=now-s.last} // антиспам: 2 статуса чаще 3 с (награда 0). Если по Zoom был настоящий звонок ПОСЛЕ прошлого статуса — это не спам
  else if(s.last!=null){
   if(gap>max||o.sinceEndedMs>max){s.step=s.ulta=0;s.streak=1;s.od=null;ev.pen='reset'}
   else if(s.ulta>0&&!(o.callStart!=null&&s.lastEnd!=null&&C.classes[s.lastCls].win&&o.callStart-s.lastEnd>afterCall(s.lastId)*MS)){s.ulta--;s.streak++;s.step=stepOf(s.streak)}
@@ -56,7 +56,6 @@ export function undo(s,now,i=s.undo.length-1){const u=s.undo[i];if(!u)return fal
  s.undo.splice(i,1);return 'worth'}
 export function pause(s,now){if(s.paused==null)s.paused=now}
 export function resume(s,now){if(s.paused==null)return;const d=now-s.paused;s.paused=null;
- if(d>C.pauseMaxSec*MS){s.streak=s.step=s.ulta=0}
  if(s.last!=null)s.last+=d;if(s.lastEnd!=null)s.lastEnd+=d;if(s.od)s.od.until+=d}
 // Бонус за время разговора (5.4): только TALK/CALLBACK/BOOKED/DISCOVERY, можно задним числом.
 export function talkBonus(s,entry,dur){if(!C.hi.includes(entry.cls)||!dur)return{x:0,m:0};

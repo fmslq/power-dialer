@@ -1,4 +1,4 @@
-import {CONFIG as C,districtThr} from './config.js';
+import {CONFIG as C,districtThr,shiftMoneyAt,PRICE_GROW} from './config.js';
 // Мета-данные THE GRID / HQ. Хранятся в root.meta (вне состояния игры, чтобы Undo их не откатывал).
 export const DIST=[ // [название, акцент, тема, босс, подпись босса]
  ['Scrapyard','#c28a4a','industrial','Король Свалки','самодельная броня из холодильников'],['Industrial Zone','#ff7a2b','industrial','Начальник Смены Ржавый','гидравлика вместо рук'],
@@ -18,7 +18,7 @@ export const SHOP_ITEMS=S.flatMap((r,d)=>r.map((name,t)=>({id:`d${d+1}t${t}`,dis
  price:price(d+1,T[t][0]),description:`${DIST[d][0]}: ${T[t][1]}`,imgPath:`img/hq/d${d+1}t${t}.png`,placeholder:true})));
 export const COSMETICS=[['trail-cyan','Trail: циан',.5],['trail-magenta','Trail: маджента',.5],['trail-gold','Trail: золото',1],['trail-red','Trail: красный',1],
  ['stamp-iron','Печать: чугун',1],['stamp-neon','Печать: неон',1.5],['stamp-gold','Печать: золото',2]].map(([id,name,m])=>({id,name,price:Math.round(m*C.assumedDailyMoney),applies:true,slot:id.split('-')[0]}));
-export function price(d,mult){return Math.round(mult*C.assumedDailyMoney*C.districts[d-1][3])}
+export function price(d,mult){return Math.round(mult*shiftMoneyAt(d)*PRICE_GROW(d))}
 export const newMeta=()=>({owned:{},bossIntro:{},staggered:{},captured:{},equip:{}});
 // косметика: одна надета в каждом слоте (trail — след фигурки на карте, stamp — материал печати статуса). Покупка сразу надевает.
 export const TRAIL_COL={'trail-cyan':'#3ad7ff','trail-magenta':'#ff2bd6','trail-gold':'#ffd45a','trail-red':'#ff1f3d'};
@@ -34,7 +34,7 @@ export const bossHp=s=>{const t=districtThr(s.district),p=C.bossPhaseShare;retur
 export function runMetaTests(){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
  t('косметика: покупка надевает, повтор снимает, чужое не надеть',()=>{const m=newMeta(),g={money:1e6,undo:[],district:1};buy(g,m,'trail-gold');const a=equipped(m,'trail')==='trail-gold';equip(m,'trail-gold');return a&&!equipped(m,'trail')&&!equip(m,'stamp-gold')});
  t('36 предметов, по 3 на район',()=>SHOP_ITEMS.length===36&&SHOP_ITEMS.every(x=>x.price>0));
- t('цены 0.5/1.5/4 дня × yield района',()=>SHOP_ITEMS[2].price===Math.round(4*C.assumedDailyMoney)&&SHOP_ITEMS[3].price===Math.round(.5*C.assumedDailyMoney*1.2));
+ t('цены 0.5/1.5/4 дня дохода района × рост усилия',()=>SHOP_ITEMS[2].price===Math.round(4*C.assumedDailyMoney)&&SHOP_ITEMS[3].price===Math.round(.5*shiftMoneyAt(2)*PRICE_GROW(2)));
  t('покупка: район закрыт / не хватает / ок',()=>{const s={district:1,money:0,undo:[1]},m=newMeta();return buy(s,m,'d2t0').why==='район закрыт'&&buy(s,m,'d1t0').why.startsWith('не хватает')&&(s.money=9999,buy(s,m,'d1t0').ok)&&s.undo.length===0&&buy(s,m,'d1t0').why==='уже куплено'});
  t('HP босса = последние 10% шкалы',()=>{const s={district:3,dxp:0};s.dxp=Math.round(districtThr(3)*.95);const h=bossHp(s);return h>.45&&h<.55});
  t('база растёт: гараж→лофт→офис→башня',()=>[1,4,8,11].map(baseStage).join()==='0,1,2,3');

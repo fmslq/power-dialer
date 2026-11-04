@@ -42,7 +42,7 @@ export const LOOT=[
  {id:'reso',n:'Резонатор',r:'r',fast:15,calls:40,t:'+15 с к окну серии на 40 звонков'},
  {id:'beacon',n:'Плата с маяком',r:'r',luck:.06,calls:40,t:'Шанс Шума +6% на 40 звонков'},
  {id:'thermos',n:'Термос Лома',r:'r',odSec:60,calls:100,t:'Следующий Overdrive +60 с (на 100 звонков)'},
- {id:'frost',n:'Иней с антенны',r:'r',freeze:1,t:'+1 заряд Заморозки сразу'},
+ {id:'frost',n:'Иней с антенны',r:'r',sigNow:90,t:'+90 Сигнала сразу'},
  {id:'shield',n:'Ключ от щитовой',r:'e',shield:1,t:'Щит: одна Ночная чистка пройдёт мимо'},
  {id:'heart',n:'Сердце глушилки',r:'e',xAll:35,calls:60,t:'+35% XP на 60 звонков'},
  {id:'safe',n:'Сейф-ячейка',r:'e',mAll:35,calls:60,jack:.15,t:'+35% $ на 60 звонков и минуты сразу'},
@@ -54,15 +54,25 @@ export const LOOT=[
  {id:'watch',n:'Часы Председателя',r:'l',relic:{odSec:60},t:'Реликвия: Overdrive +60 с навсегда'}];
 export const dk=dayKey;
 export const lootById=id=>LOOT.find(x=>x.id===id);
-// Дерево «Схема Гудка» (B3 мид-цель, C4 экспонента): 6 веток × 6 уровней, цена 60 × 2.2^уровень Сигнала.
+// Дерево «Коммутатор» — пульт «Заря-12» из-под брезента в гараже (библия §12, §13) (B3 мид-цель, C4 экспонента): 6 веток × 6 уровней, цена 60 × 2.2^уровень Сигнала.
 export const TREE=[
  {id:'res',n:'Резонанс',t:'+4 с к окну серии за уровень',fx:l=>({fast:4*l})},
  {id:'gold',n:'Добыча',t:'+3% $ за уровень',fx:l=>({mAll:3*l})},
  {id:'xp',n:'Опыт',t:'+3% XP за уровень',fx:l=>({xAll:3*l})},
  {id:'luck',n:'Удача',t:'Шум +1% за уровень, гарант на 3 неудачи раньше',fx:l=>({luck:.01*l,pity:3*l})},
- {id:'grit',n:'Стойкость',t:'Ночная чистка забирает на 8% меньше за уровень; +1 заряд Заморозки на 2, 4 и 6',fx:l=>({purge:.08*l,frz:Math.floor(l/2)})},
+ {id:'grit',n:'Стойкость',t:'Ночная чистка забирает на 8% меньше за уровень',fx:l=>({purge:.08*l})},
  {id:'look',n:'Вид',t:'Новая тема оформления на каждом уровне',fx:l=>({themes:l})}];
 export const THEMES=[['base','Зелёная линия','#39ff14'],['neon','Неон','#ff2bd6'],['gold','Золото','#ffc400'],['ice','Лёд','#3ad7ff'],['rust','Ржавчина','#ff7a2b'],['holo','Голограмма','#b98bff'],['red','Красная тревога','#ff3b4e']];
+// память пульта: чем больше линий включено, тем больше Гудок вспоминает (красная нить, библия §13)
+export const MEM=[[1,'Гнездо загорелось. Я знаю, как этот пульт работает. Я не должен этого знать.'],
+ [3,'Двенадцать рядов по сорок гнёзд. На краю пульта нацарапано: «В. — ночная смена».'],
+ [6,'Иногда в помехах кто-то говорит «соединяю». Голос женский. Это эхо. Наверное.'],
+ [10,'На пульте есть гнездо, которое никогда не гасло. Номер ноль. Штекер в нём до сих пор.'],
+ [15,'Кто-то соединил здесь сто вызовов за одну ночь. До утра. Пульт помнит каждый.'],
+ [21,'Сто первый вызов ушёл на номер Председателя. Ответа нет. Штекер так и остался в гнезде.'],
+ [28,'Если вытащить штекер из гнезда ноль, я замолчу. Это я знаю точно. Не спрашивай откуда.'],
+ [36,'Пульт горит весь. Я вспомнил её имя. Скажу, когда дойдём до Станции. Не раньше.']];
+export const treeSum=root=>Object.values(ensure(root).tree||{}).reduce((a,b)=>a+(b|0),0);
 export const treeCost=lv=>Math.round(60*Math.pow(2.2,lv));
 // Слышащие (C5, Q9): операторы в комнатах — пассивные множители; цены растут экспонентой
 export const OPS={perOp:.8,roomCap:5,maxRooms:6,roomCost:k=>Math.round(1500*Math.pow(2.6,k)),opCost:k=>Math.round(400*Math.pow(1.28,k))};
@@ -70,7 +80,7 @@ export const OPS={perOp:.8,roomCap:5,maxRooms:6,roomCost:k=>Math.round(1500*Math
 export const PERKS3=[{id:'p_talk',n:'Голос в трубке',t:'+30% $ за «владельца на линии»',m:{TALK:30,CALLBACK:30}},{id:'p_xp',n:'Широкая полоса',t:'+12% XP ко всему',xAll:12},
  {id:'p_m',n:'Платный эфир',t:'+12% $ ко всему',mAll:12},{id:'p_win',n:'Длинный провод',t:'+12 с к окну серии',fast:12},{id:'p_luck',n:'Шумный час',t:'Шанс Шума ×2',luckK:2},
  {id:'p_sig',n:'Полный заряд',t:'Сигнал ×1.5',sigK:1.5},{id:'p_gk',n:'Отмычка',t:'XP за гейткиперов ×2',x:{GATEKEEPER:100}},{id:'p_od',n:'Форсаж',t:'Overdrive +60 с',odSec:60},
- {id:'p_frz',n:'Холодная голова',t:'+1 заряд Заморозки сразу',freeze:1}];
+ {id:'p_frz',n:'Холодная голова',t:'+15% XP за GATEKEEPER на час',x:{GATEKEEPER:15}}];
 // Цели дня со смещёнными порогами (C2): каждый день свой набор
 const H=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0},rngOf=seed=>()=>(seed=Math.imul(seed^seed>>>15,2246822519)>>>0)/4294967296;
 const VAR=[['talk','Владелец на линии',[6,8,10,12]],['gk','Гейткиперы',[10,14,18]],['hh','Наборы в счастливый час',[20,30,40]],['streak','Лучшая серия дня',[30,40,50]],['sig','Сигнал за день',[150,200,260]]];
@@ -169,23 +179,57 @@ export function nightly(root,G,now){const a=ensure(root),today=dayKey(now),days=
  const anyPlay=played.length>0;
  for(const[k,t]of keys){if(!isWork(t)||!anyPlay)continue;const n=(days[k]||{n:0}).n;
   if(n>=AD.norm){a.normDays++;continue}
-  const f=1-n/AD.norm,red=Math.max(0,1-adTotals(root,now).purge);if(a.shield>0){a.shield--;out.push({k,n,shield:1});a.normDays=0;continue}
+  const f=1-n/AD.norm,red=Math.max(0,1-adTotals(root,now).purge)*(root.story&&root.story.ch&&root.story.ch.b7==='wipe'?.5:1);if(a.shield>0){a.shield--;out.push({k,n,shield:1});a.normDays=0;continue}
   if(out.filter(x=>!x.shield).length>=AD.purge.maxDays)continue;
   const dx=Math.round((G.dxp||0)*AD.purge.share*f*red),dm=Math.round(Math.max(0,G.money)*AD.purge.mShare*f*red),op=f>=.5&&a.ops.n>0?1:0;
   G.dxp=Math.max(0,(G.dxp||0)-dx);G.money-=dm;if(op)a.ops.n--;const lostStreak=a.normDays;a.normDays=0;out.push({k,n,f,dx,dm,op,lostStreak})}
  a.purge.chk=dayKey(now-864e5);if(out.length){a.purge.log.unshift(...out.map(x=>({...x,at:now})));a.purge.log=a.purge.log.slice(0,30)}return out}
-// Призрак (D1): сравнение с лучшим скользящим часом, лучшим днём и средним за 7 дней к этому же времени
-export function ghostRec(root,now){const g=root.gh||(root.gh={k:'',t:[],bestH:0,days:{}}),k=dayKey(now);if(g.k!==k){g.k=k;g.t=[]}g.t.push(now);
- const h=g.t.filter(x=>x>now-36e5).length,newBest=h>g.bestH&&g.bestH>0;g.bestH=Math.max(g.bestH,h);
- const slot=Math.floor((now-new Date(new Date(now).toDateString()).getTime())/6e5),day=g.days[k]||(g.days[k]={});day[slot]=g.t.length;
- const ks=Object.keys(g.days).sort();for(const x of ks.slice(0,-31))delete g.days[x];return{h,newBest,slot,n:g.t.length}}
+// Сравнения v3 (кусок 17): личные рекорды и «обычный ты», прямо после статуса, когда внимание свободно.
+// Рекорды (save.gh.rec): f20 — самые быстрые 20 наборов подряд (мс), b10 — лучшие 10 минут, b60 — лучший час, p100 — больше всего
+// питчей (TALK…DISCOVERY) на последние 100 наборов, ft — меньше всего наборов до первого питча дня, day — рекорд наборов за день.
+// Порядок показа: побит рекорд (золото, звук) → питч/встреча (как идёшь против обычного) → «идёшь на рекорд» → темп против обычного дня.
+const TALKC=['TALK','CALLBACK','BOOKED','DISCOVERY'],MEETC=['BOOKED','DISCOVERY'];
+const slotOf=now=>Math.floor((now-new Date(new Date(now).toDateString()).getTime())/6e5);
+export const mmssR=ms=>{const t=Math.round(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+const REC_N={f20:'Быстрые 20 наборов',b10:'Лучшие 10 минут',b60:'Лучший час',p100:'Питчей на 100 наборов',ft:'Первый питч дня',day:'Наборов за день'};
+export function ghostRec(root,now,cls){const g=root.gh||(root.gh={k:'',t:[],bestH:0,days:{}}),k=dayKey(now);g.rec=g.rec||{};
+ if(g.k!==k){g.k=k;g.t=[];g.ms=[];g.tl=0;g.mt=0;g.ft=0;g.rec0={...g.rec};g.shown={}}
+ g.rec0=g.rec0||{...g.rec};g.shown=g.shown||{};g.tk=g.tk||{};g.t.push(now);const isT=TALKC.includes(cls);if(isT){g.tl=(g.tl||0)+1;if(!g.ft)g.ft=g.t.length}if(MEETC.includes(cls))g.mt=(g.mt||0)+1;
+ g.r100=((g.r100||'')+(isT?'1':'0')).slice(-100);
+ const T=g.t,n=T.length,h=T.filter(x=>x>now-36e5).length,m10=T.filter(x=>x>now-6e5).length,f20=n>=20?now-T[n-20]:null,p100=g.r100.length>=100?[...g.r100].filter(c=>c==='1').length:null;
+ g.bestH=Math.max(g.bestH||0,h);
+ const slot=slotOf(now),day=g.days[k]||(g.days[k]={});day[slot]=n;const tk=g.tk[k]||(g.tk[k]={});tk[slot]=g.tl||0;
+ const ks=Object.keys(g.days).sort();for(const x of ks.slice(0,-31)){delete g.days[x];delete g.tk[x]}
+ // обновить рекорды; объявлять, только если побит рекорд прошлых дней (а не тот, что сам поставил минуту назад) и не чаще раза в 10 мин на рекорд
+ const cur={b10:m10,b60:h,day:n,f20,p100,ft:isT&&g.tl===1?g.ft:null},better={b10:(a,b)=>a>b,b60:(a,b)=>a>b,day:(a,b)=>a>b,p100:(a,b)=>a>b,f20:(a,b)=>a<b,ft:(a,b)=>a<b};
+ const min={b10:8,b60:20,day:30,p100:3,f20:1,ft:1},ms=[];
+ for(const id in cur){const v=cur[id];if(v==null)continue;const old=g.rec[id];if(old==null||better[id](v,old))g.rec[id]=v;
+  const r0=g.rec0[id];if(r0!=null&&better[id](v,r0)&&(id==='f20'||id==='ft'||v>=min[id])&&(!g.shown[id]||now-g.shown[id]>6e5)){g.shown[id]=now;
+   const fm=x=>id==='f20'?mmssR(x):x;ms.push({k:'win',id,t:`РЕКОРД · ${REC_N[id]}: ${fm(v)}${id==='ft'?' набора':''} (был ${fm(r0)})`});g.rec0[id]=v}}
+ const wc=weekCheck(root,now);if(wc)ms.push(wc);
+ return{h,m10,f20,p100,slot,n,cls,ms}}
 const cumAt=(day,slot)=>{let v=0;for(const s in day)if(+s<=slot)v=Math.max(v,day[s]);return v};
-export function ghostLine(root,now,i=0){const g=root.gh;if(!g||!g.t.length)return null;const k=dayKey(now),slot=Math.floor((now-new Date(new Date(now).toDateString()).getTime())/6e5),n=g.t.length,h=g.t.filter(x=>x>now-36e5).length;
- const past=Object.entries(g.days).filter(([x])=>x<k).slice(-30),best=past.length?Math.max(...past.map(([,d])=>cumAt(d,slot))):0,last7=past.slice(-7).map(([,d])=>cumAt(d,slot)).filter(v=>v>0),avg=last7.length?Math.round(last7.reduce((a,b)=>a+b,0)/last7.length):0;
- const tm=new Date(now).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}),L=[];
- if(g.bestH>=5)L.push(h>=g.bestH?{k:'up',t:`Час: ${h} наборов — это твой рекорд часа`}:{k:h>=g.bestH*.8?'near':'down',t:`Последний час: ${h} · рекорд часа ${g.bestH} — до рекорда ${g.bestH-h}`});
- if(best>0)L.push(n>=best?{k:'up',t:`К ${tm} ты впереди лучшего дня на ${n-best} (${n} против ${best})`}:{k:'down',t:`Лучший день к ${tm}: ${best} · ты ${n} — отстаёшь на ${best-n}`});
- if(avg>0)L.push(n>=avg?{k:'up',t:`Среднее за 7 дней к ${tm}: ${avg} · ты впереди на ${n-avg}`}:{k:'down',t:`Среднее за 7 дней к ${tm}: ${avg} · до него ${avg-n}`});
+const sg=v=>(v>0?'+':v<0?'−':'±')+Math.abs(v);
+// «обычный ты»: среднее по последним 5 дням с наборами к этому же времени
+const usual=(src,k,slot)=>{const P=Object.entries(src||{}).filter(([x])=>x<k).slice(-5).map(([,d])=>cumAt(d,slot)).filter(v=>v>0);return P.length?Math.round(P.reduce((a,b)=>a+b,0)/P.length):0};
+export function ghostLine(root,now,i=0,rec=null){const g=root.gh;if(!g||!g.t.length)return null;if(rec&&rec.ms&&rec.ms.length)return rec.ms[0];
+ const k=dayKey(now),slot=slotOf(now),n=g.t.length,R=g.rec0||{},tm=new Date(now).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+ const cls=rec&&rec.cls,m10=rec?rec.m10:g.t.filter(x=>x>now-6e5).length,h=rec?rec.h:g.t.filter(x=>x>now-36e5).length;
+ if(cls&&MEETC.includes(cls))return{k:'up',t:`Встреча №${g.mt} сегодня · на ${n} наборов`};
+ if(cls&&TALKC.includes(cls)){const p=rec&&rec.p100;if(p!=null&&R.p100)return{k:p>=R.p100?'up':p>=R.p100-2?'near':'down',t:`Питч №${g.tl} · на последние 100 наборов ${p} питчей, рекорд ${R.p100}`};
+  const u=usual(g.tk,k,slot);return u?{k:g.tl>=u?'up':'down',t:`Питч №${g.tl} · обычно к ${tm} у тебя ${u} (${sg(g.tl-u)})`}:{k:'up',t:`Питч №${g.tl} сегодня`}}
+ const L=[];
+ // идёшь на рекорд
+ if(R.b10>=8&&m10>=R.b10-3&&m10<=R.b10)L.push({k:'near',t:`10 минут: ${m10} наборов · рекорд ${R.b10} — ещё ${R.b10-m10+1} и он твой`});
+ if(R.f20){const inWin=g.t.filter(x=>x>now-R.f20).length;if(inWin>=14&&inWin<20)L.push({k:'near',t:`Темп рекорда: ${inWin} из 20 за ${mmssR(R.f20)} — держи`})}
+ if(R.b60>=20&&h>=R.b60*.85&&h<=R.b60)L.push({k:'near',t:`Час: ${h} наборов · рекорд часа ${R.b60}, осталось ${R.b60-h+1}`});
+ if(L.length)return L[i%L.length];
+ const u=usual(g.days,k,slot);if(u>0)L.push({k:n>=u?'up':'down',t:`Обычно к ${tm} у тебя ${u} наборов · сегодня ${n} (${sg(n-u)})`});
+ if(R.b10)L.push({k:'down',t:`Последние 10 минут: ${m10} · рекорд 10 минут ${R.b10}`});
  return L.length?L[i%L.length]:null}
+// неделя: раз в неделю, когда неделя обгоняет лучшую из прошлых (по понедельникам счёт с нуля)
+export function weekCheck(root,now){const g=root.gh;if(!g)return null;const days=root.days||{},d=new Date(now),dow=(d.getDay()+6)%7;let w=0;for(let i=0;i<=dow;i++)w+=((days[dayKey(now-i*864e5)]||{}).n||0);
+ const wk=dayKey(now-dow*864e5);g.wk=g.wk||{best:0,k:'',told:''};if(g.wk.k!==wk){if(g.wk.k&&g.wk.cur>g.wk.best)g.wk.best=g.wk.cur;g.wk.k=wk;g.wk.b0=g.wk.best}g.wk.cur=w;
+ if(g.wk.b0>=50&&w>g.wk.b0&&g.wk.told!==wk){g.wk.told=wk;return{k:'win',t:`Эта неделя уже лучшая: ${w} наборов (прошлый рекорд ${g.wk.b0})`}}return null}
 // ранг стиля (D3) по темпу за 15 минут и «владельцу на линии»
 export const styleRank=(rate,talk15)=>rate>=60||(rate>=45&&talk15)?'SSS':rate>=50?'SS':rate>=40?'S':rate>=30?'A':rate>=20?'B':rate>=10?'C':'D';

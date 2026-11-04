@@ -4,7 +4,7 @@ import {makeHall} from './hall.js';
 import {showChoice} from './choice.js';
 import {makeKeys} from './keys.js';
 import {needKey} from '../../core/keys.js';
-import {pendingChoice} from '../../core/allies.js';
+import {pendingChoice,allyDistricts} from '../../core/allies.js';
 import {CONFIG as C,districtThr} from '../../core/config.js';
 import {SaveManager as SM} from '../../core/save.js';
 import {EventBus} from '../../core/eventbus.js';
@@ -34,7 +34,7 @@ import {makeDistrictWindow} from './dwin.js';
 import {makeTutor} from './tutor.js';
 import {SPRINT} from '../../dialer/dialer.js';
 import {TUTORIAL,LINES} from '../../story/guide.js';
-import {BEATS,BEAT_AT,AMBIENT,ALLY_SAY,actOf,ambientChance,ambientGapMin} from '../../story/beats.js';
+import {BEATS,BEAT_AT,AMBIENT,ALLY_SAY,CLUES,actOf,ambientChance,ambientGapMin} from '../../story/beats.js';
 import {makeComms} from './comms.js';
 import {phaseOf} from '../../art/bosses.js';
 import {Music} from '../../audio/music.js';
@@ -95,7 +95,7 @@ export function startWork(root,{save,au,demo=null}={}){
    <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
    <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
    <div class="adx" id="adx"></div><div class="adx-gh" id="adx-gh" aria-live="polite"></div>
-   <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
+   <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен · множитель и Overdrive горят как обычно<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
    <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
   <section class="wk-dw" id="dwin" aria-label="Окно в район"></section>
@@ -339,20 +339,30 @@ export function startWork(root,{save,au,demo=null}={}){
   busy:()=>{const on=d.calling||(d.call&&d.call.ended==null);return on||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||!!(MAP.isOpen&&MAP.isOpen())||document.querySelector('.tut,.gm,.wk-ov.open')}});
  // Addiction update: полоса Сигнала/Заморозки/Рюкзака/Рейда, рулетка Шума, перк, призрак, Ночная чистка (ui/work/addict.js)
  let keyTold=0;const KEY=makeKeys({save,G:()=>ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),onGot:()=>{hud()}});
- const AX=makeAddict({extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,
+ let frzAuto=null;
+ const AX=makeAddict({extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,holdAuto:on=>{if(on){if(frzAuto==null){frzAuto=d.auto;d.auto=false}}else if(frzAuto!=null){d.auto=frzAuto;frzAuto=null}},
   lead:()=>{const v=d.view();return v.lead?{state:v.lead.state}:null},dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n});
  const HALL=makeHall({save,toast:m=>toast(m)});
  // E5: выбор после босса — когда сцены закрыты и серия не идёт
  let chOpen=false;setInterval(()=>{if(chOpen||demo||STORY.isOpen()||ARENA.isOpen()||!stSafe()||document.querySelector('.adr-wrap,.adp-wrap,.ak-wrap,.ch-wrap'))return;const dd=pendingChoice(save,ses.G);if(!dd)return;
   chOpen=true;showChoice({d:dd,save,G:ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n)}).then(()=>{chOpen=false})},4000);
  // события района (beats): при пересечении 25/50/65/75% района — одна реплика; если перескочили несколько — только последняя
+ // Пауза без лимита, но игра «агрится»: чем дольше стоишь, тем жёстче (в духе Гоггинса). Минуты появления и тексты — NAG.
+ let nagI=0;const NAG=[[2,'Две минуты. Перерыв — это нормально. Привычка к перерывам — нет.'],[5,'Пять минут. Множитель тает. Ты это знаешь.'],
+  [9,'Девять минут. Никто не придёт и не наберёт номер за тебя.'],[14,'Четырнадцать минут. Тот, кто сейчас звонит, забирает твоих клиентов.'],
+  [20,'Двадцать минут. Ты не устал. Тебе просто стало удобно. Встань и набери.'],[28,'Двадцать восемь минут. Серия сгорела. Начинай заново — это и есть работа.'],
+  [38,'Почти сорок минут. Мозг врёт, что ты сделал достаточно. Ты сделал сорок процентов.'],[50,'Пятьдесят минут. Остаться жёстким, когда никто не смотрит, — вот что отличает.'],
+  [65,'Час с лишним. Город снова глохнет. Только ты можешь это остановить.']];
+ const nag=ps=>{const m=ps/60;let x=NAG[nagI];if(!x&&nagI>=NAG.length){const extra=65+15*(nagI-NAG.length+1);x=[extra,`${Math.round(m)} минут тишины. Ни одного набора. Это выбор — и ты делаешь его прямо сейчас.`]}
+  if(!x||m<x[0])return;while(NAG[nagI+1]&&m>=NAG[nagI+1][0]){nagI++;x=NAG[nagI]}nagI++;document.querySelectorAll('.wk-nag').forEach(e=>e.remove());const el=document.createElement('div');el.className='wk-nag l'+Math.min(5,Math.floor(nagI/2));el.innerHTML=`<em>ПАУЗА ${mmss(ps)}</em><b>${esc(x[1])}</b><span>P — продолжить</span>`;
+  document.body.appendChild(el);if(SFX.snd)SFX.snd(nagI>4?'del':'chime');setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),400)},6500)};
  let bPh=0,sbMax=0,bAmbN=-1;const beats=()=>{const G=ses.G,dd=G.district||1,B=BEATS[dd-1],st=save.story;if(!B||!st||!st.seen||(save.meta&&save.meta.captured&&save.meta.captured[dd]))return;
-  const f=G.dxp/districtThr(dd);let hit=null;for(const k of ['rumor','council','lom','call']){const id='b-'+dd+'-'+k;if(f>=BEAT_AT[k]&&!st.seen[id]){st.seen[id]=Date.now();hit=k}}
-  if(hit){persistGame();const v=B[hit];COMMS.say(hit==='rumor'?{who:'local',name:v.name,text:v.text}:hit==='call'?(v.guide?{who:'guide',mood:'worried',text:v.text}:{who:'local',name:'Входящий · '+v.name,text:v.text}):hit==='lom'?{who:'lom',text:v}:{who:'council',text:v})}
+  const f=G.dxp/districtThr(dd);let hit=null;for(const k of ['rumor','clue','council','lom','call']){if(k==='clue'&&!CLUES[dd])continue;const id='b-'+dd+'-'+k;if(f>=BEAT_AT[k]&&!st.seen[id]){st.seen[id]=Date.now();hit=k}}
+  if(hit){persistGame();const v=hit==='clue'?CLUES[dd]:B[hit];COMMS.say(hit==='clue'?{who:'guide',mood:'worried',text:'Обрывок той ночи · '+v.n+'. '+v.t}:hit==='rumor'?{who:'local',name:v.name,text:v.text}:hit==='call'?(v.guide?{who:'guide',mood:'worried',text:v.text}:{who:'local',name:'Входящий · '+v.name,text:v.text}):hit==='lom'?{who:'lom',text:v}:{who:'council',text:v})}
   // Q8: долгий район — больше событий (день в районе считается от захода)
   const di=st.dIn&&st.dIn.d===dd?st.dIn:(st.dIn={d:dd,t:Date.now()}),days=(Date.now()-di.t)/864e5;
   const nU=G.undo.length,rolled=nU!==bAmbN;bAmbN=nU;
-  if(!hit&&rolled&&(S.chat||'often')!=='off'&&Math.random()<ambientChance(days)){const al=Object.entries((save.story&&save.story.ch)||{}).filter(([k,v])=>v==='ally').map(([k])=>+k.slice(1)).filter(n=>ALLY_SAY[n]);
+  if(!hit&&rolled&&(S.chat||'often')!=='off'&&Math.random()<ambientChance(days)){const al=allyDistricts(save).filter(n=>ALLY_SAY[n]);
    if(al.length&&Math.random()<.3){const n=al[Math.random()*al.length|0],L=ALLY_SAY[n];COMMS.say({who:'local',name:'Союзник · '+DIST[n-1][3],text:L[Math.random()*L.length|0].replace(/^[^«]*«/,'').replace(/»\s*$/,'')},'amb',ambientGapMin(days)*60000)}
    else{const pool=AMBIENT[actOf(dd)],v=pool[Math.random()*pool.length|0];COMMS.say(v,'amb',ambientGapMin(days)*60000)}}
   const bs=bossState(G);if(bs==='boss'){const ph=phaseOf(bossHp(G));if(bPh&&ph>bPh&&ph>=2)COMMS.say({who:'boss',name:DIST[dd-1][3],text:B['ph'+ph]},'ph',0);bPh=ph}else bPh=0};
@@ -364,9 +374,9 @@ export function startWork(root,{save,au,demo=null}={}){
   {const sub=$('#sk-s'),cd=w.state!=='online'&&w.state!=='lost'&&w.left!=null&&w.mult>1&&!w.od&&!(w.ulta>0);sub.classList.toggle('cd',cd);sub.classList.toggle('hurry',cd&&w.left<=15);if(cd)sub.innerHTML=`x${w.mult} сгорит через <b>${w.left>=60?mmss(w.left):w.left+' с'}</b>`+(w.toNext!=null?` · до x${w.nextMult} ещё ${w.toNext}`:'')}
   glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(w.streak>=8)sbMax=w.streak;if(!w.streak){if(sbMax>=8)COMMS.say({who:'guide',mood:'neutral',text:pick(LINES.streakBreak)},'sb',600000);sbMax=0;prevStreak=0}beats();
   roll('x',$('#r-x'),Math.round(G.lifeXp),v=>v.toLocaleString('ru')+' XP');if(!mLock)roll('m',$('#r-m'),Math.round(G.money),money);else shown.m=Math.round(G.money);sprUi();AX.render();DW.sync();if(MUS.lib&&MUS.playing)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
-  const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`+(needKey(save,G)?' · 🔒 нужен ключ':'');$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
+  const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`+(needKey(save,G)?' · 🔒 нужен проход':'');$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
   {const pw=powerOf(d.ses.tot),dy=$('#day');dy.innerHTML=`<i class="wk-bulb p${pw}" title="Свет на базе: ${['выключен — нет звонков','тусклый','горит','ярко','сияет'][pw]}"></i>сегодня ${d.ses.tot} · ${AX.dayLine(((save.days||{})[dayKey(t)]||{n:0}).n)}`;if(pw!==hudPw){if(hudPw===0&&pw===1)toast('💡 На базе загорелся свет');hudPw=pw}}
-  if(d.paused){$('#pause-t').textContent=mmss((t-d.pauseAt)/1000)}
+  if(d.paused){const ps=(t-d.pauseAt)/1000;$('#pause-t').textContent=mmss(ps);nag(ps)}
   if(on){dialUi();const p=$('#oscp');if(p){let s='M0 11';for(let x=0;x<=54;x+=3)s+=` L${x} ${11+Math.sin(x/4+t/90)*(d.call&&zp.calls.get(d.call.id)&&zp.calls.get(d.call.id).connected?7:2.5)}`;p.setAttribute('d',s)}}};
  // ---------- статусы ----------
  const adWait=meta=>Math.max((meta.milestone&&meta.milestone.kind=='hundred')?2800:meta.win?1000:0,AX.wait());   // автонабор ждёт рулетку Шума
@@ -379,12 +389,12 @@ export function startWork(root,{save,au,demo=null}={}){
   if(f){SFX.setPitch&&SFX.setPitch(1+Math.min(40,ses.G.streak||0)*.006);SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
   if(meta.milestone){const M=meta.milestone;setTimeout(()=>SFX.snd(M.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>{if(M.kind==='hundred')J.free(M.n+' CALLS','#ffc400');sprintFx(M)},meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
-  const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast(`Слишком быстро: ${((e.spamGap||0)/1000).toFixed(1)} с после прошлого статуса (нужно от ${C.antispamSec} с, а Zoom звонка не видно) — награда x0.5`,'bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
+  const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast(`Слишком быстро: ${((e.spamGap||0)/1000).toFixed(1)} с после прошлого статуса (нужно от ${C.antispamSec} с, а Zoom звонка не видно) — награды нет`,'bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
    if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
   (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
   if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
-  AX.onStatus(out);if(out.held&&!keyTold){keyTold=1;toast('Граница: прогресс района копится, пока нет ключа. Нажми 🔒 в полосе сверху','bad')}
+  AX.onStatus(out);if(out.held&&!keyTold){keyTold=1;toast('Граница: прогресс района копится, пока нет прохода. Нажми 🔒 в полосе сверху','bad')}
   if(e&&!out.blocked){flowPop(e);const c=e.cls,often=(S.chat||'often')==='often';
    if(c==='BOOKED'||c==='DISCOVERY')COMMS.say({who:'guide',mood:'happy',text:pick(LINES.booked)},'booked',240000);
    else if(often&&c==='TALK'&&Math.random()<.4)COMMS.say({who:'guide',mood:'talking',text:pick(LINES.talk)},'talk',300000);
@@ -392,7 +402,7 @@ export function startWork(root,{save,au,demo=null}={}){
   shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('callLogged',e=>{const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
- dbus.on('pauseChanged',e=>{e.paused?ses.pause():ses.resume();$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
+ dbus.on('pauseChanged',e=>{nagI=0;$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
  dbus.on('leadChanged',()=>{if(!$('#lead')&&d.view().loaded)layout();else renderLead();leds()});
  dbus.on('leadsLoaded',()=>{layout();leds();tutMaybe()});
  ['sourceStateChanged','saveState','syncReport'].forEach(k=>dbus.on(k,leds));

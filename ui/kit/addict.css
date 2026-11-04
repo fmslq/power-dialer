@@ -78,7 +78,7 @@ button.adx-c:hover{background:rgba(255,255,255,.08)}
 .adp-c b{font:600 16px var(--ct-display);color:#fff}.adp-c span{font:400 13px/1.4 var(--ct-text);color:#c9d4cf}.adp-c em{font:500 11px var(--ct-mono);color:#ffd84a;font-style:normal}
 .adp small{display:block;margin-top:10px;color:#5e6964;font:400 12px var(--ct-text)}
 
-/* ---------- окно «Схема Гудка» ---------- */
+/* ---------- окно «Коммутатор» ---------- */
 .adw-wrap{position:fixed;inset:0;z-index:8000;display:grid;place-items:center;background:rgba(2,4,6,.66);animation:akIn .16s}
 .adw{width:min(980px,96vw);height:min(720px,92dvh);display:grid;grid-template-rows:auto 1fr;background:#0b0e10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#dbe4df}
 .adw header{display:flex;align-items:center;gap:14px;padding:12px 16px;box-shadow:inset 0 -1px 0 rgba(255,255,255,.08)}.adw header>b{font:700 16px var(--ct-display);letter-spacing:.14em;color:#3ad7ff}
@@ -187,3 +187,23 @@ button.adx-c:hover{background:rgba(255,255,255,.08)}
 .sm-g span{font:500 11px var(--ct-mono);letter-spacing:.1em;text-transform:uppercase;color:#8a9690}.sm-g b{font:700 24px var(--ct-display);color:#fff}.sm-g i{font:400 12.5px var(--ct-text);color:#b9c6c0;font-style:normal}
 .sm-g em{font-style:normal;font-weight:700}.sm-g em.up{color:#9dff86}.sm-g em.dn{color:#ff9aa2}
 @media (max-width:700px){.sm-g{grid-template-columns:1fr 1fr}}
+/* исход босса v2 */
+.ch-k{display:block;font:600 11px var(--ct-mono);letter-spacing:.22em;color:#8a9690;font-style:normal;margin-bottom:4px}
+.ch-s b{color:#fff;font-weight:600}
+.ch-c.n1{grid-template-columns:1fr}.ch-c.n3{grid-template-columns:repeat(3,1fr)}
+.ch-c button p{margin:0 0 10px;font:400 13.5px/1.45 var(--ct-text);color:#aebbb5}
+.ch-c button.tr em{color:#ffd45a}.ch-c.n1 button{cursor:default}.ch-c.n1 button:hover{transform:none}
+.ch-b{display:flex;justify-content:flex-end;margin-top:14px}.ch-b .pri{height:38px;padding:0 18px;border:0;border-radius:6px;cursor:pointer;font:700 14px var(--ct-text);background:var(--a);color:#061006}
+@media (max-width:900px){.ch-c.n3{grid-template-columns:1fr}}
+.adw-mem{list-style:none;margin:6px 0 10px;padding:0;display:grid;gap:5px}.adw-mem li{display:flex;gap:10px;padding:7px 10px;border-radius:5px;background:rgba(57,255,20,.05);font:400 13.5px/1.45 var(--ct-text);color:#cfe0d3}.adw-mem li i{flex:none;min-width:22px;font:600 12px var(--ct-mono);color:#39ff14;font-style:normal}.adw-mem li.lk{color:#4d5852;background:rgba(255,255,255,.02)}.adw-mem li.lk i{color:#4d5852}
+.adw-intro{display:grid;gap:7px;margin:0 0 12px;padding:12px;border-radius:7px;background:rgba(255,176,32,.06);box-shadow:inset 0 0 0 1px rgba(255,176,32,.3)}.adw-intro p{margin:0;font:400 14px/1.5 var(--ct-text);color:#dbe4df}.adw-intro p b{display:block;font:600 11px var(--ct-mono);letter-spacing:.14em;text-transform:uppercase;color:#ffb020}.adw-intro button{justify-self:end;height:32px;padding:0 16px;border:0;border-radius:6px;cursor:pointer;background:#ffb020;color:#1a1000;font:700 13px var(--ct-text)}
+.adx-gh.win{color:#fff;background:linear-gradient(90deg,rgba(57,255,20,.25),rgba(255,212,90,.25)),rgba(8,10,8,.95);box-shadow:inset 0 0 0 1px #ffd45a,0 0 18px rgba(255,212,90,.35);font-weight:600;animation:ghWin .5s cubic-bezier(.2,1.6,.4,1)}@keyframes ghWin{0%{transform:translate(-50%,0) scale(.8)}100%{transform:translate(-50%,0) scale(1)}}
+.ch-c button{display:flex;flex-direction:column;justify-content:flex-start}
+
+/* Заморозка: иней по краям экрана */
+body.frz-on::after{content:'';position:fixed;inset:0;z-index:7000;pointer-events:none;
+ background:radial-gradient(ellipse at 0 0,rgba(190,235,255,.35),transparent 28%),radial-gradient(ellipse at 100% 0,rgba(190,235,255,.3),transparent 26%),
+ radial-gradient(ellipse at 0 100%,rgba(190,235,255,.3),transparent 26%),radial-gradient(ellipse at 100% 100%,rgba(190,235,255,.35),transparent 28%),rgba(120,200,255,.06);
+ box-shadow:inset 0 0 120px rgba(160,225,255,.45),inset 0 0 0 2px rgba(200,240,255,.5);animation:frzIn .6s ease-out}
+body.frz-on #main,body.frz-on .wk-main{filter:saturate(.75) hue-rotate(-8deg)}
+@keyframes frzIn{0%{opacity:0}100%{opacity:1}}

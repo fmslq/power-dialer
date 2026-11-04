@@ -10,15 +10,17 @@ export const CONFIG={
  fastSec:60,crmSec:180,statusGapSec:{2:180,3:300}, // ОБЩЕЕ окно от статуса до следующего звонка, чтобы Heat не упал: обычно 60 с; после «Owner hung up в начале» (id 2) ровно 3 мин; после «Owner pitched & Hang Up» (id 3) ровно 5 мин; после Call back/Follow up 60+180 с
  afterCallSec:{TRASH:30,GATEKEEPER:30,MINOR:45,TALK:60,CALLBACK:180,BOOKED:1200,DISCOVERY:1200,byId:{}}, // окно по логу Zoom: от КОНЦА прошлого звонка до НАЧАЛА следующего (сек), по прошлому статусу. Только в коде, не в настройках (иначе чит)
  maxGapMin:40,winMaxGapMin:40,heatDropMode:'oneStep',
- antispamSec:4,redialMinSec:30,testerCallSec:360,undoKeep:5000,antispamMult:.5,undoSec:60,pauseMaxSec:600,bonusCap:.5,
+ antispamSec:3,redialMinSec:30,testerCallSec:360,undoKeep:5000,antispamMult:0,undoSec:60,pauseMaxSec:0,bonusCap:.5,
  ulta:{n:5},
  od:{streak:25,sec:300,money:3,xp:2.2,needTalk:1}, // Q10а: 25 звонков серии, среди них хотя бы 1 «владелец на линии» (TALK/CALLBACK/BOOKED/DISCOVERY); 5 минут; предметы/союзники/перк добавляют секунды (mods.odSec). Цифры — на общий пересмотр баланса
  talkBonus:{xp:3.5,money:2.6,cap:18,per:30,after:60},
  minTalkSec:{TALK:15,CALLBACK:20,BOOKED:180,DISCOVERY:300}, // BOOKED/DISCOVERY короче этого по Zoom = статус НЕЛЬЗЯ поставить
  bossPhaseShare:.1,finishFromDistrict:3,
  cancelStatusId:0,countInbound:false,logWaitMin:10,staleRingingMin:60,health:{lagYellowMs:8000,fullYellow:.9,fullRed:.6,minCalls:5},autoStatusOnCancel:false,
- districts:[[1,'Scrapyard',1,1],[2,'Industrial Zone',2,1.2],[3,'Neon Docks',2,1.45],[4,'Night Market',3,1.75],[5,'Commercial Hub',3,2.1],[6,'Chrome Plaza',3,2.5],
-  [7,'Cyber-Downtown',4,3],[8,'Financial Spire',4,3.6],[9,'Sky District',4,4.3],[10,'Airport Ring',5,5.2],[11,'The Station',5,6.2],[12,'The Summit',5,7.5]]
+ // Баланс v2 (кусок 17): [номер, имя, «рабочих дней» наборов по плану, рост наград за звонок].
+ // Дни растут на 19% за район: каждый район заметно дольше прошлого, но не вдвое. Награды за звонок растут отдельно (y),
+ // порог XP и цены умножаются на y и на ожидаемые бонусы, поэтому главная мерка — именно число звонков.
+ districts:[[1,'Scrapyard',1.0,1],[2,'Industrial Zone',1.19,1.2],[3,'Neon Docks',1.42,1.45],[4,'Night Market',1.69,1.75],[5,'Commercial Hub',2.01,2.1],[6,'Chrome Plaza',2.39,2.5],[7,'Cyber-Downtown',2.84,3],[8,'Financial Spire',3.38,3.6],[9,'Sky District',4.02,4.3],[10,'Airport Ring',4.79,5.2],[11,'The Station',5.69,6.2],[12,'The Summit',6.78,7.5]]
 };
 // [название (как в таблице), класс, клавиша дайлера]. Порядок = индексы ST в дайлере.
 export const STATUS=[
@@ -28,8 +30,14 @@ export const STATUS=[
  ['Номер не рабочий','TRASH','Q'],['Непонятная хуйня','MINOR','W'],['Call back','CALLBACK','E'],['Follow up in future','CALLBACK','R'],
  ['CONDUCTED DISCOVERY CALL','DISCOVERY','T']].map(([name,cls,key],id)=>({id,name,cls,key}));
 export const classOf=name=>(STATUS.find(s=>s.name===name)||{cls:'MINOR'}).cls; // новый статус = MINOR
-// E3: ожидаемый множитель бонусов к началу района (предметы, Схема Гудка, Слышащие, союзники, нормы; потолок ×1.8).
+// E3: ожидаемый множитель бонусов к началу района (предметы, Коммутатор, Слышащие, союзники, нормы; потолок ×1.8).
 // Порог растёт вместе с ним, чтобы каждый следующий район требовал чуть больше реальных наборов, а не меньше.
 export const BONUS_K=[1,1.06,1.12,1.19,1.26,1.33,1.4,1.46,1.52,1.57,1.61,1.65];
+// ожидаемый множитель $ к началу района (предметы, союзники, Коммутатор, Слышащие; потолок ×1.8) — цены растут вместе с доходом
+export const MONEY_K=BONUS_K;
+// «усилие ресурсами» сверх роста дохода: каждая следующая полка рынка и проход стоят на 6% больше дней дохода
+export const PRICE_GROW=d=>1+.06*(d-1);
+// ожидаемый доход за рабочий день в районе d (с бонусами) — мерка для цен, проходов и денежных наград
+export const shiftMoneyAt=d=>CONFIG.assumedDailyMoney*CONFIG.districts[d-1][3]*(MONEY_K[d-1]||1);
 export const districtThr=d=>{const x=CONFIG.districts[d-1];return Math.round(x[2]*CONFIG.assumedDailyXp*x[3]*(BONUS_K[d-1]||1))};
 STATUS[2].min=3; // «Owner hung up в начале» короткий по природе: свой порог верификации (сек)

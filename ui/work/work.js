@@ -1,4 +1,10 @@
 // РАБОЧИЙ ЭКРАН (R1 ч.4): дайлер (dialer/) + игра (core/Session) + Zoom. Только DOM и связка; логика живёт в dialer/ и core/.
+import {makeAddict} from './addict.js';
+import {makeHall} from './hall.js';
+import {showChoice} from './choice.js';
+import {makeKeys} from './keys.js';
+import {needKey} from '../../core/keys.js';
+import {pendingChoice} from '../../core/allies.js';
 import {CONFIG as C,districtThr} from '../../core/config.js';
 import {SaveManager as SM} from '../../core/save.js';
 import {EventBus} from '../../core/eventbus.js';
@@ -28,7 +34,7 @@ import {makeDistrictWindow} from './dwin.js';
 import {makeTutor} from './tutor.js';
 import {SPRINT} from '../../dialer/dialer.js';
 import {TUTORIAL,LINES} from '../../story/guide.js';
-import {BEATS,BEAT_AT} from '../../story/beats.js';
+import {BEATS,BEAT_AT,AMBIENT,ALLY_SAY,actOf,ambientChance,ambientGapMin} from '../../story/beats.js';
 import {makeComms} from './comms.js';
 import {phaseOf} from '../../art/bosses.js';
 import {Music} from '../../audio/music.js';
@@ -85,9 +91,10 @@ export function startWork(root,{save,au,demo=null}={}){
   <section class="wk-hud" id="hud">
    <div class="wk-streak idle" id="streak"><div class="wk-ring"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="19"/><circle class="fg" id="ringfg" cx="23" cy="23" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringt">–</b></div>
     <div class="wk-sk"><div class="n" id="sk-n">СЕРИЯ 0<em>x1.0</em></div><div class="s" id="sk-s">начни звонить</div></div></div>
-   <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-r"><div class="wk-spr" id="spr" title="Спринт: 25 звонков подряд. Белая черта — где ты был бы, если идти в темпе своего лучшего спринта"><i id="spr-f"></i><u id="spr-g"></u><b id="spr-t">СПРИНТ 0/25</b></div><div class="wk-flow-p" id="flow-p"></div></div></div>
+   <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-r"><div class="wk-flow-p" id="flow-p"></div><div class="wk-spr" id="spr" title="Спринт: 25 звонков подряд. Белая черта — где ты был бы, если идти в темпе своего лучшего спринта"><i id="spr-f"></i><u id="spr-g"></u><b id="spr-t">0 / 25</b></div></div></div>
    <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
    <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
+   <div class="adx" id="adx"></div><div class="adx-gh" id="adx-gh" aria-live="polite"></div>
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
    <div class="wk-banner test ${tester?'on':''}" id="bn-test">РЕЖИМ ТЕСТИРОВЩИКА <span>звонков нет · в таблицу и файл ничего не пишется · прогресс отдельный</span><button class="wk-btn" id="bn-test-off">Выключить</button></div>
    <div class="wk-banner app" id="bn-app"><span id="bn-app-t"></span><button class="wk-btn" id="bn-reload">Перезагрузить</button></div></section>
@@ -201,7 +208,7 @@ export function startWork(root,{save,au,demo=null}={}){
    el.animate([{transform:'none',opacity:1},{transform:`translate(${dx*.2}px,${dy*.2+6}px) scale(.9)`,opacity:1,offset:.25},{transform:`translate(${dx}px,${dy}px) scale(.08)`,opacity:.2}],{duration:620,easing:'cubic-bezier(.5,0,.8,.4)',fill:'forwards'}).onfinish=()=>{el.remove();if(tgt){tgt.classList.remove('wk-catch');void tgt.offsetWidth;tgt.classList.add('wk-catch')}CC.refresh();setTimeout(nextReward,160)}},hold)};
  const gain=(x,m,el)=>{if(!x&&!m)return;const r=(el||$('#stat')||main).getBoundingClientRect(),g=document.createElement('div');g.className='wk-gain';
   g.style.left=(r.left+r.width/2)+'px';g.style.top=(r.top+20)+'px';g.innerHTML=(x?`<span class="x">+${x} XP</span>`:'')+(m?`<span class="m">+${money(m)}</span>`:'');document.body.appendChild(g);setTimeout(()=>g.remove(),1400)};
- const J=makeJuice(()=>S.fx||'full');
+ const J=makeJuice(()=>S.fx||'full',()=>S.shake??1);
  // ---------- поток (вместо полоски Overdrive, ч.6–7): мысли оператора по стадиям серии, шкала шагов, свечение краёв ----------
  // Стадии = ступени множителя: 0 — x1 (1–3), 1 — x1.25 (4–9), 2 — x1.5 (10–19), 3 — x2 (20+), 4 — OVERDRIVE. Внутри стадии всё растёт плавно.
  const FLOW=[['Есть контакт','Линия ожила','Пошло','Первая искра','Разгоняемся','Так, работаем'],
@@ -219,8 +226,8 @@ export function startWork(root,{save,au,demo=null}={}){
  const pipsHtml=w=>{if(!w.streak&&!w.od)return'';if(w.od)return`<span class="od on">OVERDRIVE <b>${mmss(w.od)}</b></span>`;
   let a='';if(w.nextMult!=null){const from=stepsC[w.step]||0,span=stepsC[w.step+1]-from,got=Math.max(0,w.streak-from);
    a=`<span class="nx"><b>x${w.nextMult}</b><i class="pp">${Array.from({length:span},(_,i)=>`<i class="${i<got?'f':''}"></i>`).join('')}</i></span>`}
-  const o=Math.max(0,w.odNeed-w.odProg);return a+(o>0?`<span class="od">OVERDRIVE через <b>${o}</b></span>`:'')};
- let pipsKey='';const pipsUi=w=>{const el=$('#flow-p');if(!el)return;const k=w.od?'od'+w.od:w.streak+'|'+w.step+'|'+w.odProg;if(k===pipsKey)return;pipsKey=k;el.innerHTML=pipsHtml(w);el.classList.toggle('on',!!(w.streak||w.od))};
+  const o=Math.max(0,w.odNeed-w.odProg),tk=Math.max(0,(w.odTalkNeed||0)-(w.odTalk||0));return a+(o>0?`<span class="od">OVERDRIVE через <b>${o}</b><i class="tk">${tk?' · нужен владелец на линии':' · владелец ✓'}</i></span>`:tk?`<span class="od">OVERDRIVE ждёт: <b>владелец на линии</b></span>`:'')};
+ let pipsKey='';const pipsUi=w=>{const el=$('#flow-p');if(!el)return;const k=w.od?'od'+w.od:w.streak+'|'+w.step+'|'+w.odProg+'|'+w.odTalk;if(k===pipsKey)return;pipsKey=k;el.innerHTML=pipsHtml(w);el.classList.toggle('on',!!(w.streak||w.od))};
  const flowPop=(e)=>{const box=$('#flow-w');if(!box)return;const w=winNow(),t=tier(w);let big=null;
   if(e&&e.odStart)big='OVERDRIVE ВКЛЮЧЁН';else if(prevMult!=null&&w.mult>prevMult)big=`x${w.mult} ВКЛЮЧЁН`;
   let ph=big;if(!ph){const pool=FLOW[t].filter(x=>x!==lastPhrase);ph=pool[Math.random()*pool.length|0];lastPhrase=ph}
@@ -308,7 +315,7 @@ export function startWork(root,{save,au,demo=null}={}){
  // темп: 5 ступеней цвета и эффектов — чем выше темп, тем горячее (просьба пользователя)
  const TT=[[0,'cold','ХОЛОДНО'],[25,'warm','РАЗГОН'],[35,'hot','ГОРЯЧО'],[50,'fire','ОГОНЬ'],[70,'inferno','ПЕКЛО']];
  const tempoUi=()=>{const t=d.tempo(),el=$('#tempo');if(!t.show){el.className='wk-tempo';el.innerHTML='';return}const k=TT.filter(x=>t.rate>=x[0]).pop();const q=Math.min(1,t.rate/90);
-  el.className='wk-tempo on t-'+k[1];el.style.setProperty('--q',q.toFixed(2));el.title='Темп: звонков в час за последние 15 минут';el.innerHTML=`<i class="tb"><i style="width:${Math.round(q*100)}%"></i></i><span class="tn"><b>${t.rate}</b> зв/ч</span><span class="tl">${k[2]}</span>`};
+  el.className='wk-tempo on t-'+k[1];el.style.setProperty('--q',q.toFixed(2));el.title='Темп: звонков в час за последние 15 минут';el.innerHTML=`<i class="tb"><i style="width:${Math.round(q*100)}%"></i></i><span class="tn"><b>${t.rate}</b> зв/ч</span><span class="tl">${k[2]}</span><b class="sr" title="Ранг стиля: темп за 15 минут и разговоры с владельцем">${AX.style(t,ses.G)}</b>`};
  const banner=()=>{const z=d.zoom,b=$('#bn-app');let t='';if(tester){b.classList.remove('on');return}
   if(!demo&&!z.enabled)t=location.protocol!=='https:'?'Страница открыта не по https: встроенный Zoom недоступен, звонки через приложение. Проверки по Zoom выключены.':'Встроенный Zoom выключен в Настройках: звонки через приложение. Проверки по Zoom (серия, встречи, бонус) выключены.';
   else if(z.gate==='app')t='Звонки через приложение Zoom: проверки по Zoom выключены, встречи пойдут «на проверку».';
@@ -320,7 +327,7 @@ export function startWork(root,{save,au,demo=null}={}){
   const st=t=>{if(rollT[k]!==o)return;const q=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-q,3);o.cur=Math.round(from+(to-from)*e);el.textContent=fmt(o.cur);if(q<1)requestAnimationFrame(st);else{rollT[k]=null;setTimeout(()=>el.classList.remove('roll-up','roll-dn'),300)}};requestAnimationFrame(st)};
  // спринт 25 (как в старой версии): полоска перетекает цветом от холодного к горячему, на 21+ «кипит»; белая черта — призрак лучшего спринта
  let sprPrev=-1;const sprUi=()=>{const el=$('#spr');if(!el)return;const n=d.ses.sprint|0,p=Math.min(1,n/SPRINT),f=$('#spr-f');
-  if(n!==sprPrev){f.style.width=(p*100)+'%';el.style.setProperty('--h1',String(Math.round(200-p*190)));el.style.setProperty('--h2',String(Math.round(175-p*200)));$('#spr-t').textContent=`СПРИНТ ${n}/${SPRINT}`;el.classList.toggle('heat',n>=SPRINT-4);if(n>sprPrev&&sprPrev>=0&&S.fx!=='off'){el.classList.remove('tick');void el.offsetWidth;el.classList.add('tick')}sprPrev=n}
+  if(n!==sprPrev){f.style.width=(p*100)+'%';el.style.setProperty('--h1',String(Math.round(190-p*150)));el.style.setProperty('--h2',String(Math.round(165-p*140)));$('#spr-t').textContent=`${n} / ${SPRINT}`;el.classList.toggle('heat',n>=SPRINT-4);if(n>sprPrev&&sprPrev>=0&&S.fx!=='off'){el.classList.remove('tick');void el.offsetWidth;el.classList.add('tick')}sprPrev=n}
   const g=$('#spr-g'),best=save.sprintBest,st0=d.ses.spStart;if(!best||n<1||!st0){g.style.display='none';el.classList.remove('ahead','behind');return}
   const gp=Math.min(SPRINT,SPRINT*(Date.now()-st0)/best);g.style.display='block';g.style.left=(gp/SPRINT*100)+'%';el.classList.toggle('ahead',n>=gp);el.classList.toggle('behind',n<gp)};
  const sprintFx=ms=>{const el=$('#spr');if(ms&&ms.ms>0&&(!save.sprintBest||ms.ms<save.sprintBest)){const old=save.sprintBest;save.sprintBest=ms.ms;persistGame();if(old)setTimeout(()=>toast('Лучший спринт: '+mmss(ms.ms/1000)+' (было '+mmss(old/1000)+')','gold'),1600)}
@@ -328,12 +335,26 @@ export function startWork(root,{save,au,demo=null}={}){
   J.burst&&J.burst(r.left+r.width/2,r.top+r.height/2,46,{cols:['#ffd84a','#ff5a1f','#39ff14','#fff'],speed:420,g:520,life:.9,r:2.4,s:'spark'});J.burst&&J.burst(r.left+6,r.top+r.height/2,20,{cols:['#ffd84a','#fff'],dir:-2.4,spread:1,speed:380,g:520,life:.8,r:2});J.burst&&J.burst(r.right-6,r.top+r.height/2,20,{cols:['#ffd84a','#fff'],dir:-.74,spread:1,speed:380,g:520,life:.8,r:2});
   const b=document.createElement('div');b.className='wk-sprban';b.textContent=W[Math.random()*W.length|0];document.body.appendChild(b);setTimeout(()=>b.remove(),1900);setTimeout(()=>{sprPrev=-1;sprUi()},1700)};
  const pick=a=>a[Math.floor(Math.random()*a.length)];
- const COMMS=makeComms({mount:document.body,mode:()=>S.chat||'rare',accent:()=>(DIST[(ses.G.district||1)-1]||[])[1]||'#39ff14',sfx:n=>SFX.snd&&SFX.snd(n),
+ const COMMS=makeComms({mount:document.body,mode:()=>S.chat||'often',accent:()=>(DIST[(ses.G.district||1)-1]||[])[1]||'#39ff14',sfx:n=>SFX.snd&&SFX.snd(n),
   busy:()=>{const on=d.calling||(d.call&&d.call.ended==null);return on||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||!!(MAP.isOpen&&MAP.isOpen())||document.querySelector('.tut,.gm,.wk-ov.open')}});
+ // Addiction update: полоса Сигнала/Заморозки/Рюкзака/Рейда, рулетка Шума, перк, призрак, Ночная чистка (ui/work/addict.js)
+ let keyTold=0;const KEY=makeKeys({save,G:()=>ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),onGot:()=>{hud()}});
+ const AX=makeAddict({extra:()=>KEY.chip(),ses,save,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',J,now,dPaused:()=>!!d.paused,
+  lead:()=>{const v=d.view();return v.lead?{state:v.lead.state}:null},dayN:()=>((save.days||{})[dayKey(now())]||{n:0}).n});
+ const HALL=makeHall({save,toast:m=>toast(m)});
+ // E5: выбор после босса — когда сцены закрыты и серия не идёт
+ let chOpen=false;setInterval(()=>{if(chOpen||demo||STORY.isOpen()||ARENA.isOpen()||!stSafe()||document.querySelector('.adr-wrap,.adp-wrap,.ak-wrap,.ch-wrap'))return;const dd=pendingChoice(save,ses.G);if(!dd)return;
+  chOpen=true;showChoice({d:dd,save,G:ses.G,persist:persistGame,toast:(m,k)=>toast(m,k),sfx:n=>SFX.snd&&SFX.snd(n)}).then(()=>{chOpen=false})},4000);
  // события района (beats): при пересечении 25/50/65/75% района — одна реплика; если перескочили несколько — только последняя
- let bPh=0,sbMax=0;const beats=()=>{const G=ses.G,dd=G.district||1,B=BEATS[dd-1],st=save.story;if(!B||!st||!st.seen||(save.meta&&save.meta.captured&&save.meta.captured[dd]))return;
+ let bPh=0,sbMax=0,bAmbN=-1;const beats=()=>{const G=ses.G,dd=G.district||1,B=BEATS[dd-1],st=save.story;if(!B||!st||!st.seen||(save.meta&&save.meta.captured&&save.meta.captured[dd]))return;
   const f=G.dxp/districtThr(dd);let hit=null;for(const k of ['rumor','council','lom','call']){const id='b-'+dd+'-'+k;if(f>=BEAT_AT[k]&&!st.seen[id]){st.seen[id]=Date.now();hit=k}}
   if(hit){persistGame();const v=B[hit];COMMS.say(hit==='rumor'?{who:'local',name:v.name,text:v.text}:hit==='call'?(v.guide?{who:'guide',mood:'worried',text:v.text}:{who:'local',name:'Входящий · '+v.name,text:v.text}):hit==='lom'?{who:'lom',text:v}:{who:'council',text:v})}
+  // Q8: долгий район — больше событий (день в районе считается от захода)
+  const di=st.dIn&&st.dIn.d===dd?st.dIn:(st.dIn={d:dd,t:Date.now()}),days=(Date.now()-di.t)/864e5;
+  const nU=G.undo.length,rolled=nU!==bAmbN;bAmbN=nU;
+  if(!hit&&rolled&&(S.chat||'often')!=='off'&&Math.random()<ambientChance(days)){const al=Object.entries((save.story&&save.story.ch)||{}).filter(([k,v])=>v==='ally').map(([k])=>+k.slice(1)).filter(n=>ALLY_SAY[n]);
+   if(al.length&&Math.random()<.3){const n=al[Math.random()*al.length|0],L=ALLY_SAY[n];COMMS.say({who:'local',name:'Союзник · '+DIST[n-1][3],text:L[Math.random()*L.length|0].replace(/^[^«]*«/,'').replace(/»\s*$/,'')},'amb',ambientGapMin(days)*60000)}
+   else{const pool=AMBIENT[actOf(dd)],v=pool[Math.random()*pool.length|0];COMMS.say(v,'amb',ambientGapMin(days)*60000)}}
   const bs=bossState(G);if(bs==='boss'){const ph=phaseOf(bossHp(G));if(bPh&&ph>bPh&&ph>=2)COMMS.say({who:'boss',name:DIST[dd-1][3],text:B['ph'+ph]},'ph',0);bPh=ph}else bPh=0};
  const hud=()=>{const G=ses.G,t=now(),on=d.calling||(d.call&&d.call.ended==null),w=windowState(G,t,{onLine:on,zoom:d.zoom.live}),el=$('#streak');
   el.className='wk-streak '+w.state;const frac=w.left!=null&&w.allowed?w.left/w.allowed:w.state==='online'?1:0;$('#ringfg').style.strokeDashoffset=String(119.4*(1-frac));
@@ -342,19 +363,20 @@ export function startWork(root,{save,au,demo=null}={}){
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
   {const sub=$('#sk-s'),cd=w.state!=='online'&&w.state!=='lost'&&w.left!=null&&w.mult>1&&!w.od&&!(w.ulta>0);sub.classList.toggle('cd',cd);sub.classList.toggle('hurry',cd&&w.left<=15);if(cd)sub.innerHTML=`x${w.mult} сгорит через <b>${w.left>=60?mmss(w.left):w.left+' с'}</b>`+(w.toNext!=null?` · до x${w.nextMult} ещё ${w.toNext}`:'')}
   glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(w.streak>=8)sbMax=w.streak;if(!w.streak){if(sbMax>=8)COMMS.say({who:'guide',mood:'neutral',text:pick(LINES.streakBreak)},'sb',600000);sbMax=0;prevStreak=0}beats();
-  roll('x',$('#r-x'),Math.round(G.lifeXp),v=>v.toLocaleString('ru')+' XP');if(!mLock)roll('m',$('#r-m'),Math.round(G.money),money);else shown.m=Math.round(G.money);sprUi();DW.sync();if(MUS.lib&&MUS.playing)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
-  const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
-  {const pw=powerOf(d.ses.tot),dy=$('#day');dy.innerHTML=`<i class="wk-bulb p${pw}" title="Свет на базе: ${['выключен — нет звонков','тусклый','горит','ярко','сияет'][pw]}"></i>сегодня ${d.ses.tot} · до 100: ${100-d.ses.tot%100}`;if(pw!==hudPw){if(hudPw===0&&pw===1)toast('💡 На базе загорелся свет');hudPw=pw}}
+  roll('x',$('#r-x'),Math.round(G.lifeXp),v=>v.toLocaleString('ru')+' XP');if(!mLock)roll('m',$('#r-m'),Math.round(G.money),money);else shown.m=Math.round(G.money);sprUi();AX.render();DW.sync();if(MUS.lib&&MUS.playing)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
+  const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`+(needKey(save,G)?' · 🔒 нужен ключ':'');$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
+  {const pw=powerOf(d.ses.tot),dy=$('#day');dy.innerHTML=`<i class="wk-bulb p${pw}" title="Свет на базе: ${['выключен — нет звонков','тусклый','горит','ярко','сияет'][pw]}"></i>сегодня ${d.ses.tot} · ${AX.dayLine(((save.days||{})[dayKey(t)]||{n:0}).n)}`;if(pw!==hudPw){if(hudPw===0&&pw===1)toast('💡 На базе загорелся свет');hudPw=pw}}
   if(d.paused){$('#pause-t').textContent=mmss((t-d.pauseAt)/1000)}
   if(on){dialUi();const p=$('#oscp');if(p){let s='M0 11';for(let x=0;x<=54;x+=3)s+=` L${x} ${11+Math.sin(x/4+t/90)*(d.call&&zp.calls.get(d.call.id)&&zp.calls.get(d.call.id).connected?7:2.5)}`;p.setAttribute('d',s)}}};
  // ---------- статусы ----------
- const doStatus=(k,late=false)=>{clearTimeout(waitT);pendingLate=late;const r=d.setStatus(k,undefined,{late});pendingLate=null;if(!r)return;
-  if(r.refused==='wait'){if(d.call&&d.call.ended==null&&d.P.hangupOnStatus){const h=d.hangup('status');if(h==='unsupported'){d.zoom.peek={reason:'hangup'};zoomUi();toast('Положи трубку в окне Zoom: статус поставлю сам, как только Zoom пришлёт длительность','bad')}}else toast('Проверяю длительность по Zoom…');const t0=now();const loop=()=>{const rr=d.setStatus(k,undefined,{late:now()-t0>=10000});if(rr&&rr.refused==='wait')waitT=setTimeout(loop,1000);else if(rr&&rr.refused)refused(rr)};waitT=setTimeout(loop,1000);return}
+ const adWait=meta=>Math.max((meta.milestone&&meta.milestone.kind=='hundred')?2800:meta.win?1000:0,AX.wait());   // автонабор ждёт рулетку Шума
+ const doStatus=(k,late=false)=>{clearTimeout(waitT);pendingLate=late;const r=d.setStatus(k,adWait,{late});pendingLate=null;if(!r)return;
+  if(r.refused==='wait'){if(d.call&&d.call.ended==null&&d.P.hangupOnStatus){const h=d.hangup('status');if(h==='unsupported'){d.zoom.peek={reason:'hangup'};zoomUi();toast('Положи трубку в окне Zoom: статус поставлю сам, как только Zoom пришлёт длительность','bad')}}else toast('Проверяю длительность по Zoom…');const t0=now();const loop=()=>{const rr=d.setStatus(k,adWait,{late:now()-t0>=10000});if(rr&&rr.refused==='wait')waitT=setTimeout(loop,1000);else if(rr&&rr.refused)refused(rr)};waitT=setTimeout(loop,1000);return}
   if(r.refused)refused(r)};
  const refused=r=>{SFX.snd('del');const nm=BUTTONS[r.index].name;toast(`Сорри, ${nm} нельзя поставить: разговор ${mmss(r.dur||0)} по Zoom, нужно от ${mmss(r.min)}`,'bad')};
  dbus.on('statusSet',meta=>{const L=meta.lead,f=SFX.FXT[meta.index];
-  const out=ses.setStatus(meta.index,{key:L.phone,phone:L.phone,business:L.biz,state:L.state},{had:!!meta.changed,late:!!pendingLate});
-  if(f){SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
+  AX.pre();const out=ses.setStatus(meta.index,{key:L.phone,phone:L.phone,business:L.biz,state:L.state},{had:!!meta.changed,late:!!pendingLate});
+  if(f){SFX.setPitch&&SFX.setPitch(1+Math.min(40,ses.G.streak||0)*.006);SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
   if(meta.milestone){const M=meta.milestone;setTimeout(()=>SFX.snd(M.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>{if(M.kind==='hundred')J.free(M.n+' CALLS','#ffc400');sprintFx(M)},meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
   const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast(`Слишком быстро: ${((e.spamGap||0)/1000).toFixed(1)} с после прошлого статуса (нужно от ${C.antispamSec} с, а Zoom звонка не видно) — награда x0.5`,'bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
@@ -362,7 +384,8 @@ export function startWork(root,{save,au,demo=null}={}){
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
   (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
   if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
-  if(e&&!out.blocked){flowPop(e);const c=e.cls,often=(S.chat||'rare')==='often';
+  AX.onStatus(out);if(out.held&&!keyTold){keyTold=1;toast('Граница: прогресс района копится, пока нет ключа. Нажми 🔒 в полосе сверху','bad')}
+  if(e&&!out.blocked){flowPop(e);const c=e.cls,often=(S.chat||'often')==='often';
    if(c==='BOOKED'||c==='DISCOVERY')COMMS.say({who:'guide',mood:'happy',text:pick(LINES.booked)},'booked',240000);
    else if(often&&c==='TALK'&&Math.random()<.4)COMMS.say({who:'guide',mood:'talking',text:pick(LINES.talk)},'talk',300000);
    else if(often&&c==='GATEKEEPER'&&Math.random()<.25)COMMS.say({who:'guide',mood:'sarcastic',text:pick(LINES.gate)},'gate',480000)}
@@ -397,6 +420,7 @@ export function startWork(root,{save,au,demo=null}={}){
   case'nextTrack':if(MUS.lib){MUS.next(1.2);setTimeout(()=>toast('Трек: '+((MUS.last&&MUS.last.name)||'—')),60)}else toast('Музыки нет: Настройки → Звук → «Папка с музыкой…»');break}};
  addEventListener('keydown',e=>{if(STORY.isOpen()){if(STORY.key(e))e.preventDefault();return}if(TUT.isOpen()){if(TUT.key(e))e.preventDefault();return}if(ARENA.isOpen()&&ARENA.key(e)){e.preventDefault();return}if(BASE.isOpen()){if(BASE.key(e))e.preventDefault();return}if(GM.isOpen()){if(GM.key(e))e.preventDefault();return}if(MAP.isOpen()){if(MAP.key(e))e.preventDefault();return}const ae=document.activeElement,typing=ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable);
   const modal=ov.classList.contains('open');if(modal&&e.code==='Escape'&&ov.dataset.k!=='gate'){e.preventDefault();closeOv();return}if(modal&&!typing&&ov.dataset.k==='pick'&&e.code==='Enter'){const f=ov.querySelector('.wk-li');if(f){f.click();e.preventDefault()}return}
+  if(!typing&&!modal&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!e.repeat&&AX.key(e)){e.preventDefault();return}
   const r=resolveKey({typing,menu:!!d.P.moreOpen,suggest:shownSug,world:false,modal,shift:e.shiftKey,meta:e.metaKey,alt:e.altKey,ctrl:e.ctrlKey},e.code);if(!r)return;
   if(e.repeat&&r.a!=='blur')return;e.preventDefault();if(r.a==='status')act('status',r.id);else act(r.a)});
  const tb=$('#bn-test-off');if(tb)tb.onclick=()=>setTester(false);$('#b-pick').onclick=()=>act('picker');$('#b-cc').onclick=()=>CC.toggle();$('#b-pad').onclick=()=>act('pad');$('#b-set').onclick=()=>GM.toggle();
@@ -462,22 +486,24 @@ export function startWork(root,{save,au,demo=null}={}){
    <h4>Фон</h4><div class="wk-opt"><div class="t"><b>Что играет фоном</b><small>«Авто»: своя папка, если выбрана; иначе саундтрек игры, если он есть в файлах игры; иначе гул города. Громкость — ползунок ♫</small></div><div class="wk-btns">${[['auto','Авто'],['soundtrack','Саундтрек игры'],['folder','Своя папка'],['hum','Гул города'],['off','Тишина']].map(([v,t])=>`<button class="wk-btn ${bgMode()===v?'pri':''}" data-bg="${v}">${t}</button>`).join('')}</div></div>
    ${btn('mdir','Папка с музыкой…',MUS.lib?'Загружено треков: '+Object.values(MUS.pools).reduce((a,x)=>a+x.length,0)+' · подпапки: '+Object.keys(MUS.pools).join(', '):'Подпапки: industrial/calm, neon/action, overdrive, hq, boss, d1…d12, stingers. Можно и без подпапок','Выбрать…')}${btn('sdir','Свои звуки из папки…',SFX.getState().files?'Загружено файлов: '+SFX.getState().files:SFX.getState().need?'Нужно разрешение на папку':'','Выбрать…')}${btn('snames','Какие имена у файлов звуков','','Копировать')}
    <h4>Вид</h4><div class="wk-opt"><div class="t"><b>Эффекты</b><small>Штамп статуса, анимации карточки, сканлайны</small></div><div class="wk-btns">${['off','low','full'].map(v=>`<button class="wk-btn ${S.fx===v?'pri':''}" data-fx="${v}">${{off:'Выкл',low:'Мало',full:'Полно'}[v]}</button>`).join('')}</div></div>
+   <div class="wk-opt"><div class="t"><b>Тряска экрана</b><small>Лёгкий толчок, когда печать бьёт по карточке и когда лист сминается</small></div><div class="wk-btns">${[[0,'Выкл'],[.6,'Слабо'],[1,'Сильно']].map(([v,t])=>`<button class="wk-btn ${(S.shake??1)===v?'pri':''}" data-shk="${v}">${t}</button>`).join('')}</div></div>
    <div class="wk-opt"><div class="t"><b>Сюжет</b><small>Сцены районов и Гудок. Во время звонка, серии и Overdrive сцены ждут. «Выкл» — сцены сразу попадают в Журнал истории</small></div><div class="wk-btns">${['off','short','full'].map(v=>`<button class="wk-btn ${stMode()===v?'pri':''}" data-stm="${v}">${{off:'Выкл',short:'Коротко',full:'Полно'}[v]}</button>`).join('')}</div></div>
-   <div class="wk-opt"><div class="t"><b>Рация</b><small>Реплики Гудка, Лома, жителей и Голоса Совета слева внизу. Ждут, пока ты на линии. «Редко» — только события района, встречи и обрыв серии</small></div><div class="wk-btns">${[['off','Выкл'],['rare','Редко'],['often','Часто']].map(([v,t])=>`<button class="wk-btn ${(S.chat||'rare')===v?'pri':''}" data-chat="${v}">${t}</button>`).join('')}</div></div>
+   <div class="wk-opt"><div class="t"><b>Рация</b><small>Реплики Гудка, Лома, жителей и Голоса Совета слева внизу. Ждут, пока ты на линии. «Редко» — только события района, встречи и обрыв серии</small></div><div class="wk-btns">${[['off','Выкл'],['rare','Редко'],['often','Часто']].map(([v,t])=>`<button class="wk-btn ${(S.chat||'often')===v?'pri':''}" data-chat="${v}">${t}</button>`).join('')}</div></div>
    <div class="wk-opt"><div class="t"><b>Окно в район</b><small>Полоса со сценой района над работой. В фазе босса разворачивается: босс, HP, удары статусов. Клик — карта или арена</small></div><div class="wk-btns">${[['off','Скрыть'],['on','Показать']].map(([v,t])=>`<button class="wk-btn ${(S.dwin!==false)===(v==='on')?'pri':''}" data-dwin="${v}">${t}</button>`).join('')}</div></div>`;
   case'map':return`<h4>Что пишется в колонку Result</h4><p class="wk-kv">Кнопка → значение в таблице. Меняй, только если поменял выпадающий список в таблице.</p><div class="wk-map">${d.mapping().map(b=>`<label>${b.key} · ${esc(b.name)}</label><input class="wk-in" data-map="${b.i}" value="${esc(b.value)}">`).join('')}</div>
    <div class="wk-btns" style="margin-top:12px"><button class="wk-btn" data-b="mapreset">Вернуть как было</button></div>`;
-  case'game':return`<h4>Игра</h4>${sw('tester',tester,'Режим тестировщика (временно)','Звонки не идут, статусы засчитываются кнопками (каждый звонок = разговор '+Math.round(C.testerCallSec/60)+' мин). В таблицу, файл и копии ничего не пишется, прогресс игры отдельный. Переключение перезагрузит страницу. Удалим перед релизом')}${btn('end','Закончить смену','Итог дня: звонки, разговоры, лучшая серия, выплата за 50+ звонков','Итог')}${btn('export','Скачать сохранение игры','Файл .json, ключ ct1','Скачать')}${btn('menu','Главное меню','','Выйти в меню')}
+  case'game':return`<h4>Игра</h4>${sw('tester',tester,'Режим тестировщика (временно)','Звонки не идут, статусы засчитываются кнопками (каждый звонок = разговор '+Math.round(C.testerCallSec/60)+' мин). В таблицу, файл и копии ничего не пишется, прогресс игры отдельный. Переключение перезагрузит страницу. Удалим перед релизом')}${sw('gdoc',!!((save.ui||{}).proto||{}).gdoc,'Вкладка Google Doc в шпаргалке','Документ со скриптом внутри игры (только чтение). По умолчанию выключено: скрипт удобнее держать отдельным окном')}${btn('end','Закончить смену','Итог дня: звонки, разговоры, лучшая серия, выплата за 50+ звонков','Итог')}${btn('export','Скачать сохранение игры','Файл .json, ключ ct1','Скачать')}${btn('menu','Главное меню','','Выйти в меню')}
    <div class="wk-kv" style="margin-top:10px">Версия: ${esc(C.version)} · таблица хранится в старых ключах дайлера (pd2…), игра в ct1</div>`}};
  const openSettings=(s)=>{if(s)sec=s;openOv('set',`<div class="wk-wh"><h3>НАСТРОЙКИ</h3><button class="wk-x" id="s-x" title="Закрыть (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-set"><nav class="wk-nav" id="s-nav"></nav><div class="wk-sec" id="s-sec"></div></div>`);
   $('#s-x').onclick=closeOv;setUi();
   $('#s-nav').onclick=e=>{const b=e.target.closest('[data-s]');if(b){sec=b.dataset.s;setUi()}};
   $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm],[data-dwin],[data-bg],[data-chat]');if(!t)return;
+   if(t.dataset.shk){S.shake=+t.dataset.shk;persistGame();setUi();if(S.shake)J.shake(.6);return}
    if(t.dataset.chat){S.chat=t.dataset.chat;persistGame();if(S.chat==='off')COMMS.clear();setUi();return}
    if(t.dataset.bg){S.bg=t.dataset.bg;persistGame();(async()=>{if(S.bg==='folder'&&!(MUS.lib&&MUS.src==='folder')){const n=await musLoad(S.musicDir?'re':'pick');if(!n)toast('Своя папка не подключена: Настройки → Звук → «Папка с музыкой…»')}await bgApply();setUi();toast({auto:'Фон: авто',soundtrack:gameN>0||MUS.src==='game'?'Фон: саундтрек игры':'Саундтрека в файлах игры пока нет — будет гул города, когда я положу треки, заиграют они',folder:'Фон: своя папка',hum:'Фон: гул города',off:'Фон: тишина'}[S.bg])})();return}
    if(t.dataset.dwin){S.dwin=t.dataset.dwin==='on';persistGame();DW.sync();layout&&layout();setUi();return}
    if(t.dataset.sw){const k=t.dataset.sw,P=d.P,on=!t.classList.contains('on');({auto:()=>d.setAuto(on),only:()=>d.setOnly(on),hos:()=>d.setPref('hangupOnStatus',on),hsk:()=>d.setPref('hangupOnSkip',on),guard:()=>d.setPref('guard',on),
-     zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
+     zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),gdoc:()=>{const u=save.ui||(save.ui={}),p=u.proto||(u.proto={tab:'pad',doc:'',fs:15});p.gdoc=on;if(!on)p.tab='pad';persistGame();layout&&layout()},snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
    if(t.dataset.stm){S.storyMode=t.dataset.stm;persistGame();setUi();return}
    if(t.dataset.fx){S.fx=t.dataset.fx;W.classList.toggle('fx-off',S.fx==='off');persistGame();setUi();return}
    const b=t.dataset.b;const A=({zlog:()=>copy(d.zoom.logText(),'Журнал Zoom скопирован ('+d.zoom.log.length+' событий)'),zgate:()=>{gateQuiet=true;d.zoom.startGate(15000);setUi()},zcsv:pickZoomCsv,open:()=>{closeOv();openFileDlg()},switch:()=>{closeOv();d.switchBase().then(layout)},ourl:()=>{d.openSheetUrl($('#s-url').value);closeOv()},
@@ -497,6 +523,7 @@ export function startWork(root,{save,au,demo=null}={}){
    <div class="wk-kv" style="font-size:15px">Звонков: <b>${r.calls}</b> · владелец на линии: <b>${r.talks}</b> (${r.talkShare}%) · встреч: <b>${r.booked}</b> · discovery: <b>${r.disc}</b><br>Лучшая серия: <b>${r.bestStreak}</b> · Overdrive: <b>${r.od}</b> · время: <b>${r.minutes} мин</b><br>
    За день: <b>${r.xp} XP</b> · <b>${money(r.money)}</b>${r.paid?` · выплата за смену <b>+${money(r.paid)}</b>`:''}${r.lp?` · очки наследия <b>+${r.lp}</b>`:''}${r.again?'<br>Смена сегодня уже закрыта: это повторный итог.':''}
    ${r.yesterday?`<br>Вчера: ${r.yesterday.n} звонков`:''}${r.avg7?` · среднее 7 дней: ${r.avg7.n}`:''}</div>
+   ${AX.summary()}
    <p class="wk-kv" style="margin-top:12px">Есть история звонков Zoom? Загрузи её в Настройках → Zoom (можно в любой момент).</p><div class="wk-btns" style="margin-top:12px"><button class="wk-btn pri" id="e-ok">Продолжить работу</button></div></div>`,1);
   $('#e-x').onclick=closeOv;$('#e-ok').onclick=closeOv;save.shift={start:now()}};
  // ---------- старт ----------
@@ -516,4 +543,4 @@ export function startWork(root,{save,au,demo=null}={}){
  setInterval(ltTick,10000);addEventListener('visibilitychange',()=>{if(!document.hidden)ltTick()});setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen,COMMS,beats}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen,COMMS,beats,AX,HALL,KEY}}

@@ -2,7 +2,7 @@
 // Как в старом дайлере: карточка клонируется поверх себя, на клон ставится печать, клон уходит, а под ним уже следующий лид.
 // Только transform/opacity (+ короткие filter у редких эффектов). Цикл частиц спит, когда частиц нет: рядом с Zoom ничего не крутится.
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-export function makeJuice(getLvl){
+export function makeJuice(getLvl,getShake=()=>1){
  let cv=null,g=null,P=[],run=false,dpr=1;
  const lvl=()=>RM?'off':getLvl();
  const fit=()=>{if(!cv)return;dpr=Math.min(2,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr};
@@ -20,6 +20,10 @@ export function makeJuice(getLvl){
   for(let i=0;i<n;i++){const a=(o.dir??-Math.PI/2)+(Math.random()-.5)*(o.spread??Math.PI*2),v=(o.speed??420)*(.35+Math.random()*.65);
    P.push({x:x+(Math.random()-.5)*(o.w||0),y:y+(Math.random()-.5)*(o.h||0),vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:o.g??900,drag:o.drag??.985,life:0,max:(o.life??.9)*(.6+Math.random()*.6),r:(o.r??2.6)*(.6+Math.random()*.8),rot:Math.random()*6,vr:(Math.random()-.5)*12,c:cols[i%cols.length],s:o.s||'dot'})}
   if(P.length>600)P.splice(0,P.length-600);if(!run){run=true;requestAnimationFrame(loop)}};
+ // Тряска экрана (A3): двигаются только HUD и центр (без fixed-детей), затухающие толчки. p: 0..1
+ const shake=p=>{const L=lvl();if(L==='off')return;const k=(L==='low'?.45:1)*Math.max(0,+getShake()||0)*p;if(k<.02)return;const a=Math.round(3+9*k);
+  const kf=[0,1,2,3,4,5].map(i=>{const d=a*(1-i/6);return{transform:i===5?'none':`translate(${((Math.random()*2-1)*d).toFixed(1)}px,${((Math.random()*2-1)*d*.7).toFixed(1)}px)`}});
+  ['main','hud','dwin'].forEach(id=>{const el=document.getElementById(id);el&&el.animate(kf,{duration:200+120*k,easing:'ease-out'})})};
  const A=(el,kf,ms,o={})=>el.animate(kf,{duration:ms,fill:'forwards',easing:'cubic-bezier(.45,0,.2,1)',...o});
  // печать на документе: крупная, по центру карточки, как в старом дайлере (рамка 7px, наклон −12°)
  const stampEl=(label,color,w)=>{const s=document.createElement('div');s.className='wk-stamp';s.textContent=label;s.style.setProperty('--c',color);
@@ -32,7 +36,7 @@ export function makeJuice(getLvl){
   const cl=mk(),st=stampEl(label,color,r.width);cl.appendChild(st);
   // печать «бьёт» по документу: лёгкое проседание клона
   cl.animate([{transform:'none'},{transform:'scale(.986)',offset:.45},{transform:'none'}],{duration:240,delay:120,easing:'ease-out'});
-  setTimeout(()=>burst(cx,cy,win?26:10,{cols:[color,'#ffffff'],speed:win?360:220,g:500,life:.5,r:2,s:'spark'}),150);
+  setTimeout(()=>{burst(cx,cy,win?26:10,{cols:[color,'#ffffff'],speed:win?360:220,g:500,life:.5,r:2,s:'spark'});shake(win?.9:kind==='crumple'?.4:kind==='slash'?.45:.22)},150);
   const D=(o={})=>({delay:D0,...o});let life=D0+1100;
   if(L==='low'){A(cl,[{opacity:1},{opacity:0,transform:'translateY(10px)'}],320,D());setTimeout(()=>nodes.forEach(n=>n.remove()),D0+400);return}
   const fall=[{transform:'none'},{transform:`translateY(${H-r.top+40}px) rotate(6deg)`,opacity:.25}];
@@ -57,7 +61,8 @@ export function makeJuice(getLvl){
    setTimeout(()=>burst(cx,cy,30,{cols:['#fff',color],speed:620,g:700,life:.5,r:2,s:'spark'}),D0);break}
   case'crumple':{const bx=W-60,by=H-40,dx=bx-cx,dy=by-cy;
    A(cl,[{transform:'none',borderRadius:'4px'},{transform:'scale(.95,1.03) rotate(-2deg) skewX(3deg)',offset:.1},{transform:'scale(.7,.56) rotate(5deg) skewX(-9deg)',borderRadius:'30px',offset:.26},{transform:'scale(.4,.36) rotate(-14deg) skewY(6deg)',borderRadius:'46%',offset:.42},{transform:'scale(.22) rotate(28deg)',borderRadius:'50%',offset:.52},{transform:`translate(${dx*.55}px,${dy*.15-120}px) scale(.16) rotate(300deg)`,borderRadius:'50%',offset:.78},{transform:`translate(${dx}px,${dy+80}px) scale(.08) rotate(560deg)`,borderRadius:'50%',opacity:.8}],1050,D({easing:'linear'}));
-   setTimeout(()=>burst(bx,by,14,{cols:['#cfd3da','#8b939f'],speed:260,g:700,life:.5,r:2.2,s:'sq'}),D0+1000);life+=400;break}
+   setTimeout(()=>shake(.55),D0+300);   // момент, когда лист сжимается в комок
+   setTimeout(()=>{burst(bx,by,14,{cols:['#cfd3da','#8b939f'],speed:260,g:700,life:.5,r:2.2,s:'sq'});shake(.3)},D0+1000);life+=400;break}
   case'triumph':default:A(cl,[{transform:'none'},{transform:'translateY(-14px) scale(1.04)',offset:.28},{transform:`translateX(${W-r.left+60}px) rotate(6deg) scale(.92)`}],860,D());
    setTimeout(()=>burst(cx,cy,44,{cols:[color,'#ffd84a','#ffffff'],speed:560,g:820,life:1.1,r:3,s:'sq'}),D0-200);break}
   // новый лид под призраком проявляется мягко
@@ -65,4 +70,4 @@ export function makeJuice(getLvl){
   setTimeout(()=>nodes.forEach(n=>n.remove()),life)};
  // печать без карточки (вехи 20/100, если карточки нет)
  const free=(label,color)=>{if(lvl()==='off')return;const s=stampEl(label,color,Math.min(640,innerWidth*.6));s.classList.add('free');document.body.appendChild(s);setTimeout(()=>s.remove(),1500)};
- return{exit,burst,free}}
+ return{exit,burst,free,shake}}

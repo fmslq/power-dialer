@@ -1,0 +1,27 @@
+// E4: окно ключа на границе — сцена (реплики по одной), условия с прогрессом, действие (купить / забрать / обменять).
+import {needKey,keyReqs,takeKey,keyState} from '../../core/keys.js';
+import {SHOP_ITEMS} from '../../core/meta.js';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $m=v=>'$'+Math.round(v).toLocaleString('ru');
+export function makeKeys({save,G,persist,toast,sfx=()=>{},onGot=()=>{}}){let w=null,step=0,pick=null;
+ const chip=()=>{const k=needKey(save,G());if(!k)return'';const q=keyReqs(save,G(),k),n=q.list.filter(x=>x.v>=x.n).length,h=Math.round(G().keyHold||0);
+  return`<button class="adx-c key${q.ok?' ready':''}" data-key title="Граница: нужен ключ «${esc(k.n)}». Прогресс района (${h} XP) копится и засчитается, когда ключ будет">🔒 ${esc(k.n)} <b>${n}/${q.list.length}</b>${h?`<i>+${h} ждёт</i>`:''}</button>`};
+ const body=()=>{const k=needKey(save,G());if(!k)return'';const q=keyReqs(save,G(),k),sc=k.sc,shown=sc.slice(0,Math.min(sc.length-1,step+1)),more=step+1<sc.length-1;
+  const sw=q.list.find(x=>x.swap);if(sw&&sw.swap.length&&!pick)pick=sw.swap[0];
+  return`<div class="kw" role="dialog" aria-label="Ключ"><header><em>ГРАНИЦА · РАЙОН ${k.d}</em><b>${esc(k.n)}</b><span>${esc(k.why)}</span></header>
+   <div class="kw-sc">${shown.map(x=>`<p class="${x.who==='Гудок'?'g':''}"><b>${esc(x.who)}</b>${esc(x.t)}</p>`).join('')}${more?'<button class="kw-more" data-more>Дальше ▸</button>':''}</div>
+   <ul class="kw-req">${q.list.map(x=>`<li class="${x.v>=x.n?'ok':''}"><i style="--p:${(x.v/x.n*100).toFixed(0)}%"></i><span>${esc(x.t)}</span><b>${x.money?$m(x.v)+' / '+$m(x.n):x.v+' / '+x.n}</b></li>`).join('')}</ul>
+   ${sw&&sw.swap.length>1?`<div class="kw-sw"><span>Что отдать Лому:</span>${sw.swap.map(id=>{const it=SHOP_ITEMS.find(z=>z.id===id);return`<button data-sw="${id}" class="${pick===id?'on':''}">${esc(it?it.name:id)}</button>`}).join('')}</div>`:''}
+   <p class="kw-note">Условия считаются с момента, когда ты дошёл до границы. Пока ключа нет, XP и $ идут как обычно, а прогресс района копится: <b>${Math.round(G().keyHold||0)} XP</b> засчитаются разом.</p>
+   <div class="kw-b"><button data-x>Позже <kbd>Esc</kbd></button><button class="pri" data-take ${q.ok?'':'disabled'}>${esc(k.act)}${q.money?' · '+$m(q.money):''}</button></div></div>`};
+ const draw=()=>{if(!w)return;const h=body();if(!h){close();return}w.innerHTML=h;w.querySelector('[data-x]').onclick=close;const m=w.querySelector('[data-more]');if(m)m.onclick=()=>{step++;draw()};
+  w.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>{pick=b.dataset.sw;draw()});
+  const t=w.querySelector('[data-take]');if(t)t.onclick=()=>{const k=needKey(save,G());const r=takeKey(save,G(),k.id,pick);if(!r.ok){toast(r.why,'bad');return}persist();sfx('fanfare');
+   const last=k.sc[k.sc.length-1];w.innerHTML=`<div class="kw got"><header><em>КЛЮЧ ПОЛУЧЕН</em><b>${esc(k.n)}</b></header><div class="kw-sc"><p class="${last.who==='Гудок'?'g':''}"><b>${esc(last.who)}</b>${esc(last.t)}</p></div>
+    ${r.swapped?`<p class="kw-note">Отдано: <b>${esc(r.swapped.name)}</b> — его больше нет на базе.</p>`:''}<p class="kw-note">Граница открыта. В шкалу района засчитано <b>+${Math.round(r.released)} XP</b>.</p><div class="kw-b"><button class="pri" data-x>Дальше</button></div></div>`;
+   w.querySelector('[data-x]').onclick=close;onGot(r)}};
+ const kd=e=>{if(!w)return;e.stopPropagation();if(e.code==='Escape'){e.preventDefault();close()}else if(e.code==='Enter'||e.code==='Space'){e.preventDefault();const m=w.querySelector('[data-more]');if(m)m.click()}};
+ const open=()=>{if(w||!needKey(save,G()))return;step=0;pick=null;w=document.createElement('div');w.className='kw-wrap';w.onclick=e=>{if(e.target===w)close()};document.body.appendChild(w);addEventListener('keydown',kd,true);draw()};
+ const close=()=>{if(!w)return;removeEventListener('keydown',kd,true);w.remove();w=null};
+ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-key]');if(b){e.preventDefault();open()}});
+ return{chip,open,close,isOpen:()=>!!w}}

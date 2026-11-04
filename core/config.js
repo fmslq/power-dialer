@@ -12,7 +12,7 @@ export const CONFIG={
  maxGapMin:40,winMaxGapMin:40,heatDropMode:'oneStep',
  antispamSec:4,redialMinSec:30,testerCallSec:360,undoKeep:5000,antispamMult:.5,undoSec:60,pauseMaxSec:600,bonusCap:.5,
  ulta:{n:5},
- od:{streak:25,sec:480,money:3,xp:2.2}, // ТЗ §7: 8 минут, XP x2.2. Серия 25: в реальной работе это ≈1 раз на 100 звонков (слово пользователя)
+ od:{streak:25,sec:300,money:3,xp:2.2,needTalk:1}, // Q10а: 25 звонков серии, среди них хотя бы 1 «владелец на линии» (TALK/CALLBACK/BOOKED/DISCOVERY); 5 минут; предметы/союзники/перк добавляют секунды (mods.odSec). Цифры — на общий пересмотр баланса
  talkBonus:{xp:3.5,money:2.6,cap:18,per:30,after:60},
  minTalkSec:{TALK:15,CALLBACK:20,BOOKED:180,DISCOVERY:300}, // BOOKED/DISCOVERY короче этого по Zoom = статус НЕЛЬЗЯ поставить
  bossPhaseShare:.1,finishFromDistrict:3,
@@ -28,5 +28,8 @@ export const STATUS=[
  ['Номер не рабочий','TRASH','Q'],['Непонятная хуйня','MINOR','W'],['Call back','CALLBACK','E'],['Follow up in future','CALLBACK','R'],
  ['CONDUCTED DISCOVERY CALL','DISCOVERY','T']].map(([name,cls,key],id)=>({id,name,cls,key}));
 export const classOf=name=>(STATUS.find(s=>s.name===name)||{cls:'MINOR'}).cls; // новый статус = MINOR
-export const districtThr=d=>{const x=CONFIG.districts[d-1];return Math.round(x[2]*CONFIG.assumedDailyXp*x[3])};
+// E3: ожидаемый множитель бонусов к началу района (предметы, Схема Гудка, Слышащие, союзники, нормы; потолок ×1.8).
+// Порог растёт вместе с ним, чтобы каждый следующий район требовал чуть больше реальных наборов, а не меньше.
+export const BONUS_K=[1,1.06,1.12,1.19,1.26,1.33,1.4,1.46,1.52,1.57,1.61,1.65];
+export const districtThr=d=>{const x=CONFIG.districts[d-1];return Math.round(x[2]*CONFIG.assumedDailyXp*x[3]*(BONUS_K[d-1]||1))};
 STATUS[2].min=3; // «Owner hung up в начале» короткий по природе: свой порог верификации (сек)

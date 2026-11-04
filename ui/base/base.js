@@ -1,6 +1,7 @@
 // БАЗА И ЧЁРНЫЙ РЫНОК (R4, ТЗ §10–11). Полноэкранная сцена базы 2400×1000 (панорама: тянуть / колесо / стрелки),
 // 4 стадии по району, купленные предметы на своих слотах (новые падают сверху), Гудок, люк на рынок, рычаг «К работе».
 // Рынок: продавец Лом, вкладки районов 1–12 + косметика, карточки в духе Inscryption (арт, тир, лор, где встанет).
+import {priceFor} from '../../core/allies.js';
 import {DIST,SHOP_ITEMS,COSMETICS,buy,baseStage,equip,equipped} from '../../core/meta.js';
 import {ITEM_LORE,COSMETIC_LORE} from '../../story/items.js';
 import {LINES} from '../../story/guide.js';
@@ -64,11 +65,11 @@ export function makeBase(o){
   t.innerHTML=`<b>${esc(it.name)}</b><span>${it.district?esc(DIST[it.district-1][0])+' · ':''}${esc(tierName(it))}</span>`;t.style.left=e.clientX+'px';t.style.top=e.clientY+'px';t.classList.add('on')};
  // ---------- карточка (общая для рынка и осмотра) ----------
  const where=it=>{const sl=BASE_SLOTS[it.id];return it.district?`встанет ${LAYER[sl[3]]} базы · переезжает с тобой`:it.slot==='trail'?'след фигурки на карте мира · и на стене трофеев':'материал печати статуса на карточке · и на стене трофеев'};
- const card=(it,st)=>{const L=loreOf(it.id),lk=st==='lk',cl=tierCls(it),g=G();const short=!lk&&st!=='own'&&g.money<it.price;
+ const card=(it0,st)=>{const pr=priceFor(sv(),it0),disc=pr<it0.price,it={...it0,price:pr},L=loreOf(it.id),lk=st==='lk',cl=tierCls(it),g=G();const short=!lk&&st!=='own'&&g.money<it.price;
   const on=!it.district&&equipped(meta(),it.slot)===it.id;
   const btn=lk?`<span class="crd-lk">Откроется в районе ${it.district}</span>`:st==='own'&&!it.district?`<button class="crd-eq${on?' on':''}" data-eq="${it.id}">${on?'Надето ✓ · снять':'Надеть'}</button>`:st==='own'?`<span class="crd-own">У тебя на базе</span>`:
    `<button class="crd-buy${short?' short':''}" data-buy="${it.id}"${short?' aria-disabled="true"':''}>${short?`не хватает ${$m(it.price-g.money)}`:`Купить · ${$m(it.price)}`}</button>`;
-  return`<article class="crd ${cl} ${st}" data-id="${it.id}"><div class="crd-fr"><header class="crd-hd"><b>${lk?'???':esc(it.name)}</b><em>${lk?'':$m(it.price)}</em></header>
+  return`<article class="crd ${cl} ${st}" data-id="${it.id}"><div class="crd-fr"><header class="crd-hd"><b>${lk?'???':esc(it.name)}</b><em>${lk?'':(disc&&st!=='own'?`<s>${$m(it0.price)}</s> `:'')+$m(it.price)}</em></header>
    <div class="crd-art"><svg class="crd-svg" viewBox="-200 -400 400 420"><g class="crd-g">${itemSprite(it.id)}</g></svg>${lk?'<i class="crd-q">?</i>':''}${cl==='t2'&&!lk?'<i class="crd-shine"></i>':''}</div>
    <div class="crd-tier"><span>${esc(tierName(it))}</span>${it.district?`<span>${esc(DIST[it.district-1][0])}</span>`:''}</div>
    <p class="crd-lore">${lk?'Лом держит это под брезентом. Захвати район — покажет.':esc(L.lore||it.description||'')}</p>

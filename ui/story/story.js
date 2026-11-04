@@ -32,16 +32,20 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
  const seen=k=>!!root().seen[k];
  const mark=k=>{if(!k||seen(k))return;root().seen[k]=Date.now();if(k==='prologue')root().prologue=true;o.persist&&o.persist()};
  const isOpen=()=>!!el;
+ const bgSig=p=>JSON.stringify(p.bg)+(hasArt(`assets/story/${key}_${pi+1}.png`)?'#'+pi:'');
  const stage=p=>{const img=hasArt(`assets/story/${key}_${pi+1}.png`)?`<img class="sc-img" src="assets/story/${key}_${pi+1}.png" alt="">`:'';
   const L=img?[img]:layersOf(p.bg);
   return`<div class="st-st ${p.bg.dark?'dark':''} ${p.bg.won?'won':''} k-${p.bg.k}">${L.map((s,i)=>`<div class="st-p" style="--z:${i}">${s}</div>`).join('')}
-   ${p.bg.k==='crt'?`<div class="st-crt">${guideSvg(p.mood||'talking','big')}</div>`:''}${p.bg.k!=='garage'&&p.bg.k!=='crt'?'<i class="st-rain"></i>':''}<i class="st-shade"></i><i class="st-vig"></i></div>`};
+   ${p.bg.k==='crt'?`<div class="st-crt">${guideSvg(p.mood||'talking','big')}</div>`:''}${p.bg.k!=='garage'&&p.bg.k!=='crt'?'<div class="st-rain"><i class="far"></i><i class="near"></i></div>':''}<i class="st-shade"></i><i class="st-vig"></i></div>`};
  const type=()=>{clearInterval(typer);const tx=el.querySelector('.st-t');if(reduce()){tx.textContent=full;shown=full.length;return}
   shown=0;typer=setInterval(()=>{shown=Math.min(full.length,shown+2);tx.textContent=full.slice(0,shown);if(shown>=full.length)clearInterval(typer)},28)};
  const draw=()=>{const p=list[pi];if(!p)return;full=p.text||'';
-  const box=el.querySelector('.st-stw'),old=box.querySelector('.st-st');box.insertAdjacentHTML('beforeend',stage(p));const nw=box.lastElementChild;splitAnim(nw);
-  if(old&&!reduce()){old.classList.add('out');setTimeout(()=>old.remove(),600)}else if(old)old.remove();
-  requestAnimationFrame(()=>nw.classList.add('in'));
+  const box=el.querySelector('.st-stw'),old=[...box.querySelectorAll('.st-st')].filter(x=>!x.classList.contains('out')).pop(),sig=bgSig(p);
+  // A7: та же картинка — фон не трогаем (без затемнения и без перезапуска анимаций), меняются только текст и портрет
+  if(old&&old.dataset.sig===sig){const c=old.querySelector('.st-crt');if(c)c.innerHTML=guideSvg(p.mood||'talking','big')}
+  else{box.insertAdjacentHTML('beforeend',stage(p));const nw=box.lastElementChild;nw.dataset.sig=sig;splitAnim(nw);
+   if(old&&!reduce()){old.classList.add('out');setTimeout(()=>old.remove(),600)}else if(old)old.remove();
+   requestAnimationFrame(()=>nw.classList.add('in'))}
   const cap=el.querySelector('.st-cap');cap.className='st-cap '+(p.who?'who-'+p.who:'narr');
   el.querySelector('.st-por').innerHTML=p.bg.k==='crt'&&p.who==='guide'?'':portrait(p);el.querySelector('.st-cap').classList.toggle('nopor',p.bg.k==='crt'&&p.who==='guide');el.querySelector('.st-who').textContent=whoName(p);
   el.querySelector('.st-dots').innerHTML=list.map((_,i)=>`<i class="${i===pi?'on':i<pi?'was':''}"></i>`).join('');

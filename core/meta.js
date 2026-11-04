@@ -28,14 +28,14 @@ export const baseStage=d=>d>=11?3:d>=8?2:d>=4?1:0;                 // гараж
 export const available=(s,item)=>item.district<=s.district;
 export function buy(s,meta,id){const it=SHOP_ITEMS.find(x=>x.id===id)||COSMETICS.find(x=>x.id===id);if(!it)return{ok:false,why:'нет такого'};
  if(meta.owned[id])return{ok:false,why:'уже куплено'};if(it.district&&!available(s,it))return{ok:false,why:'район закрыт'};
- if(s.money<it.price)return{ok:false,why:'не хватает $'+(it.price-s.money)};
- s.money-=it.price;s.undo.length=0;meta.owned[id]=Date.now();if(it.slot){meta.equip=meta.equip||{};meta.equip[it.slot]=id}return{ok:true,item:it}}   // покупка закрывает Undo (иначе откат вернёт деньги)
+ const pr=Math.round(it.price*(1-((meta.disc||{})[id]||0)));if(s.money<pr)return{ok:false,why:'не хватает $'+(pr-s.money)};
+ s.money-=pr;s.undo.length=0;meta.owned[id]=Date.now();if(it.slot){meta.equip=meta.equip||{};meta.equip[it.slot]=id}return{ok:true,item:it}}   // покупка закрывает Undo (иначе откат вернёт деньги)
 export const bossHp=s=>{const t=districtThr(s.district),p=C.bossPhaseShare;return Math.max(0,Math.min(1,(t-s.dxp)/(t*p)))};
 export function runMetaTests(){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
  t('косметика: покупка надевает, повтор снимает, чужое не надеть',()=>{const m=newMeta(),g={money:1e6,undo:[],district:1};buy(g,m,'trail-gold');const a=equipped(m,'trail')==='trail-gold';equip(m,'trail-gold');return a&&!equipped(m,'trail')&&!equip(m,'stamp-gold')});
  t('36 предметов, по 3 на район',()=>SHOP_ITEMS.length===36&&SHOP_ITEMS.every(x=>x.price>0));
  t('цены 0.5/1.5/4 дня × yield района',()=>SHOP_ITEMS[2].price===Math.round(4*C.assumedDailyMoney)&&SHOP_ITEMS[3].price===Math.round(.5*C.assumedDailyMoney*1.2));
  t('покупка: район закрыт / не хватает / ок',()=>{const s={district:1,money:0,undo:[1]},m=newMeta();return buy(s,m,'d2t0').why==='район закрыт'&&buy(s,m,'d1t0').why.startsWith('не хватает')&&(s.money=9999,buy(s,m,'d1t0').ok)&&s.undo.length===0&&buy(s,m,'d1t0').why==='уже куплено'});
- t('HP босса = последние 10% шкалы',()=>{const s={district:3,dxp:0};const th=C.districts[2];s.dxp=Math.round(th[2]*C.assumedDailyXp*th[3]*.95);const h=bossHp(s);return h>.45&&h<.55});
+ t('HP босса = последние 10% шкалы',()=>{const s={district:3,dxp:0};s.dxp=Math.round(districtThr(3)*.95);const h=bossHp(s);return h>.45&&h<.55});
  t('база растёт: гараж→лофт→офис→башня',()=>[1,4,8,11].map(baseStage).join()==='0,1,2,3');
  return o}

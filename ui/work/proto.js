@@ -9,16 +9,18 @@ export function docEmbed(url){const u=String(url||'').trim();if(!/^https:\/\/doc
  const m=u.match(/\/(document|spreadsheets|presentation)\/d\/([\w-]{20,})/);if(m)return`https://docs.google.com/${m[1]}/d/${m[2]}/preview`;return null}
 export function makeProto(o){ // o:{save, pad:()=>text, setPad(text), persist, toast, close}
  const ui=o.save.ui||(o.save.ui={}),P=ui.proto||(ui.proto={tab:'pad',doc:'',fs:15});let pop=null;
+ // Q3: вкладка Google Doc по умолчанию скрыта; включается в Настройках → Игра (P.gdoc)
+ const tab=()=>P.gdoc&&P.tab==='doc'?'doc':'pad';
  const docBody=()=>{const src=docEmbed(P.doc);return src?`<iframe class="pr-if" src="${esc(src)}" title="Google Doc" referrerpolicy="no-referrer" loading="lazy"></iframe><div class="pr-dr"><span title="${esc(P.doc)}">${esc(P.doc)}</span><button class="wk-btn" data-pr="unlink">Сменить</button></div>`
   :`<div class="pr-set"><b>Подключи скрипт из Google Docs</b><input id="pr-url" placeholder="https://docs.google.com/document/d/…" value="${esc(P.doc)}"><button class="wk-btn pri" data-pr="link">Подключить</button>
    <ol><li>В документе: <b>Файл → Поделиться → Опубликовать в интернете</b> → «Опубликовать».</li><li>Скопируй ссылку из окна публикации и вставь сюда.</li><li>Или обычную ссылку на документ с доступом «Все, у кого есть ссылка».</li></ol>
    <p>Документ открывается только для чтения. Править — в самом Google Docs, здесь обновится после перезагрузки.</p></div>`};
  const html=hidden=>`<aside class="wk-pad ct-panel pr ${hidden?'hidden':''}" id="pad" style="--fs:${P.fs}px"><div class="pr-h"><div class="pr-tabs" role="tablist">
-   <button data-pt="pad" class="${P.tab==='pad'?'on':''}">${icon('doc')}Шпаргалка</button><button data-pt="doc" class="${P.tab==='doc'?'on':''}">${icon('book')}Google Doc</button></div>
+   <button data-pt="pad" class="${tab()==='pad'?'on':''}">${icon('doc')}Шпаргалка</button>${P.gdoc?`<button data-pt="doc" class="${tab()==='doc'?'on':''}">${icon('book')}Google Doc</button>`:''}</div>
    <div class="pr-tools"><button data-pr="fm" title="Шрифт мельче">A−</button><button data-pr="fp" title="Шрифт крупнее">A+</button><button data-pr="pop" title="Открыть в отдельном окне">${icon('popout')}</button><button class="wk-x" id="pad-x" title="Закрыть (T)">${icon('close')}</button></div></div>
-  <div class="pr-b">${P.tab==='pad'?`<textarea id="pad-t" placeholder="Скрипт, ответы на возражения…">${esc(o.pad())}</textarea>`:docBody()}</div></aside>`;
+  <div class="pr-b">${tab()==='pad'?`<textarea id="pad-t" placeholder="Скрипт, ответы на возражения…">${esc(o.pad())}</textarea>`:docBody()}</div></aside>`;
  const syncPop=()=>{if(pop&&!pop.closed){const t=pop.document.getElementById('t');if(t&&pop.document.activeElement!==t)t.value=o.pad();pop.document.body.style.setProperty('--fs',P.fs+'px')}};
- const openPop=()=>{const src=P.tab==='doc'?docEmbed(P.doc):null;
+ const openPop=()=>{const src=tab()==='doc'?docEmbed(P.doc):null;
   pop=window.open('','uplink-protocol','popup,width=560,height=820');if(!pop){o.toast('Браузер не дал открыть окно: разреши всплывающие окна');return}
   pop.document.title='Протокол — UPLINK SYNDICATE';
   pop.document.body.innerHTML=src?`<iframe src="${esc(src)}" style="border:0;position:fixed;inset:0;width:100%;height:100%;background:#fff"></iframe>`

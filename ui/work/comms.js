@@ -1,6 +1,6 @@
 // «РАЦИЯ» на рабочем экране (STORY_BIBLE §7): мир говорит с тобой между звонками. Гудок, Лом, Голос Совета, жители района.
 // Не модальная карточка слева внизу, сама гаснет. Пока ты на линии или открыт оверлей — ждёт в очереди.
-// Частота: S.chat = 'often' | 'rare' (по умолчанию) | 'off'. События района (beats) показываются всегда, кроме 'off'.
+// Частота: S.chat = 'often' (по умолчанию, Q8) | 'rare' | 'off'. События района (beats) показываются всегда, кроме 'off'.
 import {guideSvg} from '../../art/guide.js';
 import {lomSvg} from '../../art/base.js';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -20,7 +20,7 @@ export function makeComms(o){ // o: {mount, busy:()=>bool, mode:()=>'often'|'rar
  const hide=x=>{if(!x)return;x.classList.remove('in');x.classList.add('out');setTimeout(()=>x.remove(),400);if(el===x){el=null;setTimeout(pump,700)}};
  const pump=()=>{if(el||!q.length)return;if(o.busy&&o.busy()){clearTimeout(pump._t);pump._t=setTimeout(pump,4000);return}show(q.shift())};
  // say: m={who,mood,name,text}; kind — ключ анти-повтора; cd — пауза между репликами этого вида (мс)
- const say=(m,kind,cd=0)=>{const mode=o.mode?o.mode():'rare';if(mode==='off')return false;const now=Date.now();
+ const say=(m,kind,cd=0)=>{const mode=o.mode?o.mode():'often';if(mode==='off')return false;const now=Date.now();
   if(kind&&cd&&last[kind]&&now-last[kind]<cd*(mode==='often'?.4:1))return false;if(kind)last[kind]=now;
   if(q.length>3)q.splice(0,q.length-3);q.push(m);pump();return true};
  return{say,pump,isOpen:()=>!!el,clear:()=>{q.length=0;if(el)hide(el)}}}

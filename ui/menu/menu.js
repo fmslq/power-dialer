@@ -57,8 +57,10 @@ export function boot(root=document.getElementById('ct-app')){loadArtManifest();
  menu.addEventListener('pointerover',e=>{if(e.target.closest('.ct-key'))hover()});
  // --- старт
  // ч.6: сначала запускаем анимации (они идут на видеокарте), звук создаём кадром позже — создание AudioContext на Mac может занять десятки мс
- const begin=()=>{if(started)return;started=true;$('#ct-start').style.display='none';$('#ct-logo').classList.add('small');
-  requestAnimationFrame(()=>setTimeout(()=>{const c=au.init();if(c&&c.state==='suspended'){const r=()=>c.resume();addEventListener('pointerdown',r,{once:true});addEventListener('keydown',r,{once:true})}{const bg=S().bg||'auto',h=S().hum!==false&&(bg==='auto'||bg==='hum'||bg==='soundtrack');au.setFlags({hum:h});au.hum(h&&(S().music??.3)>0)}open()},0));setTimeout(()=>{menu.classList.add('in');$('#ct-band').classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
+ const begin=()=>{if(started)return;started=true;$('#ct-start').style.display='none';const stg=$('#ct-stage');stg&&stg.classList.add('hold');setTimeout(()=>stg&&stg.classList.remove('hold'),1450);   // A9: фон замирает на время вылета пунктов$('#ct-logo').classList.add('small');
+  // A9: тяжёлое (AudioContext, гул) — ПОСЛЕ вылета пунктов (≈1,1 с), чтобы анимация не дёргалась; щелчок «open» — сразу
+  requestAnimationFrame(()=>setTimeout(()=>{const c=au.init();if(c&&c.state==='suspended'){const r=()=>c.resume();addEventListener('pointerdown',r,{once:true});addEventListener('keydown',r,{once:true})}open();
+   setTimeout(()=>{const bg=S().bg||'auto',h=S().hum!==false&&(bg==='auto'||bg==='hum'||bg==='soundtrack');au.setFlags({hum:h});au.hum(h&&(S().music??.3)>0)},1400)},0));setTimeout(()=>{menu.classList.add('in');$('#ct-band').classList.add('in');menu.querySelector('.ct-key').focus({preventScroll:true})},450)};
  const kd=e=>{if(!started){if(!e.metaKey&&!e.ctrlKey&&e.key!=='Tab'&&!/^F\d/.test(e.key)){e.preventDefault();begin()}return}
   if(e.key==='Escape')close();const ks=[...menu.querySelectorAll('.ct-key')];const i=ks.indexOf(document.activeElement);
   if(e.key==='ArrowDown'){e.preventDefault();ks[(i+1)%ks.length].focus()}if(e.key==='ArrowUp'){e.preventDefault();ks[(i-1+ks.length)%ks.length].focus()}};

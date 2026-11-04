@@ -18,7 +18,7 @@ export function gain(s,x,m,hi,ev={}){const thr=districtThr(s.district);
  return x}
 export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.classes[cls],hi=C.hi.includes(cls),before=snapOf(s),ev={cls,pen:null,spam:false,captured:false,odStart:false,odEnd:false,tier:null};
  if(s.od&&now>=s.od.until){ev.odEnd=s.od;s.od=null}
- const gap=o.gapMs!=null?o.gapMs:s.last==null?0:now-s.last,max=C.maxGapMin*60*MS;
+ const gap=o.gapMs!=null?o.gapMs:s.last==null?0:now-s.last,max=((o.mods&&o.mods.maxGap)||C.maxGapMin)*60*MS;
  if(o.re)ev.re=true;
  else if(s.last!=null&&now-s.last<C.antispamSec*MS&&!(o.callStart!=null&&o.callStart>s.last)){ev.spam=true;ev.spamGap=now-s.last} // антиспам: 2 статуса чаще 4 с. Если по Zoom был настоящий звонок ПОСЛЕ прошлого статуса — это не спам
  else if(s.last!=null){
@@ -30,9 +30,10 @@ export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.
    ev.gap=g2;ev.allowed=allowed;
    if(g2<=allowed){s.streak++;s.step=stepOf(s.streak)}else{s.step=Math.max(0,s.step-1);s.streak=steps[s.step];ev.pen='drop'}}
  }else{s.streak++;s.step=stepOf(s.streak)}
- if(ev.pen)s.odBase=Math.min(s.odBase,s.streak);
- if(!ev.spam&&!ev.re&&!ev.pen&&!s.od&&s.streak-s.odBase>=C.od.streak){s.od={until:now+C.od.sec*MS,n:0,money:0,xp:0};s.odBase=s.streak;ev.odStart=true}
- const r=rate(s,cls,now),y=C.districts[s.district-1][3],d0=s.district,bonus=Math.min(o.bonus||0,C.bonusCap),sp=ev.spam?C.antispamMult:1;
+ if(ev.pen){s.odBase=Math.min(s.odBase,s.streak);s.odTalk=0}
+ if(!ev.spam&&!ev.re&&!s.od&&hi)s.odTalk=(s.odTalk||0)+1;   // Q10а: «владелец на линии» внутри набора серии к Overdrive
+ if(!ev.spam&&!ev.re&&!ev.pen&&!s.od&&s.streak-s.odBase>=C.od.streak&&(s.odTalk||0)>=(C.od.needTalk||0)){s.od={until:now+(C.od.sec+(o.mods&&o.mods.odSec||0))*MS,n:0,money:0,xp:0};s.odBase=s.streak;s.odTalk=0;ev.odStart=true}
+ const r=rate(s,cls,now),y=C.districts[s.district-1][3],d0=s.district,bonus=Math.min(o.bonus||0,C.bonusCap),sp=ev.spam?((o.mods&&o.mods.spamK)||C.antispamMult):1;
  const md=o.mods||{},mx=((md.x&&md.x[cls])||1)*(md.xAll||1),mm=((md.m&&md.m[cls])||1)*(md.mAll||1);let x=Math.round(cc.xp*r.x*y*(1+bonus)*sp*mx),m=Math.round(cc.money*r.m*y*(1+bonus)*sp*mm),thr=districtThr(s.district);
  x=gain(s,x,m,hi,ev);
  if(s.od&&r.od||s.od&&!hi){s.od.n++;s.od.money+=m;s.od.xp+=x}
@@ -56,7 +57,7 @@ export function undo(s,now,i=s.undo.length-1){const u=s.undo[i];if(!u)return fal
 export function pause(s,now){if(s.paused==null)s.paused=now}
 export function resume(s,now){if(s.paused==null)return;const d=now-s.paused;s.paused=null;
  if(d>C.pauseMaxSec*MS){s.streak=s.step=s.ulta=0}
- if(s.last!=null)s.last+=d;if(s.od)s.od.until+=d}
+ if(s.last!=null)s.last+=d;if(s.lastEnd!=null)s.lastEnd+=d;if(s.od)s.od.until+=d}
 // Бонус за время разговора (5.4): только TALK/CALLBACK/BOOKED/DISCOVERY, можно задним числом.
 export function talkBonus(s,entry,dur){if(!C.hi.includes(entry.cls)||!dur)return{x:0,m:0};
  const n=Math.min(C.talkBonus.cap,Math.floor(Math.max(0,dur-C.talkBonus.after)/C.talkBonus.per)),y=C.districts[(entry.d||s.district)-1][3];
@@ -67,8 +68,9 @@ export const bossState=s=>{const t=districtThr(s.district),f=s.dxp/t;return f<1-
 
 // Индикатор серии для HUD: множитель, сколько до следующей ступени, и таймер окна (когда серия сгорит).
 // onLine: сейчас идёт звонок => таймер заморожен (разговор не в счёт). mode: 'zoom' (от конца звонка) | 'status'.
-export function windowState(s,now,{onLine=false,zoom=true}={}){const k=(s.ulta>0||(s.od&&now<s.od.until))?steps.length-1:s.step,next=steps[s.step+1];
- const base={streak:s.streak,step:s.step,mult:C.heat.money[k],toNext:next!=null?next-s.streak:null,nextMult:next!=null?C.heat.money[s.step+1]:null,ulta:s.ulta,od:s.od&&now<s.od.until?Math.round((s.od.until-now)/MS):0,odProg:Math.max(0,s.streak-s.odBase),odNeed:C.od.streak,debt:s.debt||0};
+export function windowState(s,now,{onLine=false,zoom=true}={}){if(s.paused!=null&&now>s.paused)now=s.paused;   // пауза/Заморозка: таймеры на экране стоят
+const k=(s.ulta>0||(s.od&&now<s.od.until))?steps.length-1:s.step,next=steps[s.step+1];
+ const base={streak:s.streak,step:s.step,mult:C.heat.money[k],toNext:next!=null?next-s.streak:null,nextMult:next!=null?C.heat.money[s.step+1]:null,ulta:s.ulta,od:s.od&&now<s.od.until?Math.round((s.od.until-now)/MS):0,odProg:Math.max(0,s.streak-s.odBase),odNeed:C.od.streak,odTalk:s.odTalk||0,odTalkNeed:C.od.needTalk||0,debt:s.debt||0};
  if(s.last==null||!s.streak)return{...base,state:'idle',left:null};
  if(onLine)return{...base,state:'online',left:null};
  const z=zoom&&s.lastEnd!=null,from=z?s.lastEnd:s.last,allowed=z?afterCall(s.lastId):C.classes[s.lastCls].win?C.winMaxGapMin*60:C.fastSec+(C.statusGapSec[s.lastId]!=null?C.statusGapSec[s.lastId]-C.fastSec:C.crmFrom.includes(s.lastCls)?C.crmSec:0);

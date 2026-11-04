@@ -1,11 +1,13 @@
 // Звуки статусов СТАРОГО дайлера: перенесены дословно (tone/noise/SND/FXT/SDESC/sndLoad), чтобы ничего не потерялось.
 // Свои звуки из папки (имя файла = имя звука, варианты ching_2.mp3 …), handle в IndexedDB «pd» ключ «snd», громкость P.vol, мьют P.mute (pd2).
-let VOL=.5,MUTE=false,AC=null,NB=null,AB={},SD=null;export let sndNeed=0;
+let VOL=.5,MUTE=false,PITCH=1,PT=0,AC=null,NB=null,AB={},SD=null;export let sndNeed=0;
 export const setVol=v=>{VOL=v},setMute=m=>{MUTE=!!m},getState=()=>({vol:VOL,mute:MUTE,files:Object.values(AB).reduce((a,b)=>a+b.length,0),need:sndNeed,dir:!!SD});
 export const setCtx=c=>{AC=c};
+// A3/D4: тон статусных звуков растёт с серией (1.0 → 1.25), через 1,6 с возвращается к 1
+export const setPitch=k=>{PITCH=Math.max(.8,Math.min(1.3,k||1));clearTimeout(PT);PT=setTimeout(()=>{PITCH=1},1600)};
 const ac=()=>{try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state=="suspended")AC.resume()}catch(e){AC=null}return AC};
 let toast=()=>{};export const onToast=f=>{toast=f};
-function tone(f,t,d,ty,g,f2){const a=ac();if(!a)return;const T=a.currentTime+t,o=a.createOscillator(),v=a.createGain();o.type=ty||"sine";o.frequency.setValueAtTime(f,T);if(f2)o.frequency.exponentialRampToValueAtTime(f2,T+d);
+function tone(f,t,d,ty,g,f2){const a=ac();if(!a)return;const T=a.currentTime+t,o=a.createOscillator(),v=a.createGain();o.type=ty||"sine";f*=PITCH;if(f2)f2*=PITCH;o.frequency.setValueAtTime(f,T);if(f2)o.frequency.exponentialRampToValueAtTime(f2,T+d);
  v.gain.setValueAtTime(.0001,T);v.gain.exponentialRampToValueAtTime(Math.max(.0002,g*VOL),T+.006);v.gain.exponentialRampToValueAtTime(.0001,T+d);o.connect(v);v.connect(a.destination);o.start(T);o.stop(T+d+.03)}
 function noise(t,d,g,fc,q){const a=ac();if(!a)return;if(!NB){NB=a.createBuffer(1,a.sampleRate*2,a.sampleRate);const b=NB.getChannelData(0);for(let i=0;i<b.length;i++)b[i]=Math.random()*2-1}
  const T=a.currentTime+t,s=a.createBufferSource(),f=a.createBiquadFilter(),v=a.createGain();s.buffer=NB;f.type="bandpass";f.frequency.value=fc;f.Q.value=q||1;
@@ -19,7 +21,7 @@ const SND={
  chime(){tone(988,0,.35,"sine",.3);tone(1319,.09,.4,"sine",.25);tone(1760,.18,.6,"sine",.2)},
  disc(){tone(659,0,.25,"triangle",.28);tone(880,.1,.25,"triangle",.28);tone(1175,.2,.5,"triangle",.28);noise(.2,.08,.1,6000,2)},
  burn(){for(let i=0;i<14;i++)noise(i*.05+Math.random()*.03,.03,.25,2000+Math.random()*3000,2);noise(0,.7,.1,500,.4)},
- crumple(){for(let i=0;i<10;i++)noise(i*.04,.03+.02*Math.random(),.3,1500+Math.random()*2500,3)},
+ crumple(){for(let i=0;i<16;i++)noise(i*.028+Math.random()*.012,.025+.03*Math.random(),.34,1200+Math.random()*3400,2.4);noise(0,.42,.12,900,.5);noise(.3,.12,.3,600,.8);tone(95,.3,.16,"sine",.55,45)},  // смачнее: плотный хруст + шорох + глухой «шмяк» в конце
  reload(){noise(0,.06,.4,1800,3);tone(220,0,.07,"square",.25,120);noise(.08,.14,.1,900,.6);noise(.26,.06,.4,2600,3);tone(330,.26,.07,"square",.25,160)},
  jackpot(){[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,i*.07,.25,"triangle",.25));SND.ching()},
  ringbeep(){[0,.2,.5,.7].forEach(t=>tone(1000,t,.12,"sine",.28));tone(1000,1,.28,"sine",.35)},

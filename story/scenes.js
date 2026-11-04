@@ -5,12 +5,17 @@
 // mood для Гудка: neutral|talking|sarcastic|happy|worried|whisper; для босса: smug|angry|defeated.
 export const ARCS=[[1,2,'Выжить и научиться'],[3,6,'Научиться говорить'],[7,9,'Поднять ставки'],[10,12,'Выйти в эфир']];
 
+// A11/E6: Гудок знакомится не «представился → план», а через страх, тайну и желание (хочет услышать голос, боится тишины,
+// помнит прошлого Звонаря). План — только в конце, когда игрок уже знает, зачем Гудку это нужно.
 export const PROLOGUE=[
  {who:null,text:'КОНГЛОМЕРАТ. Город-государство, где двадцать лет никто не берёт трубку.',art:'the whole city at night seen from far away, rain, thousands of dark windows, one red beacon on the highest tower'},
- {who:null,text:'Председатель Совета выключил входящие. Сеть «ТИШИНА» глушит каждый звонок. Город привык молчать.',art:'telephone booths with cut cords in a rainy street, a giant uplink dish on the horizon glowing green'},
- {who:null,text:'Свалка на краю города. Гараж. Одна лампа. Старый ЭЛТ на столе из двери.',art:'the garage from the style master: bare bulb, door desk, CRT monitor, rain outside'},
- {who:'guide',mood:'talking',text:'…ты ещё жив? Хорошо. Город молчит двадцать лет. Давай его разбудим.',art:'close-up of the CRT monitor, a face made of green oscilloscope lines appears on the screen'},
- {who:'guide',mood:'sarcastic',text:'Я Гудок. Живу в этой коробке. План простой: ты звонишь, я считаю. Каждый звонок — шаг. Вон до той башни.',art:'view through the garage gate: the whole city climbing up to a tower with a red beacon, fog everywhere, a winding road starts at the junkyard',map:true},
+ {who:null,text:'Здесь свет, двери и деньги питаются током разговоров. Председатель выключил входящие — и город начал гаснуть. Окно за окном.',art:'telephone booths with cut cords in a rainy street, a giant uplink dish on the horizon glowing green'},
+ {who:null,text:'Свалка на краю города. Гараж. Одна лампа. Старый ЭЛТ на столе из двери. Он не включён в розетку. Но экран теплеет.',art:'the garage from the style master: bare bulb, door desk, CRT monitor, rain outside'},
+ {who:'guide',mood:'whisper',text:'…ш-ш… кх… Алло? Алло?! Кто-то дышит. Ты дышишь. Не уходи. Только не уходи.',art:'close-up of the CRT monitor, a face made of green oscilloscope lines appears on the screen'},
+ {who:'guide',mood:'worried',text:'Двадцать лет одни помехи. Последний, кто сидел за этим столом, набрал один номер и не дождался ответа. Ты… не он. Руки другие.'},
+ {who:'guide',mood:'sarcastic',text:'Я Гудок. Последний тон с линии, которую не успели оборвать. Живу в этой коробке, питаюсь звонками. Да, это так же грустно, как звучит.'},
+ {who:'guide',mood:'talking',text:'Когда люди говорят, по проводам идёт ток — и где-то загорается окно. Я видел это один раз. Хочу ещё. Хочу, чтобы город снова ответил.'},
+ {who:'guide',mood:'happy',text:'Видишь красный огонь на башне? Там Председатель. До него двенадцать районов. Ты звонишь, я считаю, город просыпается. Начнём со свалки: падать ниже некуда.',art:'view through the garage gate: the whole city climbing up to a tower with a red beacon, fog everywhere, a winding road starts at the junkyard',map:true},
 ];
 
 // По району: intro — заход (2–3 панели), boss — интро на арене, taunt — дразнилки в бою по событию,
@@ -114,7 +119,7 @@ export const FINALE=[
 export const EPILOGUE={titles:['UPLINK SYNDICATE','Холодный Звонарь — ты','Гудок — Гудок','Город — КОНГЛОМЕРАТ','Спасибо, что не положил трубку'],prestige:'Prestige — скоро'};
 
 export function runStoryTests(){const o=[],t=(n,f)=>{try{o.push([n,!!f()])}catch(e){o.push([n+' ('+e.message+')',false])}};
- t('пролог 3–5 панелей + последняя показывает карту',()=>PROLOGUE.length>=3&&PROLOGUE.length<=5&&PROLOGUE.at(-1).map);
+ t('пролог 3–8 панелей + последняя показывает карту',()=>PROLOGUE.length>=3&&PROLOGUE.length<=8&&PROLOGUE.at(-1).map);
  t('12 районов: заход 2–3 панели, интро, 3 дразнилки, finish, defeat',()=>DISTRICTS.length===12&&DISTRICTS.every((x,i)=>x.d===i+1&&x.intro.length>=2&&x.intro.length<=3&&x.boss.line&&x.taunt.crit&&x.taunt.streak&&x.taunt.immune&&x.finish&&x.defeat));
  t('итог захвата у 1–11, у 12 — финал',()=>DISTRICTS.slice(0,11).every(x=>x.capture?.length)&&!DISTRICTS[11].capture&&FINALE.some(p=>p.text==='Он слушает.'));
  t('арки покрывают 1–12',()=>ARCS.flatMap(([a,b])=>Array.from({length:b-a+1},(_,i)=>a+i)).join()===Array.from({length:12},(_,i)=>i+1).join());

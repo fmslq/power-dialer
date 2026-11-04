@@ -27,7 +27,8 @@ function row(seed,{base,h0,h1,w0=50,w1=130,col,win,lit=.25,gap=4,x0=-40,x1=SW+40
   if(win)for(let yy=y+14;yy<base-12;yy+=wy+8)for(let xx=x+8;xx<x+bw-10;xx+=wx+7)if(r()<lit)w+=`M${f(xx)} ${f(yy)}h${wx}v${wy}h-${wx}z`;
   if(r()<.25)b+=`M${f(x+bw*.45)} ${f(y)}v-${f(10+r()*30)}h3v${f(10+r()*30)}z`;x+=bw+gap+r()*14}
  return`<path d="${b}" fill="${col}"/>${win?`<path d="${w}" fill="${win}"/>`:''}`}
-const rain=(seed,n=110,op=.18)=>{const r=rng(seed);let d='';for(let i=0;i<n;i++){const x=r()*SW,y=r()*SH,l=18+r()*30;d+=`M${f(x)} ${f(y)}l-6 ${f(l)}`}return`<path d="${d}" stroke="#bfe" stroke-opacity="${op}" stroke-width="1.4"/>`};
+const rain=(seed,n=110,op=.18,live=false)=>{if(!live)return'';  // A7: в сценах дождь теперь живой (CSS-слой плеера .st-rain), статичные штрихи не рисуем
+ const r=rng(seed);let d='';for(let i=0;i<n;i++){const x=r()*SW,y=r()*SH,l=18+r()*30;d+=`M${f(x)} ${f(y)}l-6 ${f(l)}`}return`<path d="${d}" stroke="#bfe" stroke-opacity="${op}" stroke-width="1.4"/>`};
 const ground=(t,y=820)=>`<rect y="${y}" width="${SW}" height="${SH-y}" fill="#050607"/><path d="M0 ${y}H${SW}" stroke="${t[2]}" stroke-opacity=".25" stroke-width="2"/>`+
  Array.from({length:7},(_,i)=>`<ellipse cx="${120+i*230}" cy="${y+40+(i%2)*22}" rx="${70+(i%3)*30}" ry="6" fill="${t[2]}" opacity=".12"/>`).join('');
 // достопримечательность района (средний план), центр около x=1040

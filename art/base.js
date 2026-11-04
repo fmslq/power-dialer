@@ -79,21 +79,45 @@ export function stageBack(st,lit=.1,dark=false){const lamp=dark?0:1;
 export function stageFloor(st){const f=[['#1c1e1c','#262826'],['#2a1c14','#34241a'],['#1a1e26','#222834'],['#e8e0d4','#d8cfc0']][st];
  return`<rect y="${FLOOR}" width="${BW}" height="${BH-FLOOR}" fill="${f[0]}"/>${Array.from({length:12},(_,i)=>`<path d="M${i*220} ${FLOOR}l-120 ${BH-FLOOR}" stroke="${f[1]}" stroke-width="4"/>`).join('')}<path d="M0 ${FLOOR}H${BW}" stroke="#000" stroke-width="6"/>`}
 // свет: лампа (гараж), неон (лофт), ряды ламп (офис), закат/белое золото (башня)
-export function stageLight(st,dark=false){if(dark)return`<rect width="${BW}" height="${BH}" fill="#000" opacity=".55"/>`;const c=['#ffc400','#ff7ae8','#cfe6ff','#ffe8b0'][st];
- return`<radialGradient id="hl${st}" cx=".3" cy=".1" r=".8"><stop offset="0" stop-color="${c}" stop-opacity=".22"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient><rect width="${BW}" height="${BH}" fill="url(#hl${st})" class="hq-flick"/>`}
+export function stageLight(st,dark=false,k=1){if(dark)return`<rect width="${BW}" height="${BH}" fill="#000" opacity=".55"/>`;const c=['#ffc400','#ff7ae8','#cfe6ff','#ffe8b0'][st];
+ return`<radialGradient id="hl${st}" cx=".3" cy=".1" r=".8"><stop offset="0" stop-color="${c}" stop-opacity="${(.22*k).toFixed(3)}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient><rect width="${BW}" height="${BH}" fill="url(#hl${st})" class="hq-flick"/>${k<1?`<rect width="${BW}" height="${BH}" fill="#000" opacity="${((1-k)*.5).toFixed(2)}"/>`:''}`}
 // Гудок на базе (ЭЛТ на столе) и рычаг «Начать смену», дверь на Чёрный Рынок
 export const LEVER=`<g class="hq-lever"><path d="M-40 0h80v-30h-80z" fill="#2a2a28" ${L()}/><path class="hq-arm" d="M0-30l40-110" stroke="#8a8a86" stroke-width="14" stroke-linecap="round"/><circle class="hq-arm" cx="40" cy="-140" r="22" fill="#ff1f3d" ${L()}/></g>`;
 export const HATCH=`<g class="hq-hatch"><path d="M-90 0v-250q90-60 180 0V0z" fill="#120a14" ${L(4)}/><path d="M-70 0v-230q70-46 140 0V0" fill="none" stroke="#ff2bd6" stroke-width="4" class="it-neon"/><circle cx="50" cy="-110" r="8" fill="#ffc400"/></g>`;
 // ---------- продавец Лом ----------
-export const LOM_MOODS=['welcome','haggle','closed','happy'];
-export const lomSvg=(mood='welcome')=>{const brow={welcome:'M-40-212l26-4',haggle:'M-40-220l26 8',closed:'M-40-210h26',happy:'M-40-216q13-8 26 0'}[mood],
- mouth={welcome:'M-24-150q24 14 48 0',haggle:'M-24-146q12-8 24 0t24 0',closed:'M-24-148h48',happy:'M-28-156q28 30 56 0'}[mood];
- return`<svg class="lom" data-mood="${mood}" viewBox="-160 -330 320 360" aria-hidden="true">
- <path d="M-130 30q0-150 130-150t130 150z" fill="#3a3028" ${L(5)}/><path d="M-70-110h140l20 140h-180z" fill="#6a4a2a" ${L(4)}/><path d="M-40-60h30v40h-30zM14-80h26v60h-26z" fill="#2a2a28" ${L(2)}/>
- <ellipse cy="-180" rx="70" ry="76" fill="#c89a6a" ${L(5)}/><path d="M-74-226q74-70 148 0l-8-40q-66-40-132 0z" fill="#2a2e30" ${L(4)}/><rect x="-60" y="-286" width="120" height="44" rx="8" fill="#1a1e20" ${L(3)}/><rect x="-44" y="-276" width="88" height="20" fill="#39ff14" opacity=".35"/>
- <path d="M10-196h40v26h-40z" fill="#111"/><path d="M-60-200l30-6M50-200l20-24" stroke="#111" stroke-width="4"/><circle class="lom-eye" cx="-28" cy="-186" r="7" fill="#111"/>
- <path d="${brow}" stroke="#111" stroke-width="6" stroke-linecap="round"/><path d="${mouth}" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/><path d="M-50-150q50 50 100 0" fill="none" stroke="#5a3a20" stroke-width="10" opacity=".5"/>
- <g class="lom-bird" transform="translate(96 -120)"><path d="M-20 0q0-40 20-44 22 4 22 44z" fill="#8a8a86" ${L(3)}/><path d="M18-34l16 6-14 6z" fill="#ffc400" ${L(2)}/><circle cx="8" cy="-32" r="4" fill="#39ff14"/><path d="M-20 0l-10 20M0 0v22" stroke="#555" stroke-width="4"/></g></svg>`};
+export const LOM_MOODS=['welcome','haggle','closed','happy','secret'];
+// Лом v2: коренастый старьёвщик. Сварочная маска поднята на лоб (в «closed» опущена, визор светится красным),
+// на правом глазу латунная лупа часовщика с янтарной линзой, седая щетина, шарф, кожаная куртка с меховым воротником,
+// фартук с ключом и отвёрткой. На плече попугай Тостер: корпус из хромированного тостера, гребень — два ломтика хлеба.
+export const lomSvg=(mood='welcome')=>{const M=LOM_MOODS.includes(mood)?mood:'welcome',down=M==='closed';
+ const brow={welcome:['M-52-196l30-8','M14-204l30 6'],haggle:['M-52-206l30 4','M12-200l32-12'],closed:['M-52-198h30','M14-198h30'],happy:['M-52-200q15-10 30-2','M14-202q15-8 30 2'],secret:['M-52-192l30-6','M14-198l30 8']}[M];
+ const mouth={welcome:'M-26-136q20 12 44-2',haggle:'M-28-134q10-6 22 0t26-4',closed:'M-24-136h44',happy:'M-32-142q30 34 62 0z',secret:'M-22-132q20-6 40 0'}[M];
+ const eyeL=M==='happy'?'<path d="M-44-184q9-8 18 0" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/>':M==='secret'?'<path d="M-44-182h18" stroke="#111" stroke-width="5" stroke-linecap="round"/>':'<circle class="lom-eye" cx="-35" cy="-184" r="7" fill="#111"/><circle cx="-33" cy="-186" r="2" fill="#fff" opacity=".7"/>';
+ return`<svg class="lom" data-mood="${M}" viewBox="-160 -330 320 360" aria-hidden="true">
+ <path d="M-150 34q4-118 70-140l80-8 80 8q66 22 70 140z" fill="#3b2a20" ${L(5)}/>
+ <path d="M-112-96q-30 30-38 130M112-96q30 30 38 130" fill="none" stroke="#2a1d16" stroke-width="10"/>
+ <path d="M-96-112q30 30 96 30t96-30l14 22q-40 40-110 40t-110-40z" fill="#8a7458" ${L(4)}/><path d="M-80-98q16 10 26 4M40-96q14 6 30 0" stroke="#6a5640" stroke-width="5" fill="none"/>
+ <path d="M-62-66h124l14 100h-152z" fill="#6b5a40" ${L(4)}/><path d="M-36-26h30v34h-30zM12-30h28v38h-28z" fill="#54462f" ${L(3)}/>
+ <path d="M-26-60l-8 34" stroke="#9aa0a4" stroke-width="7" stroke-linecap="round"/><circle cx="-26" cy="-62" r="9" fill="none" stroke="#9aa0a4" stroke-width="6"/><path d="M30-62v30" stroke="#ffc400" stroke-width="8" stroke-linecap="round"/><path d="M30-32v10" stroke="#9aa0a4" stroke-width="4"/>
+ <path d="M-44-112q44 22 88 0l-6 20q-38 18-76 0z" fill="#8a2a20" ${L(3)}/><path d="M20-100l18 34-14 4z" fill="#7a221a" ${L(3)}/>
+ <path d="M-70-196q-2-58 70-60 72 2 70 60l-6 56q-8 34-64 40-56-6-64-40z" fill="#c4905e" ${L(5)}/>
+ <path d="M-66-150q4 40 66 48 62-8 66-48q-10 26-66 30-56-4-66-30z" fill="#9a9590" opacity=".75"/><path d="M-60-160q60 22 120 0" stroke="#8a6a4a" stroke-width="3" fill="none" opacity=".35"/>
+ <ellipse cx="-74" cy="-176" rx="10" ry="16" fill="#b07e50" ${L(4)}/>
+ <path d="M-6-178q-8 26-2 34 10 6 18 0" fill="#b07e50" ${L(3)}/>
+ <path d="M30-214l14 40" stroke="#8a4a30" stroke-width="3" opacity=".7"/><path d="M26-208l8-2M30-198l8-2M34-188l8-2" stroke="#8a4a30" stroke-width="2.5" opacity=".7"/>
+ ${eyeL}
+ <path d="${brow[0]}" stroke="#d8d4cc" stroke-width="9" stroke-linecap="round"/><path d="${brow[1]}" stroke="#d8d4cc" stroke-width="9" stroke-linecap="round"/>
+ <g class="lom-loupe"><path d="M10-200h40l6 30h-52z" fill="#b8862e" ${L(4)}/><ellipse cx="30" cy="-170" rx="26" ry="10" fill="#7a5818" ${L(3)}/><ellipse cx="30" cy="-171" rx="18" ry="6" fill="#ffc400" class="lom-lens"/><path d="M50-196q30-6 26-40" fill="none" stroke="#3a2a1a" stroke-width="4"/></g>
+ <path d="${mouth}" fill="${M==='happy'?'#3a1410':'none'}" stroke="#111" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>${M==='happy'||M==='haggle'?`<rect x="${M==='happy'?4:-4}" y="${M==='happy'?-142:-138}" width="9" height="9" rx="2" fill="#ffc400" ${L(2)}/>`:''}
+ <g class="lom-mask" transform="translate(0 ${down?-176:-262}) ${down?'':'rotate(-4)'}"><path d="M-78 ${down?-26:0}q0-${down?60:44} 78-${down?66:50}t78 ${down?66:50}${down?'v52q-20 40-78 44-58-4-78-44z':'l-10 16h-136z'}" fill="#2a2e30" ${L(5)}/>
+  <rect x="-48" y="${down?-6:-24}" width="96" height="${down?30:22}" rx="6" fill="#0c1012" ${L(3)}/><rect x="-40" y="${down?0:-20}" width="80" height="${down?18:14}" fill="${down?'#ff1f3d':'#39ff14'}" opacity="${down?.75:.35}" class="lom-visor"/>
+  <circle cx="-66" cy="${down?8:-6}" r="7" fill="#6a6e70" ${L(2)}/><circle cx="66" cy="${down?8:-6}" r="7" fill="#6a6e70" ${L(2)}/></g>
+ <g class="lom-bird" transform="translate(104 -112)">
+  <path d="M-22-44v-16q0-12 13-12t13 12v16z" fill="#e9c27e" stroke="#7a4a1e" stroke-width="4" stroke-linejoin="round" transform="rotate(-10 -9 -44)"/><path d="M2-44v-20q0-12 13-12t13 12v20z" fill="#dcae64" stroke="#7a4a1e" stroke-width="4" stroke-linejoin="round" transform="rotate(8 15 -44)"/>
+  <rect x="-30" y="-48" width="58" height="46" rx="12" fill="#b9c2c8" ${L(4)}/><path d="M-22-40h40" stroke="#6a7278" stroke-width="5" stroke-linecap="round"/><path d="M-26-14h50" stroke="#e8eef2" stroke-width="3" opacity=".7"/>
+  <path d="M28-34l20 8-20 8z" fill="#ffc400" ${L(3)}/><circle cx="14" cy="-28" r="6" fill="#050505"/><circle cx="14" cy="-28" r="3.4" fill="#39ff14" class="lom-led"/>
+  <path d="M-30-24q-22 6-26 30" fill="none" stroke="#2a2a28" stroke-width="5" stroke-linecap="round"/><rect x="-64" y="4" width="14" height="10" rx="2" fill="#9aa0a4" ${L(2)}/>
+  <path d="M-14-2v14M8-2v14" stroke="#555" stroke-width="5" stroke-linecap="round"/></g></svg>`};
 export const LOM_LINES={welcome:['Заходи. Тут всё списанное, но работает.','О, Звонарь. Деньги есть? Тогда мы друзья.','Не трогай попугая. Он из тостера.'],
  short:['Не хватает. Позвони ещё кому-нибудь.','Приходи с деньгами. Я подожду. Я всегда жду.'],locked:['Это не продаётся. Пока. Сначала район.','Видишь силуэт? Это всё, что я могу показать.'],
  sold:['Продано. Возврата нет, гарантия — моё честное слово.','Хороший выбор. Ну, нормальный.'],empty:['Ты купил всё. Мне даже неловко.']};

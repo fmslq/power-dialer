@@ -25,7 +25,7 @@ export class AudioController{
   if(this.clickOn&&!e.re){const p=Math.pow(2,this.series/12)*(1+(Math.random()-.5)*.06);this.tone(1100*p,.05,'square',.11,.7);this.tone(85,.12,'sine',.22,.5);this.tone(2600*p,.09,'triangle',.07)}
   this.classSfx(e)}
  // Тихий гул города (коричневый шум через фильтр). Включается флагом hum; громкость идёт за ползунком «Музыка» (0 — гул молчит).
- humGain(){return Math.min(.12,.16*(this.v.music??.3))}
+ humGain(){const v=this.v.music??.3;return v<=.02?0:Math.min(.12,.18*Math.pow(v,1.5))} // кривая по громкости: 0–2% = полная тишина, дальше плавно (раньше на самом низу было ещё слышно)
  setMusic(v){this.v.music=v;this.applyAmbient();const c=this.ctx;if(!c)return;if(v<=0){this.hum(false);return}
   if(this.humN)this.humN.g.gain.setTargetAtTime(this.humGain(),c.currentTime,.25);else if(this.flags.hum)this.hum(true)}
  hum(on){const c=this.ctx;if(!c)return;if(!on||!this.flags.hum){if(this.humN){const t=c.currentTime;this.humN.g.gain.setTargetAtTime(0,t,.4);const n=this.humN;setTimeout(()=>{try{n.s.stop()}catch(e){}},1800);this.humN=null}return}

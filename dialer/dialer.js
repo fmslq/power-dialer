@@ -13,6 +13,7 @@ import {localTime,lstate} from './geo.js';
 import {getAppsScript} from './apps-script.js';
 const J=(st,k,d)=>{try{return JSON.parse(st.getItem(k)||"null")??d}catch(e){return d}};
 export {BUTTONS,PRIM,WIN,SHEET_VALUES,parseSheetUrl};
+export const SPRINT=25; // спринт: 25 звонков (4 спринта = 100, на сотне — большой праздник)
 export class Dialer{
  // env: {store(localStorage), fetch, now, setTimeout, clearTimeout, setInterval, kv(m,k,v) IndexedDB «pd», https, zoomSend(msg), zoomProvider, confirm, isEditing(l), random}
  constructor(env){const E=this.env=Object.assign({now:()=>Date.now(),setTimeout:(f,t)=>setTimeout(f,t),clearTimeout:t=>clearTimeout(t),setInterval:(f,t)=>setInterval(f,t),confirm:()=>true,isEditing:()=>false,random:Math.random},env);
@@ -91,12 +92,12 @@ export class Dialer{
  back(){if(!this.q.back()){this.emit('toast',"Это первый лид сессии");return false}this.calling=false;this.emit('leadChanged',this.view());return true}
  pause(){this.paused=!this.paused;this.pauseAt=this.paused?this.env.now():0;this.emit('pauseChanged',{paused:this.paused,at:this.pauseAt});this.emit('leadChanged',this.view());
   if(!this.paused&&this.auto&&this.cur&&!this.calling&&!this.t.res(this.cur))this.dial()}
- // ---- счёт дня (смысл старой геймификации: спринт 20 и праздник на каждые 100 — теперь событие milestone для игры) ----
+ // ---- счёт дня (смысл старой геймификации: спринт 25 (было 20, просьба пользователя) и праздник на каждые 100 — событие milestone для игры) ----
  tally(l){const s=this.ses,p=this.t.ph(l),n=this.env.now();s.tot++;s.sprint++;if(s.sprint===1)s.spStart=n;if(!s.tFirst)s.tFirst=n;s.times.push({t:n,p});s.dset.add(p);
   let ms=null;if(s.sprint>=20){const d=n-(s.spStart||n);if(!this.P.best||d<this.P.best){this.P.best=d;this.sp()}}
-  if(s.tot%100==0){s.sprint=0;ms={kind:'hundred',n:s.tot}}else if(s.sprint>=20){s.sprint=0;ms={kind:'sprint20',n:s.tot}}
+  if(s.tot%100==0){s.sprint=0;ms={kind:'hundred',n:s.tot}}else if(s.sprint>=SPRINT){s.sprint=0;ms={kind:'sprint',n:s.tot,ms:n-(s.spStart||n)}}
   this.sesSave();return ms}
- untally(p){const s=this.ses;if(s.sprint>0)s.sprint--;else if(s.tot>0)s.sprint=19;s.tot=Math.max(0,s.tot-1);s.times=s.times.filter(x=>x.p!==p);s.dset.delete(p);this.sesSave()}
+ untally(p){const s=this.ses;if(s.sprint>0)s.sprint--;else if(s.tot>0)s.sprint=SPRINT-1;s.tot=Math.max(0,s.tot-1);s.times=s.times.filter(x=>x.p!==p);s.dset.delete(p);this.sesSave()}
  // ---- поля лида ----
  setNotes(v){const l=this.cur;if(!l)return;this.t.put(l,"Notes",v);this.persistSoon()}
  setCallback(v){const l=this.cur;if(!l)return;this.t.put(l,"Callback?",v);this.persistSoon()}

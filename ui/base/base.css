@@ -128,3 +128,11 @@
 .crd-eq{flex:1;font:800 13px/1 var(--ct-text);text-transform:uppercase;background:#ff2bd6;color:#fff;border:3px solid #050505;box-shadow:3px 3px 0 #050505;padding:10px;cursor:pointer}
 .crd-eq.on{background:#1a140c;color:#39ff14}.crd-eq:hover{filter:brightness(1.1)}
 .crd.cos.own .crd-stamp{display:none}
+/* бонус предмета на карточке (STORY_BIBLE §8) — «сигил» как в Inscryption */
+.crd-buff{display:flex;gap:7px;align-items:flex-start;margin:6px 0 2px;padding:6px 8px;background:#1a1410;color:#ffd76a;font:600 11.5px/1.3 var(--ct-text);border-left:3px solid #ffc400;box-shadow:inset 0 0 0 1px rgba(255,196,0,.18)}
+.crd-buff i{font-style:normal;color:#ffc400;flex:0 0 auto}
+.crd.lk .crd-buff{opacity:.55;filter:grayscale(.6)}
+.hq-buffs{display:block;font:600 11px/1.3 var(--ct-mono);font-style:normal;color:#ffd76a;margin-top:3px;white-space:nowrap}
+.lom .lom-lens{animation:lom-lens 3.2s ease-in-out infinite}@keyframes lom-lens{50%{opacity:.6}}
+.lom .lom-led{animation:lom-blink 2.4s steps(1) infinite}
+.lom[data-mood=closed] .lom-visor{animation:lom-lens 1.6s ease-in-out infinite}

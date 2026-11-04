@@ -27,4 +27,6 @@ export function makeDistrictWindow(o){ // o: {el, G:()=>G, state:G=>..., hp:G=>0
   if(fx&&!off){const t=document.createElement('i');t.className='dw-pop '+kind;t.textContent={scratch:'царапина',hit:'УДАР',crit:'КРИТ!',immune:'IMMUNE'}[kind];fx.appendChild(t);setTimeout(()=>t.remove(),1100)}
   if(kind==='crit'&&!off){el.classList.remove('crit');void el.offsetWidth;el.classList.add('crit')}lastHit=Date.now()};
  el.addEventListener('click',e=>{if(e.target.closest('[data-dw]')||e.target.closest('.dw-sc,.dw-boss'))o.onOpen(el.classList.contains('boss')?'arena':'map')});
- return{sync,hit,el,_key:()=>key}}
+ // вход босса после интро: окно «вспыхивает», босс въезжает справа (арена закрылась сама — дайлер снова под рукой)
+ const enter=()=>{if(o.fx()==='off')return;el.classList.remove('enter');void el.offsetWidth;el.classList.add('enter');setTimeout(()=>el.classList.remove('enter'),1600)};
+ return{sync,hit,enter,el,_key:()=>key}}

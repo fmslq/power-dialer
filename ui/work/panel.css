@@ -146,7 +146,8 @@
 /* узкая колонка статусов (левая панель или узкое окно): кнопки в один столбец, чтобы длинные статусы не обрезались */
 .wk-stat{container:st/inline-size}
 @container st (max-width:400px){.wk-st{font-size:13.5px}}
-@container st (max-width:350px){.wk-grid{grid-template-columns:1fr!important}}
+@container st (max-width:250px){.wk-grid{grid-template-columns:1fr!important}}
+@container st (max-width:340px){.wk-st{font-size:12.5px;gap:6px;padding:6px 7px}.wk-st .k{min-width:19px;height:19px;font-size:11px}}
 .pr-h{flex-wrap:wrap;row-gap:6px}
 /* ===== ЗАБРАТЬ НАГРАДУ: светящиеся карточки под завесой, значок, монеты ===== */
 @property --cc-ang{syntax:'<angle>';inherits:false;initial-value:0deg}

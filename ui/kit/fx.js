@@ -17,3 +17,9 @@ export class FX{constructor(){this.lvl='full';this.shakeK=1;this.trauma=0;this.P
   g.globalAlpha=1;const st=document.getElementById('stage');if(st){if(this.trauma>0){const k=this.trauma*this.trauma*14;st.style.transform=`translate(${(Math.random()*2-1)*k}px,${(Math.random()*2-1)*k}px)`;this.trauma=Math.max(0,this.trauma-dt*1.6)}else if(st.style.transform)st.style.transform=''}
   requestAnimationFrame(t=>this.loop(t))}}
 export function countUp(el,to,fmt=n=>Math.round(n).toLocaleString('ru-RU')){const from=el._v??to;el._v=to;if(from===to){el.textContent=fmt(to);return}const t0=performance.now(),d=Math.min(900,200+Math.abs(to-from)*.5);cancelAnimationFrame(el._r);const step=n=>{const k=Math.min(1,(n-t0)/d);el.textContent=fmt(from+(to-from)*ease.out(k));if(k<1)el._r=requestAnimationFrame(step)};el._r=requestAnimationFrame(step)}
+// Разделение SVG-слоя: статичная копия (растеризуется один раз, Ken Burns двигает готовую текстуру) + копия только с мигающими огнями.
+// Иначе каждое мигание перерисовывает весь огромный слой на каждом кадре (замер: пролог 40→59 fps без этого).
+export function splitAnim(root){if(!root)return;root.querySelectorAll('svg.sc-l:not(.sc-st):not(.sc-dyn)').forEach(svg=>{
+ const all=svg.querySelectorAll('*:not(defs):not(defs *)');let n=0;
+ for(const e of all){const a=getComputedStyle(e).animationName;if(a&&a!=='none'&&!(e.parentElement&&e.parentElement.closest('[data-an]'))){e.setAttribute('data-an','');n++}}
+ if(!n)return;const st=svg.cloneNode(true);st.querySelectorAll('[data-an]').forEach(e=>e.remove());st.classList.add('sc-st');svg.classList.add('sc-dyn');svg.before(st)})}

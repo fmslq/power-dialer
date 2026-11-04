@@ -8,6 +8,7 @@ import {statusFlow,lateLog,winCheck} from './flow.js';
 import {record,unrecord,dominance,rankOf,levelOf,dayKey} from './stats.js';
 import {evaluate} from './achv.js';
 import {checkMissions,modsFor} from './missions.js';
+import {withItems} from './buffs.js';
 
 const J=x=>JSON.stringify(x===undefined?null:x);
 export function sideSnapshot(root,now){const k=dayKey(now);
@@ -37,7 +38,7 @@ export class Session{
     const g=this.gate?this.gate():{ok:true};if(!g||!g.ok){const out={ev:null,meta:null,blocked:g&&g.code||'locked',achv:[],missions:[]};this.emit('blocked',out.blocked);return out}
     if(had)this.dropLead(lead.key,now);
     const side=sideSnapshot(root,now),d0=(root.days||{})[dayKey(now)]||{n:0},dir=root.dir&&root.dir.k===dayKey(now)?root.dir.pick:null;
-    const r=statusFlow(G,id,now,this.prov,{phone:lead.phone},{re:!!had,isKnown,late,mods:modsFor(dir||'',d0.n)});
+    const r=statusFlow(G,id,now,this.prov,{phone:lead.phone},{re:!!had,isKnown,late,mods:withItems(modsFor(dir||'',d0.n),root.meta&&root.meta.owned,d0.n,new Date(now).getHours())});
     if(r.blocked){const out={ev:null,meta:r.meta,blocked:r.blocked,dur:r.dur,min:r.min,achv:[],missions:[]};this.emit('statusRefused',out);return out}
     const out={ev:r.ev,meta:r.meta,achv:[],missions:[],rankUp:null,levelUp:null,trophy:null};
     if(!r.ev){this.emit('offList',r.meta);return out}

@@ -7,6 +7,7 @@ import {districtLayers,cityLayers,garageLayers} from '../../art/scenes.js';
 import {guideSvg} from '../../art/guide.js';
 import {crest,caller} from '../../art/world.js';
 import {hasArt} from '../../art/overrides.js';
+import {splitAnim} from '../kit/fx.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RM=typeof matchMedia!=='undefined'?matchMedia('(prefers-reduced-motion: reduce)'):{matches:false};
 // порядок сцен для Журнала истории
@@ -38,13 +39,13 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
  const type=()=>{clearInterval(typer);const tx=el.querySelector('.st-t');if(reduce()){tx.textContent=full;shown=full.length;return}
   shown=0;typer=setInterval(()=>{shown=Math.min(full.length,shown+2);tx.textContent=full.slice(0,shown);if(shown>=full.length)clearInterval(typer)},28)};
  const draw=()=>{const p=list[pi];if(!p)return;full=p.text||'';
-  const box=el.querySelector('.st-stw'),old=box.querySelector('.st-st');box.insertAdjacentHTML('beforeend',stage(p));const nw=box.lastElementChild;
+  const box=el.querySelector('.st-stw'),old=box.querySelector('.st-st');box.insertAdjacentHTML('beforeend',stage(p));const nw=box.lastElementChild;splitAnim(nw);
   if(old&&!reduce()){old.classList.add('out');setTimeout(()=>old.remove(),600)}else if(old)old.remove();
   requestAnimationFrame(()=>nw.classList.add('in'));
   const cap=el.querySelector('.st-cap');cap.className='st-cap '+(p.who?'who-'+p.who:'narr');
-  el.querySelector('.st-por').innerHTML=portrait(p);el.querySelector('.st-who').textContent=whoName(p);
+  el.querySelector('.st-por').innerHTML=p.bg.k==='crt'&&p.who==='guide'?'':portrait(p);el.querySelector('.st-cap').classList.toggle('nopor',p.bg.k==='crt'&&p.who==='guide');el.querySelector('.st-who').textContent=whoName(p);
   el.querySelector('.st-dots').innerHTML=list.map((_,i)=>`<i class="${i===pi?'on':i<pi?'was':''}"></i>`).join('');
-  el.querySelector('.st-ch').textContent=chap(key);type();if(pi===0)o.sfx&&o.sfx('tick')};
+  el.querySelector('.st-ch').textContent=chap(key);{const n=1+queue.length;el.querySelector('.st-skip span').textContent=key==='prologue'?'Пропустить пролог целиком':n>1?`Пропустить сцены (${n})`:'Пропустить сцену'}type();if(pi===0)o.sfx&&o.sfx('tick')};
  const next=()=>{if(!el)return;if(shown<full.length){clearInterval(typer);shown=full.length;el.querySelector('.st-t').textContent=full;return}
   if(pi<list.length-1){pi++;draw()}else finish()};
  const prev=()=>{if(el&&pi>0){pi--;draw()}};
@@ -53,9 +54,9 @@ export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', 
  const build=()=>{el=document.createElement('div');el.className='st';el.setAttribute('role','dialog');el.setAttribute('aria-label','Сцена');
   el.innerHTML=`<div class="st-stw"></div><i class="st-lb t"></i><i class="st-lb b"></i><div class="st-ch"></div>
    <div class="st-cap"><div class="st-por"></div><div class="st-tx"><b class="st-who"></b><p class="st-t" aria-live="polite"></p></div></div>
-   <div class="st-ui"><span class="st-dots"></span><span class="st-k"><kbd>Space</kbd> дальше <kbd>←</kbd> назад <kbd>Esc</kbd> пропустить</span></div>`;
+   <button class="st-skip" type="button"><span></span><kbd>Esc</kbd></button><div class="st-ui"><span class="st-dots"></span><span class="st-k"><kbd>Space</kbd> дальше <kbd>←</kbd> назад <kbd>Esc</kbd> пропустить</span></div>`;
   el.classList.toggle('rm',reduce());o.mount.append(el);
-  el.addEventListener('click',e=>{if(e.target.closest('.st-k'))return;next()});
+  el.addEventListener('click',e=>{if(e.target.closest('.st-skip')){close();return}if(e.target.closest('.st-k'))return;next()});
   el.addEventListener('mousemove',e=>{if(reduce())return;el.style.setProperty('--mx',(e.clientX/innerWidth-.5).toFixed(3));el.style.setProperty('--my',(e.clientY/innerHeight-.5).toFixed(3))});
   requestAnimationFrame(()=>el&&el.classList.add('in'))};
  // play('prologue') или play(['capture-3','intro-4'], done); force — сыграть даже просмотренную

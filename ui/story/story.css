@@ -5,18 +5,20 @@
 .st-st{opacity:0;transition:opacity .6s ease}.st-st.in{opacity:1}.st-st.out{opacity:0}
 .st-p{transform:translate(calc(var(--mx)*var(--z)*-14px),calc(var(--my)*var(--z)*-8px));transition:transform .5s ease-out}
 .sc-l,.sc-img{position:absolute;left:-4%;top:-4%;width:108%;height:108%;object-fit:cover}
-.st-st.in .sc-l{animation:st-kb 14s ease-out forwards}
+.st-st.in .sc-l{animation:st-kb 14s ease-out forwards;will-change:transform;backface-visibility:hidden}
+.sc-dyn *{visibility:hidden}.sc-dyn [data-an],.sc-dyn [data-an] *{visibility:visible}
 .st-p[style*="--z:0"] .sc-l{animation-duration:22s}
-@keyframes st-kb{from{transform:scale(1.06) translateX(1.2%)}to{transform:scale(1) translateX(-1.2%)}}
+@keyframes st-kb{from{transform:scale(1.04) translateX(1.4%)}to{transform:scale(1.04) translateX(-1.4%)}}
 .st-st.dark .st-p{filter:brightness(.55) saturate(.8)}
 .st-st.dark::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 70% at 65% 45%,rgba(255,31,61,.22),transparent 70%);pointer-events:none}
 .st-st.won::after{content:"";position:absolute;inset:0;background:radial-gradient(70% 70% at 60% 55%,rgba(57,255,20,.16),transparent 70%);animation:st-won 2.4s ease-out;pointer-events:none}
 @keyframes st-won{0%{background-color:rgba(255,255,255,.55)}30%{background-color:rgba(255,255,255,0)}}
 .st-vig{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(0,0,0,.75));pointer-events:none}
 .st-st::before{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
-.st-rain{position:absolute;inset:-10% 0 0;pointer-events:none;opacity:.35;background:repeating-linear-gradient(105deg,transparent 0 22px,rgba(190,240,255,.18) 22px 23px,transparent 23px 61px);animation:st-rain .7s linear infinite}
+.st-rain{position:absolute;inset:-10% 0 0;pointer-events:none;opacity:.35;background:repeating-linear-gradient(105deg,transparent 0 22px,rgba(190,240,255,.18) 22px 23px,transparent 23px 61px);animation:st-rain .7s linear infinite;will-change:transform}
 @keyframes st-rain{to{transform:translate(-18px,60px)}}
-.st-crt{position:absolute;left:50%;top:44%;width:min(46vw,560px);transform:translate(-50%,-50%);filter:drop-shadow(0 0 60px rgba(57,255,20,.25))}
+.st-crt{position:absolute;left:50%;top:44%;width:min(46vw,560px);transform:translate(-50%,-50%)}
+.st-crt::before{content:"";position:absolute;inset:-12%;background:radial-gradient(closest-side,rgba(57,255,20,.2),transparent);pointer-events:none;z-index:-1}
 .st-crt .gk{width:100%;height:auto}
 .st-lb{position:absolute;left:0;right:0;height:7vh;background:#000;z-index:6;transition:transform .6s}
 .st-lb.t{top:0}.st-lb.b{bottom:0}
@@ -73,3 +75,11 @@
 
 .sc-rim *{fill:var(--rim)!important;stroke:var(--rim)!important}
 .st-st .st-shade{position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.72));pointer-events:none}
+/* кнопка «пропустить пролог целиком» (просьба пользователя): всегда видна в углу */
+.st-skip{position:absolute;right:22px;top:calc(7vh + 14px);z-index:7;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border:0;border-radius:8px;cursor:pointer;
+ background:rgba(8,10,8,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#e9f2e6;font:500 13px var(--ct-text);letter-spacing:.02em;backdrop-filter:blur(4px);transition:background .2s,box-shadow .2s}
+.st-skip:hover{background:rgba(20,26,20,.9);box-shadow:inset 0 0 0 1px #39ff14,0 0 14px rgba(57,255,20,.3)}
+.st-skip kbd{font:600 11px var(--ct-mono);padding:2px 6px;border-radius:4px;background:#0a0d0a;box-shadow:inset 0 0 0 1px #3c5236;color:#c9f7b8}
+
+/* Гудок уже говорит с большого экрана сцены — второй портрет в плашке не рисуем */
+.st-cap.nopor .st-por{display:none}

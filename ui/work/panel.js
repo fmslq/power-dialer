@@ -68,7 +68,7 @@ export function makePanel(o){
   const mins=Math.max(0,Math.round((now-((o.save.shift&&o.save.shift.start)||now))/60000)),goal=d.n>=100?(d.n>=150?200:150):100;
   return banner('shift','СМЕНА',new Date(now).toLocaleDateString('ru',{weekday:'long',day:'numeric',month:'long'}))+
   `<section class="cc-sec"><div class="cc-big"><b>${d.n}</b><span>статусов · цель ${goal}</span></div>${bar(pct(d.n,goal))}
-   <div class="cc-kv"><span>разговоров <b>${talksOf(d)}</b></span><span>встреч <b>${d.c.BOOKED||0}</b></span><span>в смене <b>${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}</b></span>${(()=>{const t=o.tempo&&o.tempo();return t&&t.show?`<span>темп <b>${t.rate} зв/ч</b></span>`:''})()}</div></section>
+   <div class="cc-kv"><span title="Сколько раз трубку взял владелец (Talk, Call back, Owner hung up)">владелец <b>${talksOf(d)}</b></span><span>встреч <b>${d.c.BOOKED||0}</b></span><span>в смене <b>${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}</b></span>${(()=>{const t=o.tempo&&o.tempo();return t&&t.show?`<span>темп <b>${t.rate} зв/ч</b></span>`:''})()}</div></section>
   <section class="cc-sec"><h4>ДИРЕКТИВА ДНЯ${dir.pick?'':' <em>выбери одну</em>'}</h4><div class="cc-dirs">${dir.opts.map(id=>{const x=DIR.find(q=>q[0]===id)||[id,id,''];const on=dir.pick===id;
     return`<button class="cc-dir ${on?'on':''} ${dir.pick&&!on?'off':''}" data-dir="${id}" ${locked?'disabled':''}><b>${esc(x[1])}</b><span>${esc(x[2])}</span>${on?icon('check','ck'):''}</button>`}).join('')}</div>
    ${dir.pick?`<p class="cc-note">${locked?'Директива закреплена до конца дня.':'Можно сменить до первого статуса.'}</p>`:''}</section>
@@ -99,7 +99,7 @@ export function makePanel(o){
   for(const k of all){const d=days[k];if(!d||!d.h)continue;const [y,m,dd]=k.split('-'),g=(new Date(+y,m-1,+dd,12).getDay()+6)%7;for(const h in d.h){H[g][h]+=d.h[h];mx=Math.max(mx,H[g][h]);any=1}}
   const h0=6,h1=22,col=(a,i)=>`<tr><th>${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][i]}</th>${a.slice(h0,h1).map((v,h)=>`<td style="--v:${mx?(v/mx).toFixed(2):0}" title="${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][i]} ${h+h0}:00 — ${v}"></td>`).join('')}</tr>`;
   const row=(n,x)=>`<tr><th>${n}</th><td>${num(x.n)}</td><td>${num(x.t)}</td><td>${num(x.b)}</td><td>${x.n?Math.round(x.t/x.n*100):0}%</td></tr>`;
-  return banner('dossier','ДОСЬЕ','Твоя статистика')+`<section class="cc-sec"><table class="cc-tbl"><thead><tr><th></th><th>статусы</th><th>разговоры</th><th>встречи</th><th>конв.</th></tr></thead><tbody>${row('Сегодня',T)}${row('7 дней',W)}${row('Всего',A)}</tbody></table>
+  return banner('dossier','ДОСЬЕ','Твоя статистика')+`<section class="cc-sec"><table class="cc-tbl"><thead><tr><th></th><th>статусы</th><th>владелец</th><th>встречи</th><th>конв.</th></tr></thead><tbody>${row('Сегодня',T)}${row('7 дней',W)}${row('Всего',A)}</tbody></table>
    <div class="cc-kv"><span>XP всего <b>${num(A.xp)}</b></span><span>заработано <b>${money(A.m)}</b></span></div></section>
   <section class="cc-sec"><h4>КОГДА ТЫ ЗВОНИШЬ <em>${h0}:00–${h1}:00</em></h4>${any?`<table class="cc-heat"><tbody>${H.map(col).join('')}</tbody><tfoot><tr><th></th>${Array.from({length:h1-h0},(_,i)=>`<td>${(i+h0)%3===0?i+h0:''}</td>`).join('')}</tr></tfoot></table>`:'<p class="cc-note">Карта заполнится, когда появятся статусы (часы считаются с этой версии).</p>'}</section>`};
  const settingsHtml=()=>{const v=o.vol.get();

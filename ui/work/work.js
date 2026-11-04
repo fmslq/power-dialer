@@ -20,12 +20,17 @@ import {makeGameMenu} from './gamemenu.js';
 import {makeMap} from '../map/map.js';
 import {makeStory} from '../story/story.js';
 import {makeArena} from '../boss/arena.js';
-import {makeBase} from '../base/base.js';
+import {makeBase,powerOf} from '../base/base.js';
+let hudPw=-1;
 import {claim as claimReward,migrateClaims} from '../../core/claim.js';
 import {makeClaimFx} from './claimfx.js';
 import {makeDistrictWindow} from './dwin.js';
 import {makeTutor} from './tutor.js';
-import {TUTORIAL} from '../../story/guide.js';
+import {SPRINT} from '../../dialer/dialer.js';
+import {TUTORIAL,LINES} from '../../story/guide.js';
+import {BEATS,BEAT_AT} from '../../story/beats.js';
+import {makeComms} from './comms.js';
+import {phaseOf} from '../../art/bosses.js';
 import {Music} from '../../audio/music.js';
 import {bossHp,DIST,TRAIL_COL,equipped} from '../../core/meta.js';
 import {bossState} from '../../core/engine.js'; // (windowState — выше)
@@ -80,7 +85,7 @@ export function startWork(root,{save,au,demo=null}={}){
   <section class="wk-hud" id="hud">
    <div class="wk-streak idle" id="streak"><div class="wk-ring"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="19"/><circle class="fg" id="ringfg" cx="23" cy="23" r="19" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><b id="ringt">–</b></div>
     <div class="wk-sk"><div class="n" id="sk-n">СЕРИЯ 0<em>x1.0</em></div><div class="s" id="sk-s">начни звонить</div></div></div>
-   <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-p" id="flow-p"></div></div>
+   <div class="wk-flow" id="flow" aria-live="polite"><div class="wk-flow-w" id="flow-w"></div><div class="wk-flow-r"><div class="wk-spr" id="spr" title="Спринт: 25 звонков подряд. Белая черта — где ты был бы, если идти в темпе своего лучшего спринта"><i id="spr-f"></i><u id="spr-g"></u><b id="spr-t">СПРИНТ 0/25</b></div><div class="wk-flow-p" id="flow-p"></div></div></div>
    <div class="wk-res"><span class="x" id="r-x">0 XP</span><span class="m" id="r-m">$0</span><span class="debt" id="r-debt"></span></div>
    <div class="wk-dist"><div class="lbl" id="dist-l"></div><div class="bar"><i id="dist-b"></i></div><div class="day" id="day"></div></div>
    <div class="wk-banner pause" id="bn-pause">Пауза <b id="pause-t">0:00</b> авто-набор выключен<button class="wk-btn" id="bn-res">Продолжить <kbd>P</kbd></button></div>
@@ -129,7 +134,7 @@ export function startWork(root,{save,au,demo=null}={}){
  // база и Чёрный Рынок (R4): полный экран, модальный
  const applyCos=()=>{document.body.dataset.stamp=(equipped(save.meta,'stamp')||'').replace('stamp-','')};applyCos();
  const BASE=makeBase({onEquip:()=>applyCos(),mount:W,save:()=>save,G:()=>ses.G,persist:persistGame,toast:t=>toast(t),sfx:n=>SFX.snd&&SFX.snd(n),fx:()=>S.fx||'full',
-  dark:()=>(save.rank??0)===0&&!!save.wasNobody,onBuy:()=>{applyCos();hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
+  dark:()=>(save.rank??0)===0&&!!save.wasNobody,today:()=>d.ses.tot,onBuy:()=>{applyCos();hud();CC.refresh&&CC.refresh()},onClose:()=>stFlush()});
  const stFlush=()=>{const q=stQ();if(!q.length||!stSafe()||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||document.querySelector(".tut"))return;const k=q.splice(0);persistGame();const ar=k.filter(x=>x.startsWith('arena-')),sc=k.filter(x=>!x.startsWith('arena-'));
   const go=()=>{if(ar.length){const dd=+ar.at(-1).split('-')[1];if(dd===ses.G.district)arenaIntro(dd);else ar.forEach(x=>STORY.mark('boss-'+x.split('-')[1]))}};if(sc.length)story(sc,{force:true,cb:go});else go()};
  // первый запуск с сюжетом (save.story.v нет): старому сохранению открываем пройденное (в Журнал), новой игре играем пролог
@@ -142,17 +147,25 @@ export function startWork(root,{save,au,demo=null}={}){
  let tutWant=false;const tutOpen=(k=0)=>{if(STORY.isOpen()||ARENA.isOpen())return;MAP.isOpen()&&MAP.close&&MAP.close();BASE.isOpen()&&BASE.close&&BASE.close();if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();TUT.open(k)};
  const tutMaybe=()=>{if(!tutWant||(save.tutorial&&save.tutorial.done)||TUT.isOpen())return;if(!d.view().lead)return;tutWant=false;setTimeout(()=>tutOpen(0),700)};
  // арена босса (R3): полный экран, статусы ставятся как обычно — арена показывает удары
- const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState});
+ const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState,onClose:()=>{clearTimeout(arT);setTimeout(()=>{DW.sync();DW.enter&&DW.enter();if(!save.tutorial||!save.tutorial.bossHint){(save.tutorial=save.tutorial||{}).bossHint=1;persistGame();toast('Босс теперь в окне района. Звони: каждый статус бьёт по нему, разговоры и встречи — сильнее всего','gold')}},320)}});
  // ---------- музыка из своей папки (handle в IndexedDB «ct_music»; темы, босс, районы, Overdrive, стингеры) ----------
  const MUS=new Music(gbus),MTH={industrial:'industrial',neon:'neon',chrome:'neon',blackgold:'blackgold',orbital:'blackgold'};let musPrev=.3;
  const musCtx=()=>{const G=ses.G;return{paused:!!G.paused,world:BASE.isOpen()||MAP.isOpen(),od:!!G.od,boss:bossState(G)!=='scenery',step:G.step||0,ulta:G.ulta,theme:MTH[(DIST[(G.district||1)-1]||[])[2]]||'industrial',dist:G.district||1}};
  const musLoad=async how=>{try{const c=au&&au.init&&au.init();if(!c)return 0;MUS.init(c);MUS.v=S.music??.3;const n=how==='pick'?await MUS.fromFolder():await MUS.reconnect();
-   if(n){S.musicDir=true;persistGame();MUS.setCtx(musCtx());MUS.start();toast('Музыка: '+n+' '+(n%10===1&&n%100!==11?'трек':n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'трека':'треков'))}else if(how==='pick')toast('В папке нет аудиофайлов (mp3, ogg, wav, m4a, aac, flac)');return n}
+   if(n){S.musicDir=true;MUS.src='folder';if(bgMode()==='hum'||bgMode()==='off')S.bg='auto';persistGame();MUS.setCtx(musCtx());MUS.start();MUS.playing=1;toast('Музыка: '+n+' '+(n%10===1&&n%100!==11?'трек':n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'трека':'треков'))}else if(how==='pick')toast('В папке нет аудиофайлов (mp3, ogg, wav, m4a, aac, flac)');return n}
   catch(e){if(how==='pick'&&e&&e.name!=='AbortError')toast('Папка не открылась: '+(e.message||e));return 0}};
- if(S.musicDir&&!demo){const re=()=>{removeEventListener('pointerdown',re);removeEventListener('keydown',re);musLoad('re')};addEventListener('pointerdown',re);addEventListener('keydown',re)}
+ // ФОН (просьба пользователя): auto = своя папка → саундтрек игры → гул города; можно выбрать явно. Браузер даёт играть звук только после первого клика или клавиши — поэтому всё стартует по первому жесту
+ const bgMode=()=>S.bg||'auto';let gameN=-1;
+ const bgApply=async()=>{const m=bgMode(),c=au&&au.init&&au.init();if(c){MUS.init(c);MUS.v=S.music??.3}
+  if(m==='soundtrack'||m==='auto'){if(!MUS.lib||MUS.src==='game'){if(gameN<0)gameN=await MUS.fromManifest();else if(gameN&&!MUS.lib)await MUS.fromManifest()}}
+  const music=(m==='auto'||m==='soundtrack'||m==='folder')&&MUS.lib;au.setFlags({hum:m==='hum'||((m==='auto'||m==='soundtrack')&&!MUS.lib)});au.hum(au.flags.hum&&(S.music??.3)>0);
+  if(music){MUS.setCtx(musCtx());if(!MUS.playing){MUS.start();MUS.playing=1}}else if(MUS.lib&&MUS.decks.length){MUS.decks.forEach(k=>{try{k.a.pause()}catch(e){}});MUS.playing=0}};
+ if(!demo){const re=async()=>{removeEventListener('pointerdown',re);removeEventListener('keydown',re);if(S.musicDir&&bgMode()!=='hum'&&bgMode()!=='off')await musLoad('re');bgApply()};addEventListener('pointerdown',re);addEventListener('keydown',re)}
  const DW=makeDistrictWindow({el:$('#dwin'),G:()=>ses.G,state:bossState,hp:bossHp,prog:G=>G.dxp/(districtThr(G.district)*(1-C.bossPhaseShare)),on:()=>S.dwin!==false,fx:()=>S.fx||'full',
   onOpen:k=>k==='arena'?ARENA.open(ses.G.district||1):MAP.open()});
- const arenaIntro=dd=>{STORY.mark('boss-'+dd);ARENA.open(dd,{intro:true})};
+ // босс (просьба пользователя): интро на весь экран ~7 с, потом арена закрывается сама и бой идёт на рабочем экране — в окне района, дайлер под рукой.
+ // Любая клавиша/клик в интро закрывает его раньше. Полную арену можно открыть кликом по окну района.
+ let arT=0;const arenaIntro=dd=>{STORY.mark('boss-'+dd);ARENA.open(dd,{intro:true});clearTimeout(arT);arT=setTimeout(()=>{if(ARENA.isOpen()&&ARENA.cur()===dd)ARENA.close()},7400)};
  // босс вышел впервые в этом районе: интро сейчас (если можно) или в очередь сцен
  const bossCheck=()=>{const G=ses.G,dd=G.district,m=save.meta||(save.meta={});m.bossIntro=m.bossIntro||{};if(bossState(G)==='scenery'||m.bossIntro[dd])return;
   m.bossIntro[dd]=Date.now();persistGame();if(stMode()==='off'){STORY.mark('boss-'+dd);return}
@@ -292,21 +305,46 @@ export function startWork(root,{save,au,demo=null}={}){
    +(v.source==='file'?`<span class="wk-led ${v.saveErr?'bad':'ok'}"><i></i><span class="txt">Файл</span></span>`:'')
    +(v.saved?`<span class="wk-led ok"><i></i><span class="txt">Копия ${new Date(v.saved).toLocaleTimeString('ru')}</span></span>`:'')
    +`<span class="wk-led ${zl[0]}" title="Звонки через встроенный Zoom: проверки работают"><i></i><span class="txt">${zl[1]}</span></span>`};
- const tempoUi=()=>{const t=d.tempo(),el=$('#tempo');el.className='wk-tempo '+(t.cls||'');el.textContent=t.show?`Темп: ${t.rate} зв/час${t.cls==='hot'?' ▲':''}`:''};
+ // темп: 5 ступеней цвета и эффектов — чем выше темп, тем горячее (просьба пользователя)
+ const TT=[[0,'cold','ХОЛОДНО'],[25,'warm','РАЗГОН'],[35,'hot','ГОРЯЧО'],[50,'fire','ОГОНЬ'],[70,'inferno','ПЕКЛО']];
+ const tempoUi=()=>{const t=d.tempo(),el=$('#tempo');if(!t.show){el.className='wk-tempo';el.innerHTML='';return}const k=TT.filter(x=>t.rate>=x[0]).pop();const q=Math.min(1,t.rate/90);
+  el.className='wk-tempo on t-'+k[1];el.style.setProperty('--q',q.toFixed(2));el.title='Темп: звонков в час за последние 15 минут';el.innerHTML=`<i class="tb"><i style="width:${Math.round(q*100)}%"></i></i><span class="tn"><b>${t.rate}</b> зв/ч</span><span class="tl">${k[2]}</span>`};
  const banner=()=>{const z=d.zoom,b=$('#bn-app');let t='';if(tester){b.classList.remove('on');return}
   if(!demo&&!z.enabled)t=location.protocol!=='https:'?'Страница открыта не по https: встроенный Zoom недоступен, звонки через приложение. Проверки по Zoom выключены.':'Встроенный Zoom выключен в Настройках: звонки через приложение. Проверки по Zoom (серия, встречи, бонус) выключены.';
   else if(z.gate==='app')t='Звонки через приложение Zoom: проверки по Zoom выключены, встречи пойдут «на проверку».';
   $('#bn-app-t').textContent=t;b.classList.toggle('on',!!t)};
  // ---------- HUD ----------
+ // прокрутка цифр XP и $: после статуса число «докручивается» до нового значения, рост подсвечивается (просьба пользователя)
+ const shown={},rollT={};const roll=(k,el,to,fmt)=>{if(!el)return;if(shown[k]==null||S.fx==='off'||document.hidden){shown[k]=to;el.textContent=fmt(to);return}if(shown[k]===to||rollT[k]&&rollT[k].to===to)return;
+  const from=rollT[k]?rollT[k].cur:shown[k],up=to>from,t0=performance.now(),dur=Math.min(1400,450+Math.abs(to-from)*1.2),o=rollT[k]={to,cur:from};shown[k]=to;el.classList.remove('roll-up','roll-dn');void el.offsetWidth;el.classList.add(up?'roll-up':'roll-dn');
+  const st=t=>{if(rollT[k]!==o)return;const q=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-q,3);o.cur=Math.round(from+(to-from)*e);el.textContent=fmt(o.cur);if(q<1)requestAnimationFrame(st);else{rollT[k]=null;setTimeout(()=>el.classList.remove('roll-up','roll-dn'),300)}};requestAnimationFrame(st)};
+ // спринт 25 (как в старой версии): полоска перетекает цветом от холодного к горячему, на 21+ «кипит»; белая черта — призрак лучшего спринта
+ let sprPrev=-1;const sprUi=()=>{const el=$('#spr');if(!el)return;const n=d.ses.sprint|0,p=Math.min(1,n/SPRINT),f=$('#spr-f');
+  if(n!==sprPrev){f.style.width=(p*100)+'%';el.style.setProperty('--h1',String(Math.round(200-p*190)));el.style.setProperty('--h2',String(Math.round(175-p*200)));$('#spr-t').textContent=`СПРИНТ ${n}/${SPRINT}`;el.classList.toggle('heat',n>=SPRINT-4);if(n>sprPrev&&sprPrev>=0&&S.fx!=='off'){el.classList.remove('tick');void el.offsetWidth;el.classList.add('tick')}sprPrev=n}
+  const g=$('#spr-g'),best=save.sprintBest,st0=d.ses.spStart;if(!best||n<1||!st0){g.style.display='none';el.classList.remove('ahead','behind');return}
+  const gp=Math.min(SPRINT,SPRINT*(Date.now()-st0)/best);g.style.display='block';g.style.left=(gp/SPRINT*100)+'%';el.classList.toggle('ahead',n>=gp);el.classList.toggle('behind',n<gp)};
+ const sprintFx=ms=>{const el=$('#spr');if(ms&&ms.ms>0&&(!save.sprintBest||ms.ms<save.sprintBest)){const old=save.sprintBest;save.sprintBest=ms.ms;persistGame();if(old)setTimeout(()=>toast('Лучший спринт: '+mmss(ms.ms/1000)+' (было '+mmss(old/1000)+')','gold'),1600)}
+  if(!el||S.fx==='off')return;el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');const r=el.getBoundingClientRect(),W=['CLEAR!','SMASHED!','BOOM!','NICE!','ON FIRE!','НЕ ОСТАНАВЛИВАЙСЯ'];
+  J.burst&&J.burst(r.left+r.width/2,r.top+r.height/2,46,{cols:['#ffd84a','#ff5a1f','#39ff14','#fff'],speed:420,g:520,life:.9,r:2.4,s:'spark'});J.burst&&J.burst(r.left+6,r.top+r.height/2,20,{cols:['#ffd84a','#fff'],dir:-2.4,spread:1,speed:380,g:520,life:.8,r:2});J.burst&&J.burst(r.right-6,r.top+r.height/2,20,{cols:['#ffd84a','#fff'],dir:-.74,spread:1,speed:380,g:520,life:.8,r:2});
+  const b=document.createElement('div');b.className='wk-sprban';b.textContent=W[Math.random()*W.length|0];document.body.appendChild(b);setTimeout(()=>b.remove(),1900);setTimeout(()=>{sprPrev=-1;sprUi()},1700)};
+ const pick=a=>a[Math.floor(Math.random()*a.length)];
+ const COMMS=makeComms({mount:document.body,mode:()=>S.chat||'rare',accent:()=>(DIST[(ses.G.district||1)-1]||[])[1]||'#39ff14',sfx:n=>SFX.snd&&SFX.snd(n),
+  busy:()=>{const on=d.calling||(d.call&&d.call.ended==null);return on||STORY.isOpen()||ARENA.isOpen()||BASE.isOpen()||!!(MAP.isOpen&&MAP.isOpen())||document.querySelector('.tut,.gm,.wk-ov.open')}});
+ // события района (beats): при пересечении 25/50/65/75% района — одна реплика; если перескочили несколько — только последняя
+ let bPh=0,sbMax=0;const beats=()=>{const G=ses.G,dd=G.district||1,B=BEATS[dd-1],st=save.story;if(!B||!st||!st.seen||(save.meta&&save.meta.captured&&save.meta.captured[dd]))return;
+  const f=G.dxp/districtThr(dd);let hit=null;for(const k of ['rumor','council','lom','call']){const id='b-'+dd+'-'+k;if(f>=BEAT_AT[k]&&!st.seen[id]){st.seen[id]=Date.now();hit=k}}
+  if(hit){persistGame();const v=B[hit];COMMS.say(hit==='rumor'?{who:'local',name:v.name,text:v.text}:hit==='call'?(v.guide?{who:'guide',mood:'worried',text:v.text}:{who:'local',name:'Входящий · '+v.name,text:v.text}):hit==='lom'?{who:'lom',text:v}:{who:'council',text:v})}
+  const bs=bossState(G);if(bs==='boss'){const ph=phaseOf(bossHp(G));if(bPh&&ph>bPh&&ph>=2)COMMS.say({who:'boss',name:DIST[dd-1][3],text:B['ph'+ph]},'ph',0);bPh=ph}else bPh=0};
  const hud=()=>{const G=ses.G,t=now(),on=d.calling||(d.call&&d.call.ended==null),w=windowState(G,t,{onLine:on,zoom:d.zoom.live}),el=$('#streak');
   el.className='wk-streak '+w.state;const frac=w.left!=null&&w.allowed?w.left/w.allowed:w.state==='online'?1:0;$('#ringfg').style.strokeDashoffset=String(119.4*(1-frac));
   $('#ringt').textContent=w.state==='online'?'☎':w.left!=null?(w.left>=60?Math.ceil(w.left/60)+'м':w.left):'–';
   $('#sk-n').innerHTML=`СЕРИЯ ${w.streak}<em>x${w.mult}</em>`;
   $('#sk-s').textContent=w.ulta>0?`УЛЬТА: ещё ${w.ulta} на x2`:w.od?`OVERDRIVE ${mmss(w.od)}`:w.state==='online'?'на линии: таймер стоит':w.state==='lost'?'окно сгорело: следующий статус = ступень вниз':w.toNext!=null?`до x${w.nextMult}: ещё ${w.toNext}`:'максимум жара';
-  glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(!w.streak)prevStreak=0;
-  $('#r-x').textContent=Math.round(G.lifeXp).toLocaleString('ru')+' XP';if(!mLock)$('#r-m').textContent=money(G.money);DW.sync();if(MUS.lib)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
+  {const sub=$('#sk-s'),cd=w.state!=='online'&&w.state!=='lost'&&w.left!=null&&w.mult>1&&!w.od&&!(w.ulta>0);sub.classList.toggle('cd',cd);sub.classList.toggle('hurry',cd&&w.left<=15);if(cd)sub.innerHTML=`x${w.mult} сгорит через <b>${w.left>=60?mmss(w.left):w.left+' с'}</b>`+(w.toNext!=null?` · до x${w.nextMult} ещё ${w.toNext}`:'')}
+  glow(w);pipsUi(w);if(prevMult==null||w.mult<prevMult)prevMult=w.mult;if(w.streak>=8)sbMax=w.streak;if(!w.streak){if(sbMax>=8)COMMS.say({who:'guide',mood:'neutral',text:pick(LINES.streakBreak)},'sb',600000);sbMax=0;prevStreak=0}beats();
+  roll('x',$('#r-x'),Math.round(G.lifeXp),v=>v.toLocaleString('ru')+' XP');if(!mLock)roll('m',$('#r-m'),Math.round(G.money),money);else shown.m=Math.round(G.money);sprUi();DW.sync();if(MUS.lib&&MUS.playing)MUS.setCtx(musCtx());CC.badge&&CC.badge();$('#r-debt').textContent=w.debt?`долг −${w.debt} XP`:'';
   const thr=districtThr(G.district),dd=C.districts[G.district-1];$('#dist-l').textContent=`${G.district}. ${dd[1]}`;$('#dist-b').style.width=Math.min(100,G.dxp/thr*100)+'%';
-  $('#day').textContent=`сегодня ${d.ses.tot} · до 20: ${20-d.ses.sprint}`;
+  {const pw=powerOf(d.ses.tot),dy=$('#day');dy.innerHTML=`<i class="wk-bulb p${pw}" title="Свет на базе: ${['выключен — нет звонков','тусклый','горит','ярко','сияет'][pw]}"></i>сегодня ${d.ses.tot} · до 100: ${100-d.ses.tot%100}`;if(pw!==hudPw){if(hudPw===0&&pw===1)toast('💡 На базе загорелся свет');hudPw=pw}}
   if(d.paused){$('#pause-t').textContent=mmss((t-d.pauseAt)/1000)}
   if(on){dialUi();const p=$('#oscp');if(p){let s='M0 11';for(let x=0;x<=54;x+=3)s+=` L${x} ${11+Math.sin(x/4+t/90)*(d.call&&zp.calls.get(d.call.id)&&zp.calls.get(d.call.id).connected?7:2.5)}`;p.setAttribute('d',s)}}};
  // ---------- статусы ----------
@@ -317,14 +355,18 @@ export function startWork(root,{save,au,demo=null}={}){
  dbus.on('statusSet',meta=>{const L=meta.lead,f=SFX.FXT[meta.index];
   const out=ses.setStatus(meta.index,{key:L.phone,phone:L.phone,business:L.biz,state:L.state},{had:!!meta.changed,late:!!pendingLate});
   if(f){SFX.statusSound(meta.index);J.exit($('#card'),f[0],f[1],f[2],!!meta.win)}
-  if(meta.milestone){setTimeout(()=>SFX.snd(meta.milestone.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>J.free(meta.milestone.kind==='hundred'?meta.milestone.n+' CALLS':'20 / 20','#ffc400'),meta.win?1200:500)}
+  if(meta.milestone){const M=meta.milestone;setTimeout(()=>SFX.snd(M.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>{if(M.kind==='hundred')J.free(M.n+' CALLS','#ffc400');sprintFx(M)},meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
-  const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast('Слишком быстро: награда x0.5','bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
+  const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast(`Слишком быстро: ${((e.spamGap||0)/1000).toFixed(1)} с после прошлого статуса (нужно от ${C.antispamSec} с, а Zoom звонка не видно) — награда x0.5`,'bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
    if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
   (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
   if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
-  if(e&&!out.blocked)flowPop(e);shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
+  if(e&&!out.blocked){flowPop(e);const c=e.cls,often=(S.chat||'rare')==='often';
+   if(c==='BOOKED'||c==='DISCOVERY')COMMS.say({who:'guide',mood:'happy',text:pick(LINES.booked)},'booked',240000);
+   else if(often&&c==='TALK'&&Math.random()<.4)COMMS.say({who:'guide',mood:'talking',text:pick(LINES.talk)},'talk',300000);
+   else if(often&&c==='GATEKEEPER'&&Math.random()<.25)COMMS.say({who:'guide',mood:'sarcastic',text:pick(LINES.gate)},'gate',480000)}
+  shownSug=-1;persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('statusCleared',e=>{const how=ses.dropLead(e.phone);if(how)toast(how==='full'?'Статус убран: всё откатано':'Статус убран: снято всё, что он принёс');persistGame();hud();CC.refresh();MAP.refresh()});
  dbus.on('callLogged',e=>{const r=ses.lateLog(e.callId,e.duration);if(r&&r.bonus&&r.bonus.x){gain(r.bonus.x,r.bonus.m);persistGame()}});
  dbus.on('pauseChanged',e=>{e.paused?ses.pause():ses.resume();$('#bn-pause').classList.toggle('on',e.paused);persistGame()});
@@ -417,9 +459,11 @@ export function startWork(root,{save,au,demo=null}={}){
    ${btn('pull','Обновить из таблицы сейчас','','Обновить')}${btn('bk','Папка для резервных копий','Копия CSV каждые 20 с после изменений','Выбрать…')}${btn('tsv','Скопировать базу для Google Таблицы','TSV в буфер: вставить в таблицу','Копировать')}`;
   case'sound':return`<h4>Звуки статусов (как в старом дайлере)</h4>${sw('snd',!P.mute,'Звуки')}
    <div class="wk-opt"><div class="t"><b>Громкость</b></div><input class="ct-slider" id="s-vol" type="range" min="0" max="100" value="${Math.round((P.vol??.5)*100)}" style="width:180px;--v:${Math.round((P.vol??.5)*100)}%"></div>
+   <h4>Фон</h4><div class="wk-opt"><div class="t"><b>Что играет фоном</b><small>«Авто»: своя папка, если выбрана; иначе саундтрек игры, если он есть в файлах игры; иначе гул города. Громкость — ползунок ♫</small></div><div class="wk-btns">${[['auto','Авто'],['soundtrack','Саундтрек игры'],['folder','Своя папка'],['hum','Гул города'],['off','Тишина']].map(([v,t])=>`<button class="wk-btn ${bgMode()===v?'pri':''}" data-bg="${v}">${t}</button>`).join('')}</div></div>
    ${btn('mdir','Папка с музыкой…',MUS.lib?'Загружено треков: '+Object.values(MUS.pools).reduce((a,x)=>a+x.length,0)+' · подпапки: '+Object.keys(MUS.pools).join(', '):'Подпапки: industrial/calm, neon/action, overdrive, hq, boss, d1…d12, stingers. Можно и без подпапок','Выбрать…')}${btn('sdir','Свои звуки из папки…',SFX.getState().files?'Загружено файлов: '+SFX.getState().files:SFX.getState().need?'Нужно разрешение на папку':'','Выбрать…')}${btn('snames','Какие имена у файлов звуков','','Копировать')}
    <h4>Вид</h4><div class="wk-opt"><div class="t"><b>Эффекты</b><small>Штамп статуса, анимации карточки, сканлайны</small></div><div class="wk-btns">${['off','low','full'].map(v=>`<button class="wk-btn ${S.fx===v?'pri':''}" data-fx="${v}">${{off:'Выкл',low:'Мало',full:'Полно'}[v]}</button>`).join('')}</div></div>
    <div class="wk-opt"><div class="t"><b>Сюжет</b><small>Сцены районов и Гудок. Во время звонка, серии и Overdrive сцены ждут. «Выкл» — сцены сразу попадают в Журнал истории</small></div><div class="wk-btns">${['off','short','full'].map(v=>`<button class="wk-btn ${stMode()===v?'pri':''}" data-stm="${v}">${{off:'Выкл',short:'Коротко',full:'Полно'}[v]}</button>`).join('')}</div></div>
+   <div class="wk-opt"><div class="t"><b>Рация</b><small>Реплики Гудка, Лома, жителей и Голоса Совета слева внизу. Ждут, пока ты на линии. «Редко» — только события района, встречи и обрыв серии</small></div><div class="wk-btns">${[['off','Выкл'],['rare','Редко'],['often','Часто']].map(([v,t])=>`<button class="wk-btn ${(S.chat||'rare')===v?'pri':''}" data-chat="${v}">${t}</button>`).join('')}</div></div>
    <div class="wk-opt"><div class="t"><b>Окно в район</b><small>Полоса со сценой района над работой. В фазе босса разворачивается: босс, HP, удары статусов. Клик — карта или арена</small></div><div class="wk-btns">${[['off','Скрыть'],['on','Показать']].map(([v,t])=>`<button class="wk-btn ${(S.dwin!==false)===(v==='on')?'pri':''}" data-dwin="${v}">${t}</button>`).join('')}</div></div>`;
   case'map':return`<h4>Что пишется в колонку Result</h4><p class="wk-kv">Кнопка → значение в таблице. Меняй, только если поменял выпадающий список в таблице.</p><div class="wk-map">${d.mapping().map(b=>`<label>${b.key} · ${esc(b.name)}</label><input class="wk-in" data-map="${b.i}" value="${esc(b.value)}">`).join('')}</div>
    <div class="wk-btns" style="margin-top:12px"><button class="wk-btn" data-b="mapreset">Вернуть как было</button></div>`;
@@ -428,7 +472,9 @@ export function startWork(root,{save,au,demo=null}={}){
  const openSettings=(s)=>{if(s)sec=s;openOv('set',`<div class="wk-wh"><h3>НАСТРОЙКИ</h3><button class="wk-x" id="s-x" title="Закрыть (Esc)"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-set"><nav class="wk-nav" id="s-nav"></nav><div class="wk-sec" id="s-sec"></div></div>`);
   $('#s-x').onclick=closeOv;setUi();
   $('#s-nav').onclick=e=>{const b=e.target.closest('[data-s]');if(b){sec=b.dataset.s;setUi()}};
-  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm],[data-dwin]');if(!t)return;
+  $('#s-sec').onclick=e=>{const t=e.target.closest('[data-sw],[data-b],[data-fx],[data-stm],[data-dwin],[data-bg],[data-chat]');if(!t)return;
+   if(t.dataset.chat){S.chat=t.dataset.chat;persistGame();if(S.chat==='off')COMMS.clear();setUi();return}
+   if(t.dataset.bg){S.bg=t.dataset.bg;persistGame();(async()=>{if(S.bg==='folder'&&!(MUS.lib&&MUS.src==='folder')){const n=await musLoad(S.musicDir?'re':'pick');if(!n)toast('Своя папка не подключена: Настройки → Звук → «Папка с музыкой…»')}await bgApply();setUi();toast({auto:'Фон: авто',soundtrack:gameN>0||MUS.src==='game'?'Фон: саундтрек игры':'Саундтрека в файлах игры пока нет — будет гул города, когда я положу треки, заиграют они',folder:'Фон: своя папка',hum:'Фон: гул города',off:'Фон: тишина'}[S.bg])})();return}
    if(t.dataset.dwin){S.dwin=t.dataset.dwin==='on';persistGame();DW.sync();layout&&layout();setUi();return}
    if(t.dataset.sw){const k=t.dataset.sw,P=d.P,on=!t.classList.contains('on');({auto:()=>d.setAuto(on),only:()=>d.setOnly(on),hos:()=>d.setPref('hangupOnStatus',on),hsk:()=>d.setPref('hangupOnSkip',on),guard:()=>d.setPref('guard',on),
      zemb:()=>{d.zoom.setEnabled(on);toast(on?'Встроенный Zoom включён: перезагрузи страницу':'Встроенный Zoom выключен: звонки через приложение');banner()},zwin:()=>{d.zoom.setShown(on);zoomUi()},tester:()=>setTester(on),snd:()=>{P.mute=!on;d.sp();SFX.setMute(!on);if(on)SFX.snd('tick')}})[k]();setUi();return}
@@ -438,7 +484,7 @@ export function startWork(root,{save,au,demo=null}={}){
      gssave:async()=>{d.setSheets({url:$('#s-gs').value.trim(),token:$('#s-tok').value.trim(),on:true});$('#gs-r').textContent='Проверяю…';const r=await d.testConnection();$('#gs-r').textContent=r&&r.ok?'Связь есть ✓':'Нет связи: '+((r&&(r.error?human(r.error):r.msg))||'?')},
      gscopy:()=>copy(d.getAppsScript(),'Apps Script скопирован (с твоим словом)'),gsrnd:()=>{d.rndSecret();setUi();toast('Новое слово: обнови его и в скрипте')},pull:()=>{d.sheets.pull();toast('Обновляю из таблицы…')},
      bk:async()=>{try{const h=await showDirectoryPicker({mode:'readwrite'});await d.setBackupDir(h);toast('Папка для копий выбрана')}catch(e){}},tsv:()=>copy(d.tsv(),'База скопирована: вставь в Google Таблицу'),
-     sdir:async()=>{await SFX.sndPick(kv);setUi()},mdir:async()=>{await musLoad('pick');setUi()},snames:()=>copy(SFX.sndNamesText(),'Список имён звуков скопирован'),mapreset:()=>{d.resetMap();setUi()},end:()=>{closeOv();shiftEnd()},export:()=>SM.exportFile(save),menu:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[b];if(A)A()};
+     sdir:async()=>{await SFX.sndPick(kv);setUi()},mdir:async()=>{await musLoad('pick');await bgApply();setUi()},snames:()=>copy(SFX.sndNamesText(),'Список имён звуков скопирован'),mapreset:()=>{d.resetMap();setUi()},end:()=>{closeOv();shiftEnd()},export:()=>SM.exportFile(save),menu:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[b];if(A)A()};
   $('#s-sec').oninput=e=>{const t=e.target;if(t.id==='s-vol'){const v=t.value/100;d.P.vol=v;d.sp();SFX.setVol(v);t.style.setProperty('--v',t.value+'%');volUi()}if(t.dataset.map!=null)d.setMap(+t.dataset.map,t.value);
    if(t.id==='s-gs'){d.P.sheets.url=t.value.trim();d.sp()}if(t.id==='s-tok'){d.P.sheets.token=t.value.trim();d.sp()}if(t.id==='s-url'){d.P.lastSheetUrl=t.value.trim();d.sp()}}};
  const setUi=()=>{$('#s-nav').innerHTML=SECS.map(([k,t])=>`<button data-s="${k}" class="${k===sec?'on':''}">${t}</button>`).join('');$('#s-sec').innerHTML=secHtml()};
@@ -448,7 +494,7 @@ export function startWork(root,{save,au,demo=null}={}){
   r.innerHTML=`Звонков: <b>${z.calls.length}</b> (исходящих ${out.length}) · разговоров от 1 мин: <b>${talk}</b> · самый долгий: <b>${mmss(Math.max(0,...out.map(c=>c.dur)))}</b><br>${viaApp(z.devices)?'⚠ Звонки шли через приложение Zoom ('+esc(z.devices.join(', '))+'): браузер их не видел. Звони через встроенный телефон.':'Звонки через встроенный телефон ✓'}`};i.click()};
  // --- итог смены
  const shiftEnd=()=>{const r=endShift(save,ses.G,now());persistGame();setTimeout(stFlush,1500);openOv('end',`<div class="wk-wh"><h3>ИТОГ СМЕНЫ</h3><button class="wk-x" id="e-x"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div><div class="wk-wb">
-   <div class="wk-kv" style="font-size:15px">Звонков: <b>${r.calls}</b> · разговоров: <b>${r.talks}</b> (${r.talkShare}%) · встреч: <b>${r.booked}</b> · discovery: <b>${r.disc}</b><br>Лучшая серия: <b>${r.bestStreak}</b> · Overdrive: <b>${r.od}</b> · время: <b>${r.minutes} мин</b><br>
+   <div class="wk-kv" style="font-size:15px">Звонков: <b>${r.calls}</b> · владелец на линии: <b>${r.talks}</b> (${r.talkShare}%) · встреч: <b>${r.booked}</b> · discovery: <b>${r.disc}</b><br>Лучшая серия: <b>${r.bestStreak}</b> · Overdrive: <b>${r.od}</b> · время: <b>${r.minutes} мин</b><br>
    За день: <b>${r.xp} XP</b> · <b>${money(r.money)}</b>${r.paid?` · выплата за смену <b>+${money(r.paid)}</b>`:''}${r.lp?` · очки наследия <b>+${r.lp}</b>`:''}${r.again?'<br>Смена сегодня уже закрыта: это повторный итог.':''}
    ${r.yesterday?`<br>Вчера: ${r.yesterday.n} звонков`:''}${r.avg7?` · среднее 7 дней: ${r.avg7.n}`:''}</div>
    <p class="wk-kv" style="margin-top:12px">Есть история звонков Zoom? Загрузи её в Настройках → Zoom (можно в любой момент).</p><div class="wk-btns" style="margin-top:12px"><button class="wk-btn pri" id="e-ok">Продолжить работу</button></div></div>`,1);
@@ -470,4 +516,4 @@ export function startWork(root,{save,au,demo=null}={}){
  setInterval(ltTick,10000);addEventListener('visibilitychange',()=>{if(!document.hidden)ltTick()});setInterval(tempoUi,5000);addEventListener('resize',padW);
  if(!demo)SM.install(()=>save);addEventListener('beforeunload',()=>{d.flush&&d.flush()});
  if(demo){d.zoom.ready=true;d.zoom.gate='ready'}else if(tester)fakeZoom();else if(d.zoom.enabled)d.zoom.startGate(15000);
- return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen}}
+ return{d,ses,save,act,openSettings,openPicker,toast,hud,layout,gateWin,shiftEnd,zp,CC,MAP,STORY,story,ARENA,BASE,au,MUS,DW,TUT,tutOpen,COMMS,beats}}

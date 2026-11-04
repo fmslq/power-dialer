@@ -82,7 +82,7 @@ const P=[
    ${eyes(-272,20,K,5)}<circle cx="20" cy="-272" r="14" fill="none" stroke="${a}" stroke-width="3"/><path d="M-60-306h120v10h-120zM-40-306v-44h80v44z" fill="#1a1a22" ${ln(4)}/>`,
   armR:`<path d="M90-150q50 20 60 90" fill="none" stroke="${m}" stroke-width="26" stroke-linecap="round"/><path d="M150-60V-260" stroke="#3a2e1a" stroke-width="8"/><path d="M150-260l24-12-24-12" fill="${a}" ${ln(2)}/>`,
   fx:``}),
- // 10 Адмирал Орбиты
+ // 10 Адмирал Эфира
  ([m,dk,a,g])=>({armL:`<path d="M-76-170l-30 50-40-60" fill="none" stroke="${m}" stroke-width="26" stroke-linecap="round"/><path d="M-150-190l10 14" stroke="#e8c4a0" stroke-width="20" stroke-linecap="round" class="b-salute"/>`,
   body:`<path d="M-80-196h160l10 296h-180z" fill="${m}" ${ln(5)}/><path d="M0-196v296" stroke="${dk}" stroke-width="4"/>${[0,1,2,3].map(i=>`<circle cx="-14" cy="${-160+i*50}" r="6" fill="#ffd45a"/><circle cx="14" cy="${-160+i*50}" r="6" fill="#ffd45a"/>`).join('')}
    <rect x="-112" y="-206" width="56" height="22" fill="#061418" stroke="${a}" stroke-width="3"/><rect x="56" y="-206" width="56" height="22" fill="#061418" stroke="${a}" stroke-width="3"/><path class="b-radar" d="M-106-195h44M62-195h44" stroke="${a}" stroke-width="2"/>

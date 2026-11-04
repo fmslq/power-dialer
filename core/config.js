@@ -18,7 +18,7 @@ export const CONFIG={
  bossPhaseShare:.1,finishFromDistrict:3,
  cancelStatusId:0,countInbound:false,logWaitMin:10,staleRingingMin:60,health:{lagYellowMs:8000,fullYellow:.9,fullRed:.6,minCalls:5},autoStatusOnCancel:false,
  districts:[[1,'Scrapyard',1,1],[2,'Industrial Zone',2,1.2],[3,'Neon Docks',2,1.45],[4,'Night Market',3,1.75],[5,'Commercial Hub',3,2.1],[6,'Chrome Plaza',3,2.5],
-  [7,'Cyber-Downtown',4,3],[8,'Financial Spire',4,3.6],[9,'Sky District',4,4.3],[10,'Aerospace Ring',5,5.2],[11,'Orbital Station',5,6.2],[12,'The Summit',5,7.5]]
+  [7,'Cyber-Downtown',4,3],[8,'Financial Spire',4,3.6],[9,'Sky District',4,4.3],[10,'Airport Ring',5,5.2],[11,'The Station',5,6.2],[12,'The Summit',5,7.5]]
 };
 // [название (как в таблице), класс, клавиша дайлера]. Порядок = индексы ST в дайлере.
 export const STATUS=[

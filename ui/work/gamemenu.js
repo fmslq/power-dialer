@@ -21,6 +21,9 @@ export function makeGameMenu(o){ // o: {run(id), vol:{get,set}, info:()=>({rank,
   el.addEventListener('mousemove',e=>{const b=e.target.closest('.gm-i');if(!b)return;const i=[...el.querySelectorAll('.gm-i')].indexOf(b);if(i!==sel){sel=i;mark()}});
   el.addEventListener('input',e=>{const t=e.target;if(t.dataset.vol){o.vol.set(t.dataset.vol,t.value/100);t.style.setProperty('--v',t.value+'%')}});
   requestAnimationFrame(()=>{el&&el.classList.add('in');mark()})};
+ // прогрев: первый показ меню на Mac давал микролаг (стили, шрифты, иконки). Рисуем его один раз невидимо в простое.
+ const warm=()=>{try{const w=document.createElement('div');w.className='gm in';w.setAttribute('aria-hidden','true');w.style.cssText='visibility:hidden;pointer-events:none;contain:strict';w.innerHTML=draw();document.body.appendChild(w);void w.offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(()=>w.remove()))}catch(_){}};
+ (self.requestIdleCallback||(f=>setTimeout(f,1500)))(warm,{timeout:4000});
  const close=()=>{if(!el)return;const x=el;el=null;x.classList.remove('in');x.classList.add('out');setTimeout(()=>x.remove(),260);o.onClose&&o.onClose()};
  const pick=k=>{close();if(k!=='resume')setTimeout(()=>o.run(k),k==='home'?0:120)};
  // клавиши, пока меню открыто: возвращает true, если клавиша съедена

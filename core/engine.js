@@ -20,7 +20,7 @@ export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.
  if(s.od&&now>=s.od.until){ev.odEnd=s.od;s.od=null}
  const gap=o.gapMs!=null?o.gapMs:s.last==null?0:now-s.last,max=C.maxGapMin*60*MS;
  if(o.re)ev.re=true;
- else if(s.last!=null&&now-s.last<C.antispamSec*MS)ev.spam=true;
+ else if(s.last!=null&&now-s.last<C.antispamSec*MS&&!(o.callStart!=null&&o.callStart>s.last)){ev.spam=true;ev.spamGap=now-s.last} // антиспам: 2 статуса чаще 4 с. Если по Zoom был настоящий звонок ПОСЛЕ прошлого статуса — это не спам
  else if(s.last!=null){
   if(gap>max||o.sinceEndedMs>max){s.step=s.ulta=0;s.streak=1;s.od=null;ev.pen='reset'}
   else if(s.ulta>0&&!(o.callStart!=null&&s.lastEnd!=null&&C.classes[s.lastCls].win&&o.callStart-s.lastEnd>afterCall(s.lastId)*MS)){s.ulta--;s.streak++;s.step=stepOf(s.streak)}
@@ -33,7 +33,7 @@ export function apply(s,id,now,o={}){const st=STATUS[id],cls=o.cls||st.cls,cc=C.
  if(ev.pen)s.odBase=Math.min(s.odBase,s.streak);
  if(!ev.spam&&!ev.re&&!ev.pen&&!s.od&&s.streak-s.odBase>=C.od.streak){s.od={until:now+C.od.sec*MS,n:0,money:0,xp:0};s.odBase=s.streak;ev.odStart=true}
  const r=rate(s,cls,now),y=C.districts[s.district-1][3],d0=s.district,bonus=Math.min(o.bonus||0,C.bonusCap),sp=ev.spam?C.antispamMult:1;
- const md=o.mods||{},mx=(md.x&&md.x[cls])||1,mm=((md.m&&md.m[cls])||1)*(md.mAll||1);let x=Math.round(cc.xp*r.x*y*(1+bonus)*sp*mx),m=Math.round(cc.money*r.m*y*(1+bonus)*sp*mm),thr=districtThr(s.district);
+ const md=o.mods||{},mx=((md.x&&md.x[cls])||1)*(md.xAll||1),mm=((md.m&&md.m[cls])||1)*(md.mAll||1);let x=Math.round(cc.xp*r.x*y*(1+bonus)*sp*mx),m=Math.round(cc.money*r.m*y*(1+bonus)*sp*mm),thr=districtThr(s.district);
  x=gain(s,x,m,hi,ev);
  if(s.od&&r.od||s.od&&!hi){s.od.n++;s.od.money+=m;s.od.xp+=x}
  if(cc.win&&!ev.re)s.ulta=C.ulta.n;

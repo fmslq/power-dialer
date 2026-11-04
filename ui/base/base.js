@@ -4,6 +4,7 @@
 import {DIST,SHOP_ITEMS,COSMETICS,buy,baseStage,equip,equipped} from '../../core/meta.js';
 import {ITEM_LORE,COSMETIC_LORE} from '../../story/items.js';
 import {LINES} from '../../story/guide.js';
+import {buffText,itemTotals} from '../../core/buffs.js';
 import {guideSvg} from '../../art/guide.js';
 import {BW,BH,FLOOR,itemSprite,BASE_SLOTS,STAGES,stageBack,stageFloor,stageLight,LEVER,HATCH,lomSvg,LOM_LINES} from '../../art/base.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -17,7 +18,9 @@ export const DOOR_X=1810,LEVER_X=70,GK_X=700;          // точки интер�
 const tierCls=it=>it.district?['t0','t1','t2'][SHOP_ITEMS.indexOf(it)%3]:'cos';
 const tierName=it=>it.district?it.tier:'косметика';
 const loreOf=id=>(ITEM_LORE[id]||COSMETIC_LORE[id]||{});
-export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toast, sfx, fx, dark:()=>bool, onBuy(it), onClose}
+export const powerOf=n=>n<=0?0:n<10?1:n<40?2:n<80?3:4; // свет базы: 0 / 1–9 / 10–39 / 40–79 / 80+ звонков за сегодня
+export function makeBase(o){
+ const pw=()=>powerOf(o.today?o.today():20); // o: {mount, save:()=>save, G:()=>G, persist, toast, sfx, fx, dark:()=>bool, onBuy(it), onClose}
  let el=null,bm=null,cam={x:0,s:1,max:0,ty:0},tab=1,gkN=0,bubT=0,lomT=0,drag=null,justDragged=false;
  const reduce=()=>RM.matches||(o.fx&&o.fx()==='off');
  const sv=()=>o.save(),G=()=>o.G();
@@ -33,18 +36,18 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
   const lay=l=>own.filter(x=>BASE_SLOTS[x.id]&&BASE_SLOTS[x.id][3]===l).map(x=>itemG(x.id,!seen[x.id],seen[x.id]?0:n++)).join('');
   const desk=owned('d1t1');
   return`<svg class="hq-svg" viewBox="0 0 ${BW} ${BH}" preserveAspectRatio="xMidYMax slice">
-   ${stageBack(st,dark?.03:.18,dark)}<g transform="translate(${DOOR_X} ${FLOOR})">${HATCH}</g>${lay('wall')}${stageFloor(st)}
+   ${stageBack(st,dark?.03:[.015,.08,.18,.26,.34][pw()],dark||pw()===0)}<g transform="translate(${DOOR_X} ${FLOOR})">${HATCH}</g>${lay('wall')}${stageFloor(st)}
    ${desk?'':`<path d="M${GK_X-70} ${FLOOR}h140v-90h-140z" fill="#4a3a26" stroke="#050505" stroke-width="3"/><path d="M${GK_X-70} ${FLOOR-45}h140" stroke="#2a2016" stroke-width="4"/>`}
-   ${lay('floor')}${lay('front')}<g transform="translate(${LEVER_X} ${FLOOR+150}) scale(.9)">${LEVER}</g><g pointer-events="none">${stageLight(st,dark)}</g></svg>`};
+   ${lay('floor')}${lay('front')}<g transform="translate(${LEVER_X} ${FLOOR+150}) scale(.9)">${LEVER}</g><g pointer-events="none">${stageLight(st,dark||pw()===0,[0,.5,1,1.35,1.7][pw()])}</g></svg>`};
  const hot=(cls,x,y,w,h,label,k)=>`<button class="hq-hot ${cls}" data-k="${k}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px" aria-label="${esc(label)}"><span class="hq-lbl">${esc(label)}</span></button>`;
  const html=()=>{const st=stage(),dark=o.dark(),S=STAGES[st],gy=owned('d1t1')?FLOOR-200:FLOOR-90;
   return`<div class="hq-vp" id="hq-vp"><div class="hq-cam" id="hq-cam" style="width:${BW}px;height:${BH}px">${sceneSvg(st,dark)}
-   <div class="hq-gk${dark?' dark':''}" id="hq-gk" style="left:${GK_X-62}px;top:${gy-128}px">${guideSvg(dark?'whisper':'neutral')}</div>
+   <div class="hq-gk${dark||pw()===0?' dark':''}" id="hq-gk" style="left:${GK_X-62}px;top:${gy-128}px">${guideSvg(dark||pw()===0?'whisper':'neutral')}</div>
    ${hot('gk',GK_X-70,gy-140,140,140,'Гудок','gk')}${hot('door',DOOR_X-95,FLOOR-290,190,290,'Чёрный Рынок · M','shop')}${hot('go',LEVER_X-50,FLOOR-20,110,180,'К работе · Esc','go')}
    <div class="hq-bub" id="hq-bub" style="left:${GK_X+40}px;top:${gy-230}px"></div></div></div>
    <i class="hq-edge l"></i><i class="hq-edge r"></i>
    <header class="hq-top"><div class="hq-ttl"><small>БАЗА · стадия ${st+1} из 4</small><b>${esc(S[0])}</b><span>${esc(S[1])}</span></div>
-    <div class="hq-money"><small>деньги</small><b id="hq-money">${$m(G().money)}</b><span>${ALL.filter(x=>owned(x.id)).length} из ${ALL.length} предметов</span></div>
+    <div class="hq-money"><small>деньги</small><b id="hq-money">${$m(G().money)}</b><span>${ALL.filter(x=>owned(x.id)).length} из ${ALL.length} предметов</span>${(()=>{const t=itemTotals(meta().owned,99,12),p=[];if(t.xAll)p.push('XP +'+t.xAll+'%');if(t.mAll)p.push('$ +'+t.mAll+'%');if(t.fast)p.push('окно +'+t.fast+' с');const c=Object.keys(t.x).length+Object.keys(t.m).length;if(c)p.push(c+' бонус'+(c===1?'':c<5?'а':'ов')+' к статусам');return p.length?`<em class="hq-buffs" title="Бонусы купленных предметов">⚡ ${p.join(' · ')}</em>`:''})()}</div>
     <nav class="hq-nav"><button data-k="shop" class="hq-b mk">Чёрный Рынок <kbd>M</kbd></button><button data-k="ins" class="hq-b">Осмотр <kbd>I</kbd></button><button data-k="go" class="hq-b go">К работе <kbd>Esc</kbd></button></nav></header>
    <p class="hq-hint">Тяни, крути колесо или жми ← →. Нажми на предмет — прочитать.</p>
    <div class="hq-tip" id="hq-tip"></div>${dark?`<div class="hq-darkmsg">Свет отключили. Ты снова <b>Nobody</b>. Позвони — и лампа вернётся.</div>`:''}`};
@@ -69,7 +72,7 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
    <div class="crd-art"><svg class="crd-svg" viewBox="-200 -400 400 420"><g class="crd-g">${itemSprite(it.id)}</g></svg>${lk?'<i class="crd-q">?</i>':''}${cl==='t2'&&!lk?'<i class="crd-shine"></i>':''}</div>
    <div class="crd-tier"><span>${esc(tierName(it))}</span>${it.district?`<span>${esc(DIST[it.district-1][0])}</span>`:''}</div>
    <p class="crd-lore">${lk?'Лом держит это под брезентом. Захвати район — покажет.':esc(L.lore||it.description||'')}</p>
-   <p class="crd-where">${lk?'':esc(where(it))}</p><footer>${btn}</footer>${st==='own'||st==='sold'?'<i class="crd-stamp">КУПЛЕНО</i>':''}</div></article>`};
+   ${buffText(it.id)?`<p class="crd-buff"><i>⚡</i><span>${esc(buffText(it.id))}</span></p>`:''}<p class="crd-where">${lk?'':esc(where(it))}</p><footer>${btn}</footer>${st==='own'||st==='sold'?'<i class="crd-stamp">КУПЛЕНО</i>':''}</div></article>`};
  const fit=root=>root.querySelectorAll('.crd-svg').forEach(s=>{try{const b=s.querySelector('.crd-g').getBBox();if(!b.width)return;const p=Math.max(b.width,b.height)*.08;
   s.setAttribute('viewBox',`${b.x-p} ${b.y-p} ${b.width+2*p} ${b.height+2*p}`)}catch(e){}});
  const showCard=id=>{const it=byId(id);if(!it)return;const w=document.createElement('div');w.className='hq-card';
@@ -120,10 +123,10 @@ export function makeBase(o){ // o: {mount, save:()=>save, G:()=>G, persist, toas
   el.onclick=e=>{if(justDragged){justDragged=false;return}if(bm&&bm.contains(e.target))return;const k=e.target.closest('[data-k]');
    if(k){const v=k.dataset.k;if(v==='gk')gk();else if(v==='shop')openShop();else if(v==='go')close();else if(v==='ins')el.classList.toggle('ins');return}
    const it=e.target.closest('.it');if(it&&!e.target.closest('.hq-card'))showCard(it.dataset.id)}};
- function open(){if(el){return}const m=o.mount||document.body;el=document.createElement('div');el.className='hq'+(o.dark()?' dark':'')+(reduce()?' rm':'');el.innerHTML=html();m.appendChild(el);
+ function open(){if(el){return}const m=o.mount||document.body;el=document.createElement('div');el.className='hq pw'+pw()+(o.dark()?' dark':'')+(reduce()?' rm':'');el.innerHTML=html();m.appendChild(el);
   bind();layout();center(innerWidth<700?GK_X+120:1200);apply();addEventListener('resize',layout);requestAnimationFrame(()=>el&&el.classList.add('in'));
   const s=bs(),st=stage();s.stage=st;if((s.seenStage??0)<st){s.seenStage=st;banner(st);o.persist&&o.persist()}
-  setTimeout(()=>{if(!el)return;bubble(pick(o.dark()?LINES.baseDark:LINES.base));markSeen()},reduce()?50:900)}
+  setTimeout(()=>{if(!el)return;bubble(pick(o.dark()?LINES.baseDark:pw()===0?LINES.baseOff:pw()>=3&&Math.random()<.5?LINES.baseLit:LINES.base));markSeen()},reduce()?50:900)}
  function close(){if(!el)return;if(bm){bm.remove();bm=null}const e=el;el=null;removeEventListener('resize',layout);e.classList.remove('in');setTimeout(()=>e.remove(),reduce()?0:260);o.onClose&&o.onClose()}
  const toggle=()=>isOpen()?close():open();
  const key=e=>{if(!el)return false;const c=e.code;

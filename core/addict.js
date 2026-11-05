@@ -16,7 +16,7 @@ export const AD={
  w:{c:56,u:26,r:12,e:5,l:1},wChest:{e:80,l:20},                    // веса редкостей; сундук гаранта = эпик+
  pity:[30,70],                                                     // C1: порог неудач — случайно 30–70
  freeze:{per:25,max:3,sec:180},                                    // E1: заряд за каждые 25 наборов дня, максимум 3, до 3 минут
- warm:{n:5,k:3,share:.05,sig:20,min:10,ask:10,early:10,late:[13,59]},   // I1 v3: принять — за ask мин; бонус — min мин ИЛИ n наборов (что раньше); открыл до early:00 и не принял — второй шанс с late                                 // C6 v2 (кусок 18): «Разгон» — входящий вызов при 0 наборов за день. Принял → первые 5 наборов ×3 XP и $ (кроме BOOKED/DISCOVERY), после 5-го ещё 5% дневных $ и 20 Сигнала. Отклонил — до завтра
+ warm:{n:5,k:3,share:.05,sig:20,min:10,ask:10,from:[13,55],to:[23,10],retry:60},   // кусок 22: только пн–пт from..to по часам ПК; пропустил — ещё раз через retry мин; принять — за ask мин; бонус — min мин ИЛИ n наборов                                 // C6 v2 (кусок 18): «Разгон» — входящий вызов при 0 наборов за день. Принял → первые 5 наборов ×3 XP и $ (кроме BOOKED/DISCOVERY), после 5-го ещё 5% дневных $ и 20 Сигнала. Отклонил — до завтра
  purge:{share:.10,mShare:.10,maxDays:5,lookback:7},                           // B4: до 10% прогресса района и 10% денег за невыполненный рабочий день
  raid:{n:100,k:1.5,gap:{TRASH:180,GATEKEEPER:180,MINOR:180,TALK:300,CALLBACK:360,BOOKED:1500,DISCOVERY:1500}}, // C3
  cap:1.8,                                                          // потолок ×XP и ×$ от всех постоянных и временных бонусов (без счастливых часов)
@@ -129,10 +129,12 @@ const WARMC=['TRASH','GATEKEEPER','MINOR','TALK','CALLBACK'];
 // Разгон: предложить ли входящий вызов (0 наборов сегодня и сегодня ещё не отвечал; тестировщику — при каждой загрузке)
 // I1 v3. warm: {k, ans: 1 принял | -1 отклонил | 0 пропустил (время на принятие вышло), at, n0 — наборов на момент принятия, done — пройден, end — кончился, why, tries}
 const minOf=t=>{const d=new Date(t);return d.getHours()*60+d.getMinutes()};
-export function warmOffer(root,now,dayN,tester=false,loadedAt=now){const a=ensure(root),k=dayKey(now),w=a.warm;if(dayN>0&&!tester)return false;
- if(tester)return true;if(w.k!==k||w.ans==null)return true;if(w.ans===1)return false;
- // второй шанс: страница открыта до 10:00, утром вызов не принят, а сейчас уже 13:59+ и звонков всё ещё нет
- const late=AD.warm.late[0]*60+AD.warm.late[1];return(w.tries||1)<2&&dayKey(loadedAt)===k&&minOf(loadedAt)<AD.warm.early*60&&minOf(now)>=late&&minOf(w.at||0)<late}
+// Кусок 22: вызов — только в рабочий день (пн–пт) и только с 13:55 до 23:10 по часам компьютера (и тестировщику тоже).
+// Отклонил — сегодня больше не звонит. Пропустил (10 минут не брал) — ещё один раз, не раньше чем через час.
+export function warmWin(now){if(!isWork(now))return false;const m=minOf(now),[a,b]=AD.warm.from,[c,d]=AD.warm.to;return m>=a*60+b&&m<=c*60+d}
+export function warmOffer(root,now,dayN,tester=false,loadedAt=now){const a=ensure(root),k=dayKey(now),w=a.warm;if(!warmWin(now))return false;if(dayN>0&&!tester)return false;
+ if(tester)return true;if(w.k!==k||w.ans==null)return true;if(w.ans!==0)return false;
+ return(w.tries||1)<2&&now-(w.at||0)>=AD.warm.retry*60000}
 export function warmAnswer(root,now,yes,dayN=0,miss=false){const a=ensure(root),k=dayKey(now),tries=a.warm.k===k?(a.warm.tries||0)+1:1;a.warm={k,done:0,tries,ans:miss?0:yes?1:-1,at:now,n0:dayN};return a.warm}
 // разгон идёт: принят сегодня, не пройден, не кончился, не вышли ни 10 минут, ни 5 наборов
 export function warmState(root,now,dayN){const w=ensure(root).warm;if(w.k!==dayKey(now)||w.ans!==1)return null;const n=Math.max(0,dayN-(w.n0||0)),left=AD.warm.min*60000-(now-w.at);

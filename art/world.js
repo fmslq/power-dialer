@@ -1,4 +1,5 @@
-// КАРТА МИРА кодом (R2): единый город КОНГЛОМЕРАТ (районы-ячейки) на маршруте восхождения, достопримечательности, гербы, фигурка Звонаря.
+// КАРТА МИРА кодом (R2 → кусок 22): АРХИПЕЛАГ — 12 островов разного размера в тёмном море, между ними мосты разных типов,
+// достопримечательности, гербы, фигурка Звонаря.
 // Всё — SVG-строки. Любой слой заменяется картинкой из генератора по id (см. ART_PROMPTS.md v2): world-bg, dist-<n>, crest-<n>, caller.
 import {WORLD,NODES} from '../core/mapstate.js';
 import {DIST} from '../core/meta.js';
@@ -44,41 +45,50 @@ const LM=[
 export const FLAGS=[[-1.02,.3],[-.9,.06],[-.74,-.14],[.82,-.08],[1.0,.2]];
 const flags=(R,pct)=>FLAGS.map(([x,y],k)=>{const on=pct>=(k+1)*20,X=f1(x*R),Y=f1(y*R);return`<g class="fl ${on?'on':''}" transform="translate(${X} ${Y})"><ellipse rx="9" ry="4" fill="#000" opacity=".35"/><path d="M0 0v-30" stroke="#ddd" stroke-width="2.5"/><path d="M0-30l18 6-18 6z" fill="${on?'#39ff14':'#6b6b6b'}"/><text y="16" text-anchor="middle">${(k+1)*20}%</text></g>`}).join('');
 
-// ================= ГОРОД «КОНГЛОМЕРАТ»: одна суша, 12 районов-кварталов (не острова) =================
-// Внизу слева низина: свалка и цеха за рекой, в смоге. Через мост — порт у залива, рынок, офисы, центр.
-// Вверху справа — Высоты: плато над смогом, где небоскрёбы, кольцо аэропорта, станция связи «ТИШИНЫ» и Саммит.
-// Границы районов — ячейки Вороного вокруг узлов маршрута с «живыми» краями (общий шум, поэтому соседи совпадают).
+// ================= АРХИПЕЛАГ «КОНГЛОМЕРАТ» (кусок 22) =================
+// 12 островов в одном ракурсе (сверху-сбоку, свет слева сверху). Формы разные: у каждого свой «шум» берега, вытянутость и поворот.
+// Внизу слева — низкие острова окраин (свалка, цеха, порт), вверху справа — высокие скалы Высот (9–12) над туманом.
+// Между соседями по маршруту — мост. Тип моста — часть сюжета (BRIDGES): сломан, взорван, разведён, закрыт шлагбаумом, под охраной, канатка.
 const W=WORLD.w,H=WORLD.h;
-const clipHP=(P,ax,ay,nx,ny)=>{const o=[];for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length],dp=(p[0]-ax)*nx+(p[1]-ay)*ny,dq=(q[0]-ax)*nx+(q[1]-ay)*ny;
- if(dp<=0)o.push(p);if((dp<=0)!==(dq<=0)){const t=dp/(dp-dq);o.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t])}}return o};
-const nz=(x,y)=>Math.sin(x*.0107+y*.0071)*.55+Math.sin(x*.0231-y*.0173+1.3)*.3+Math.sin(x*.047+y*.039+4.1)*.15;
-const organic=(P,amp=26,step=55)=>{const o=[];for(let i=0;i<P.length;i++){const a=P[i],b=P[(i+1)%P.length],len=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.max(1,Math.round(len/step));
- for(let k=0;k<n;k++){const x=a[0]+(b[0]-a[0])*k/n,y=a[1]+(b[1]-a[1])*k/n,e=x<2||x>W-2||y<2||y>H-2?0:1;o.push([x+nz(x,y)*amp*e,y+nz(y+900,x-400)*amp*e])}}return o};
 const polyD=P=>'M'+P.map(p=>f1(p[0])+' '+f1(p[1])).join('L')+'Z';
 const inPoly=(x,y,P)=>{let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const [xi,yi]=P[i],[xj,yj]=P[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
-export const UPPER=d=>d>=9; // Высоты: районы 9–12 на плато
+export const UPPER=d=>d>=9; // Высоты: острова 9–12 — высокие скалы
+export const SQ=.7;          // сжатие по вертикали (взгляд под ~45°)
+// форма: [вытянутость, поворот, «изрезанность»] — разные силуэты: круглый, длинный, подкова, рваный
+const SHAPE=[[1.25,.3,1],[1.5,-.5,.7],[1.1,.9,1.3],[1.35,.1,.9],[1,0,1.2],[1.2,-.25,1.1],[1.6,.6,.8],[1.15,-.7,1.2],[1.3,.4,1],[1.45,-.2,.9],[1.05,.2,1.4],[1.2,-.4,1]];
 let CELLS=null;
-export const cells=()=>CELLS||(CELLS=NODES.map(([x,y,R],i)=>{let P=[[0,0],[W,0],[W,H],[0,H]];
- NODES.forEach(([x2,y2],j)=>{if(j!==i)P=clipHP(P,(x+x2)/2,(y+y2)/2,x2-x,y2-y)});
- const rc=R*2.7,n=24;for(let k=0;k<n;k++){const m=(k+.5)/n*Math.PI*2,c=Math.cos(m),s=Math.sin(m),d=rc*Math.cos(Math.PI/n);P=clipHP(P,x+c*d,y+s*d,c,s)}
- return organic(P)}));
+export const cells=()=>CELLS||(CELLS=NODES.map(([x,y,R],i)=>{const r=rng(i*131+7),[el,rot,jag]=SHAPE[i],a=r()*6,b=r()*6,c=r()*6,n=56,P=[];
+ for(let k=0;k<n;k++){const t=k/n*Math.PI*2,m=1+.15*jag*Math.sin(2*t+a)+.09*jag*Math.sin(3*t+b)+.05*jag*Math.sin(7*t+c)+.03*(r()-.5),
+  ux=Math.cos(t)*R*m*Math.sqrt(el),uy=Math.sin(t)*R*m/Math.sqrt(el),cr=Math.cos(rot),sr=Math.sin(rot);P.push([x+ux*cr-uy*sr,y+(ux*sr+uy*cr)*SQ])}return P}));
 export const cellD=d=>polyD(cells()[d-1]);
-// река из залива внизу в низину слева: отделяет окраины (1–2) от города
-export const RIVER='M-40 1290C260 1350 600 1480 860 1630S1090 1880 1085 2060S1040 2300 1090 2460';
-const riverPts=(()=>{const o=[];const P=[[-40,1290],[260,1350],[600,1480],[860,1630],[1090,1880],[1085,2060],[1040,2300],[1090,2460]];for(let i=0;i<P.length-1;i++)for(let t=0;t<1;t+=.1)o.push([P[i][0]+(P[i+1][0]-P[i][0])*t,P[i][1]+(P[i+1][1]-P[i][1])*t]);return o})();
-const nearRiver=(x,y,r)=>riverPts.some(([a,b])=>Math.hypot(a-x,b-y)<r)||Math.hypot(x-1080,(y-2400)*1.4)<300;
+export const RIVER='';       // рек больше нет: вокруг море (старый вызов в миникарте остаётся пустым)
+const nearRiver=()=>false;
 const routePts=(()=>{const o=[];for(let i=0;i<NODES.length-1;i++){const [x0,y0]=NODES[i],[x1,y1]=NODES[i+1],mx=(x0+x1)/2,my=(y0+y1)/2-60;for(let t=0;t<=1;t+=.04){const u=1-t;o.push([u*u*x0+2*u*t*mx+t*t*x1,u*u*(y0+40)+2*u*t*my+t*t*(y1+40)])}}return o})();
 const nearRoute=(x,y,r)=>routePts.some(([a,b])=>Math.hypot(a-x,b-y)<r);
 const elev=(x,y)=>Math.max(0,Math.min(1,x/W*.6+(1-y/H)*.8-.25));
-// земля районов по темам: [улицы/земля, фасады, крыши, огни]
+// земля островов по темам: [улицы/земля, фасады, крыши, огни]
 const GROUND={industrial:['#3b2a1c','#5a3f28','#8a6a48','#ffb26b'],neon:['#22182f','#35244a','#5a3f7a','#ff2bd6'],chrome:['#1e252d','#36424f','#6d7d8e','#bfe6ff'],blackgold:['#201b12','#3a3020','#6e5c3a','#ffc400'],orbital:['#141d2a','#24344a','#4a6684','#7fd7ff']};
 const grOf=i=>GROUND[(DIST[i]||[])[2]]||GROUND.industrial;
+// Мосты: BRIDGES[d] — мост К острову d (с острова d-1). type: broken | blown | raised | gate | guard | cable.
+// pass: true — граница с проходом (core/keys.js): мост откроется, когда проход получен. Иначе — сразу после захвата предыдущего острова.
+export const BRIDGES={
+ 2:{type:'broken',n:'Гнилые мостки',lock:'Средний пролёт провалился ещё зимой. Лом обещал привезти доски, как только ты отобьёшь свалку.',done:'Лом прибил новые доски. Мостки скрипят, но держат.'},
+ 3:{type:'gate',pass:1,n:'Портовый мост',lock:'Сам мост целый, но на въезде стоят шлагбаум и будка. Пока порт тебя не слышит, охрана шлагбаум не поднимет.',done:'Антенна заработала, и порт тебя услышал. Шлагбаум поднят.'},
+ 4:{type:'raised',n:'Разводной мост',lock:'Мост разведён. Пульт у смотрителя, а смотритель слушается только того, кто держит порт.',done:'Смотритель свёл пролёты. За мостом начинается Рынок.'},
+ 5:{type:'guard',pass:1,n:'Мост к офисам',lock:'На мосту дежурит охрана Хаба и разворачивает всех чужих. Чтобы пройти, нужен пропуск.',done:'Охранник отдал тебе пропуск и отошёл в сторону.'},
+ 6:{type:'blown',n:'Стеклянный мост',lock:'Стеклянный мост взорвали в ту самую ночь на «Заре». От него остались одни опоры.',done:'По старым опорам натянули новый настил. Хром ждёт тебя.'},
+ 7:{type:'gate',pass:1,n:'Мост Совета',lock:'Ворота Совета открываются только ключ-картой. Никак иначе.',done:'Карта сработала, и ворота разошлись.'},
+ 8:{type:'broken',n:'Мост к Шпилю',lock:'Мост просел, и пролёт дал трещину. Его починят только для того, кто возьмёт Даунтаун.',done:'Пролёт заварили за одну ночь.'},
+ 9:{type:'cable',pass:1,n:'Канатная дорога',lock:'На Высоты можно подняться только по канатной дороге. Кабину запускает лифтёр, и только по приглашению.',done:'Кабина пошла вверх. Лифтёр молчит, совсем как тогда.'},
+ 10:{type:'guard',pass:1,n:'Мост аэропорта',lock:'Мост освещён прожекторами. Пока у тебя нет позывного, диспетчер считает тебя чужим бортом.',done:'Диспетчер принял твой позывной, и прожекторы погасли.'},
+ 11:{type:'blown',n:'Мост к станции',lock:'Мост к станции подорван. Кто-то очень не хотел, чтобы туда ходили.',done:'На старые опоры лёг временный настил.'},
+ 12:{type:'gate',pass:1,n:'Последние ворота',lock:'Впереди запертые ворота, и замка на них нет. Они откроются только на сто первый вызов.',done:'Трубка Лома зазвонила, и ворота открылись.'}};
 // застройка: кварталы-коробки (фасад + крыша), у окраин — кучи хлама, у порта — контейнеры, на рынке — палатки
 function blocks(i,P){const [cx,cy]=NODES[i],r=rng(i*977+3),[g,fa,ro,li]=grOf(i),th=(DIST[i]||[])[2],up=UPPER(i+1);const B=[];
  const ang=(r()-.5)*.5,ca=Math.cos(ang),sa=Math.sin(ang),sp=i===0?62:up?84:74;
  let st='';for(let u=-700;u<=700;u+=sp*4)st+=`M${f1(cx+u*ca+600*sa)} ${f1(cy+u*sa-600*ca)}L${f1(cx+u*ca-600*sa)} ${f1(cy+u*sa+600*ca)}`;for(let v=-520;v<=520;v+=sp*.78*4)st+=`M${f1(cx-800*ca-v*sa)} ${f1(cy-800*sa+v*ca)}L${f1(cx+800*ca-v*sa)} ${f1(cy+800*sa+v*ca)}`;
  for(let iu=-12;iu<=12;iu++)for(let iv=-12;iv<=12;iv++){if(iu%4===0||iv%4===0)continue;const u=iu*sp,v=iv*sp*.78;if(Math.abs(u)>700||Math.abs(v)>520)continue;const x=cx+u*ca-v*sa+(r()-.5)*16,y=cy+u*sa+v*ca+(r()-.5)*12;
-  if(!inPoly(x,y,P)||Math.hypot((x-cx)/1.25,y-cy-10)<175||nearRoute(x,y,52)||nearRiver(x,y,95))continue;
+  if(!inPoly(x,y,P)||Math.hypot((x-cx)/1.25,y-cy-10)<Math.min(175,NODES[i][2]*.72)||nearRoute(x,y,46)||nearRiver(x,y,95))continue;
   const e=elev(x,y),w=24+r()*24,dpt=16+r()*16,h=(5+r()*16)*(1+e*3.2)*(up?1.4:1);B.push([x,y,w,dpt,h,r()])}
  B.sort((a,b)=>a[1]-b[1]);let out=`<path d="${st}" fill="none" stroke="#000" stroke-opacity=".32" stroke-width="20" clip-path="url(#cp-${i+1})"/><path d="${st}" fill="none" stroke="${li}" stroke-opacity=".07" stroke-width="2" clip-path="url(#cp-${i+1})"/>`;
  for(let k=0;k<B.length;k+=12){let fr='',tp='',wn='',sh='';for(const [x,y,w,dpt,h,q] of B.slice(k,k+12)){
@@ -89,34 +99,65 @@ function blocks(i,P){const [cx,cy]=NODES[i],r=rng(i*977+3),[g,fa,ro,li]=grOf(i),
   if(h>14)for(let wy=y-h+5;wy<y-4;wy+=7)for(let wx=x-w/2+4;wx<x+w/2-3;wx+=7)if(((wx*13+wy*7)|0)%5<(up?3:2))wn+=`M${f1(wx)} ${f1(wy)}h2.6v2.6h-2.6Z`}
   out+=(sh?`<path d="${sh}" fill="${i===0?'#4a3a2a':'#1a1420'}" stroke="#000" stroke-opacity=".4"/>`:'')+(fr?`<path d="${fr}" fill="${fa}" stroke="#000" stroke-opacity=".35" stroke-width="1.2"/>`:'')+tp+(wn?`<path d="${wn}" fill="${li}" opacity=".55"/>`:'')}
  return out}
-// район: земля по ячейке, кромка плато у Высот, застройка, площадь с достопримечательностью, флажки-вехи
-export function districtGround(i){const d=i+1,P=cells()[i],D=polyD(P),[g,fa]=grOf(i);
- return`<g class="dgr" data-d="${d}"><clipPath id="cp-${d}"><path d="${D}"/></clipPath>${UPPER(d)?`<path d="${D}" fill="#07080c" transform="translate(0 70)"/><path d="${D}" fill="${fa}" transform="translate(0 34)" opacity=".9"/>`:''}
-  <path class="dz" data-d="${d}" d="${D}" fill="${g}"/><path d="${D}" fill="url(#gtex)" opacity=".5" pointer-events="none"/></g>`}
+// остров: отмель (светлая вода), тень на воде, обрыв (высота растёт к Высотам), пляж-кромка, верх с текстурой
+export function districtGround(i){const d=i+1,P=cells()[i],D=polyD(P),[g,fa]=grOf(i),cl=UPPER(d)?78:d>=6?46:30;
+ return`<g class="dgr" data-d="${d}"><clipPath id="cp-${d}"><path d="${D}"/></clipPath>
+  <path d="${D}" fill="none" stroke="#1d4a56" stroke-opacity=".35" stroke-width="90" stroke-linejoin="round" transform="translate(0 ${cl*.6})"/>
+  <path d="${D}" fill="none" stroke="#2a6a74" stroke-opacity=".25" stroke-width="44" stroke-linejoin="round" transform="translate(0 ${cl*.6})"/>
+  <path d="${D}" fill="#000" opacity=".45" transform="translate(-26 ${cl+22})"/>
+  <path d="${D}" fill="#0b0c0e" transform="translate(0 ${cl})"/><path d="${D}" fill="${fa}" opacity=".75" transform="translate(0 ${f1(cl*.55)})"/>
+  <path d="${D}" fill="url(#cliff)" opacity=".6" transform="translate(0 ${f1(cl*.55)})"/>
+  <path d="${D}" fill="none" stroke="#cfe3e0" stroke-opacity=".22" stroke-width="5" transform="translate(0 ${cl})"/>
+  <path class="dz" data-d="${d}" d="${D}" fill="${g}"/><path d="${D}" fill="url(#gtex)" opacity=".5" pointer-events="none"/>
+  <path d="${D}" fill="none" stroke="#e8d9b0" stroke-opacity=".18" stroke-width="7" pointer-events="none"/></g>`}
 export function district(i,pct,locked){const d=i+1,[x,y,R]=NODES[i],P=cells()[i],D=polyD(P),[g,fa,ro]=grOf(i),acc=(PAL[(DIST[i]||[])[2]]||PAL.industrial)[3];
  return`<g class="dst${locked?' lk':''}" id="dist-${d}" data-d="${d}" style="--acc:${acc}" pointer-events="none">
   <g>${blocks(i,P)}</g>
-  <path d="${D}" fill="none" stroke="${acc}" stroke-opacity=".28" stroke-width="5" stroke-dasharray="26 16"/>
+  <path d="${D}" fill="none" stroke="${acc}" stroke-opacity=".22" stroke-width="3" stroke-dasharray="18 14"/>
   ${locked?'':`<g transform="translate(${x} ${y})"><ellipse cx="0" cy="30" rx="${R*.78}" ry="${R*.34}" fill="${ro}" opacity=".35"/><ellipse cx="0" cy="30" rx="${R*.78}" ry="${R*.34}" fill="none" stroke="${acc}" stroke-opacity=".35" stroke-width="3"/>
    <g class="flg">${flags(R,pct)}</g><g class="lm">${LM[i](acc)}</g></g>`}</g>`}
-// подложка мира: земля за чертой города, горизонтали рельефа к Высотам, река и залив, смог у подножия плато
-export function terrain(){const r=rng(77);let topo='';for(let k=1;k<=11;k++){const rr=k*230;topo+=`<ellipse cx="3150" cy="420" rx="${rr*1.25}" ry="${rr*.82}" transform="rotate(-18 3150 420)"/>`}
- let lights='';for(let k=0;k<160;k++){const x=r()*W,y=r()*H;if(cells().some(P=>inPoly(x,y,P))||nearRiver(x,y,60))continue;lights+=`M${f1(x)} ${f1(y)}h3v3h-3Z`}
- let smog='';for(let k=0;k<26;k++){const t=k/25,x=1700+t*2100+(r()-.5)*160,y=1180-t*560+(r()-.5)*90,s=90+r()*140;smog+=`<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(s*2)}" ry="${f1(s*.45)}"/>`}
- let low='';for(let k=0;k<14;k++){const x=r()*1500,y=1500+r()*900,s=120+r()*160;low+=`<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(s*2.2)}" ry="${f1(s*.5)}"/>`}
- return`<defs><linearGradient id="wbg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1d140d"/><stop offset=".45" stop-color="#12151a"/><stop offset="1" stop-color="#0d121c"/></linearGradient>
+// подложка мира: тёмное море (свет — из-за горизонта сверху справа), рябь, скалы-камни, буи, туман у Высот
+export function terrain(){const r=rng(77);let rip='',rocks='',buoy='';
+ for(let k=0;k<420;k++){const x=r()*W,y=r()*H,l=14+r()*36;if(cells().some(P=>inPoly(x,y,P)))continue;rip+=`M${f1(x)} ${f1(y)}q${f1(l/2)} ${f1(-4-r()*3)} ${f1(l)} 0`}
+ for(let k=0;k<26;k++){const x=r()*W,y=r()*H,s=8+r()*22;if(cells().some(P=>inPoly(x,y,P))||nearRoute(x,y,90)||cells().some(P=>P.some(([a,b])=>Math.hypot(a-x,b-y)<70)))continue;rocks+=`<path d="M${f1(x-s)} ${f1(y)}l${f1(s*.4)} ${f1(-s*.7)}l${f1(s*.9)} ${f1(-s*.2)}l${f1(s*.7)} ${f1(s*.9)}z" fill="#20262a" stroke="#000" stroke-opacity=".5"/><path d="M${f1(x-s*1.3)} ${f1(y+3)}h${f1(s*2.6)}" stroke="#9fd1d8" stroke-opacity=".25" stroke-width="3"/>`}
+ for(let k=0;k<14;k++){const x=r()*W,y=r()*H;if(cells().some(P=>inPoly(x,y,P))||!nearRoute(x,y,260)||nearRoute(x,y,80))continue;buoy+=`<g transform="translate(${f1(x)} ${f1(y)})"><ellipse rx="9" ry="3" fill="#000" opacity=".4" cy="4"/><path d="M-5 2l5-14 5 14z" fill="#8a2a22"/><circle cy="-14" r="3" fill="#ffb26b" class="by"/></g>`}
+ let mist='';for(let k=0;k<22;k++){const t=k/21,x=2300+t*1400+(r()-.5)*260,y=1050-t*900+(r()-.5)*160,s=90+r()*130;mist+=`<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(s*2.2)}" ry="${f1(s*.4)}"/>`}
+ return`<defs><linearGradient id="wbg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#06141a"/><stop offset=".55" stop-color="#081a22"/><stop offset="1" stop-color="#0c2230"/></linearGradient>
+  <radialGradient id="wsh" cx=".82" cy=".1" r=".9"><stop offset="0" stop-color="#3d6f7e" stop-opacity=".35"/><stop offset=".5" stop-color="#1b3c48" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="cliff" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
   <pattern id="gtex" width="46" height="46" patternUnits="userSpaceOnUse"><path d="M0 46L46 0M-10 10L10-10M36 56L56 36" stroke="#fff" stroke-opacity=".035" stroke-width="2"/><circle cx="12" cy="30" r="1.4" fill="#000" fill-opacity=".25"/></pattern></defs>
-  <rect id="world-bg" width="${W}" height="${H}" fill="url(#wbg)"/>
-  <g fill="none" stroke="#9fb3c4" stroke-opacity=".06" stroke-width="3">${topo}</g><path d="${lights}" fill="#ffb26b" opacity=".25"/>
-
-  <g id="smog-low" fill="#c8a88a" opacity=".05">${low}</g><g id="smog" fill="#dfe6ee" opacity=".09">${smog}</g>`}
-export const water=()=>{const r=rng(91);let waves='';for(let k=0;k<40;k++){const [a,b]=riverPts[Math.floor(r()*riverPts.length)];waves+=`M${f1(a+(r()-.5)*40)} ${f1(b+(r()-.5)*30)}q10-6 20 0t20 0`}return`<g id="water"><path d="${RIVER}" fill="none" stroke="#0a1c26" stroke-width="190"/><ellipse cx="1080" cy="2440" rx="330" ry="200" fill="#0a1c26"/>
-   <path d="${RIVER}" fill="none" stroke="#12303e" stroke-width="140"/><ellipse cx="1080" cy="2440" rx="290" ry="170" fill="#12303e"/><path d="${waves}" fill="none" stroke="#7fb6c8" stroke-opacity=".22" stroke-width="3"/></g>`};
-// дороги поверх районов: трасса маршрута (асфальт, кромка, разметка); над рекой это мост, на плато — подъёмник
-export function roads(){const d=routeD();const lift=segD(8,9);return`<g id="roads" pointer-events="none"><path d="${d}" fill="none" stroke="#050607" stroke-width="44" stroke-linecap="round" opacity=".7"/>
- <path d="${d}" fill="none" stroke="#2a2e33" stroke-width="32" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#e9dcb8" stroke-opacity=".35" stroke-width="3" stroke-dasharray="22 18"/>
- <path d="M1040 1950l70 50M990 2010l70 50" stroke="#8a8f96" stroke-width="5" opacity=".7"/>
- <path d="${lift}" fill="none" stroke="#c9d6e2" stroke-opacity=".5" stroke-width="3" stroke-dasharray="2 10" transform="translate(0 -26)"/></g>`}
+  <rect id="world-bg" width="${W}" height="${H}" fill="url(#wbg)"/><rect width="${W}" height="${H}" fill="url(#wsh)"/>
+  <path id="ripples" d="${rip}" fill="none" stroke="#8fc4cc" stroke-opacity=".1" stroke-width="2.5" stroke-linecap="round"/>${rocks}${buoy}
+  <g id="smog" fill="#dfe6ee" opacity=".07">${mist}</g>`}
+export const water=()=>'';
+// мосты: настил по дуге маршрута над водой (под краями островов — уходит под берег). Состояние: open | ready | pass | locked
+const bpath=d=>segD(d-1,d);
+export function bridge(d,state){const B=BRIDGES[d];if(!B)return'';const p=bpath(d),t=B.type,on=state==='open',lk=state==='locked';
+ const deck=(da='')=>`<path d="${p}" pathLength="1" fill="none" stroke="#0b0d0f" stroke-width="40" stroke-linecap="butt" ${da}/><path d="${p}" pathLength="1" fill="none" stroke="#6b5a44" stroke-width="28" ${da}/>
+  <path d="${p}" pathLength="1" fill="none" stroke="#3b3024" stroke-width="28" stroke-dasharray=".004 .012" ${da?'':''}/><path d="${p}" pathLength="1" fill="none" stroke="#c9b98f" stroke-opacity=".45" stroke-width="3" transform="translate(0 -15)" ${da}/>`;
+ const piers=`<g class="pr">${[.2,.4,.6,.8].map(k=>{const [x,y]=qpt(d,k);return`<rect x="${f1(x-7)}" y="${f1(y)}" width="14" height="46" fill="#15191c"/><ellipse cx="${f1(x)}" cy="${f1(y+46)}" rx="16" ry="5" fill="none" stroke="#9fd1d8" stroke-opacity=".25" stroke-width="2"/>`}).join('')}</g>`;
+ // «живой» настил (открытый мост) — рисуется заново при открытии (класс .build)
+ const full=`<g class="bd-full">${deck()}<path d="${p}" pathLength="1" fill="none" stroke="#ffd98a" stroke-opacity=".6" stroke-width="4" stroke-dasharray=".002 .05"/></g>`;
+ let broken='';
+ if(t==='broken')broken=deck('stroke-dasharray=".36 .28 .36"')+`<path d="${p}" pathLength="1" fill="none" stroke="#2a2016" stroke-width="10" stroke-dasharray="0 .37 .04 .18 .04 .37"/>`;
+ else if(t==='blown')broken=deck('stroke-dasharray=".16 .68 .16"')+`<path d="${p}" pathLength="1" fill="none" stroke="#14100c" stroke-width="22" stroke-dasharray="0 .16 .02 .64 .02 .16"/>`;
+ else if(t==='raised')broken=deck('stroke-dasharray=".44 .12 .44"')+`<path d="${p}" pathLength="1" fill="none" stroke="#c9b98f" stroke-width="12" stroke-opacity=".8" stroke-dasharray="0 .43 .02 .1 .02 .43" transform="translate(0 -22)"/>`;
+ else if(t==='cable')broken=`<path d="${p}" pathLength="1" fill="none" stroke="#c9d6e2" stroke-opacity=".55" stroke-width="3" transform="translate(0 -40)"/><path d="${p}" pathLength="1" fill="none" stroke="#c9d6e2" stroke-opacity=".3" stroke-width="2" transform="translate(0 -30)"/>`;
+ else broken=deck();   // gate, guard: мост целый, но проход закрыт
+ const mid=midOf(d),[mx,my]=mid;
+ const gate=t==='gate'||t==='guard'||t==='cable'?`<g class="bd-gate" transform="translate(${f1(mx)} ${f1(my)})">${t==='gate'?`<rect x="-4" y="-46" width="8" height="46" fill="#2a2e33"/><g class="bar"><rect x="0" y="-40" width="64" height="7" fill="#e8e2d0"/><rect x="12" y="-40" width="10" height="7" fill="#c8302a"/><rect x="36" y="-40" width="10" height="7" fill="#c8302a"/></g><circle cx="0" cy="-52" r="6" class="lamp"/>`
+  :t==='guard'?`<path class="beam" d="M0-30L-90-140L-30-150Z" fill="#ffefb0" opacity=".16"/><path class="beam b2" d="M0-30L90-140L30-150Z" fill="#ffefb0" opacity=".12"/><rect x="-9" y="-34" width="18" height="34" fill="#2a2e33"/><circle cy="-38" r="7" class="lamp"/>`
+  :`<g class="cab"><path d="M0-60v-14" stroke="#c9d6e2" stroke-width="2"/><rect x="-20" y="-60" width="40" height="30" rx="4" fill="#3a4a5c" stroke="#c9d6e2" stroke-width="2"/><rect x="-14" y="-54" width="10" height="10" fill="#ffd98a" opacity=".6"/><rect x="4" y="-54" width="10" height="10" fill="#ffd98a" opacity=".6"/></g><circle cy="-80" r="5" class="lamp"/>`}</g>`:'';
+ return`<g class="br br-${t} bs-${state}" id="br-${d}" data-br="${d}">${t==='cable'?'':piers}${on?full:`<g class="bd-old">${broken}</g><g class="bd-new">${full}</g>`}${gate}
+  <path class="bhit" d="${p}" fill="none" stroke="transparent" stroke-width="90" data-br="${d}"/></g>`}
+export const qpt=(d,k)=>{const [x0,y0]=NODES[d-2],[x1,y1]=NODES[d-1],mx=(x0+x1)/2,my=(y0+y1)/2-60,u=1-k;return[u*u*x0+2*u*k*mx+k*k*x1,u*u*(y0+40)+2*u*k*my+k*k*(y1+40)]};
+export const midOf=d=>{const [x0,y0]=NODES[d-2],[x1,y1]=NODES[d-1],mx=(x0+x1)/2,my=(y0+y1)/2-60;return[.25*x0+.5*mx+.25*x1,.25*(y0+40)+.5*my+.25*(y1+40)]};
+// трасса по суше: тонкая дорога внутри островов (над водой её нет — там мост)
+export function roads(st=()=>'locked'){let mask='';for(let i=0;i<NODES.length;i++)mask+=`<path d="${cellD(i+1)}" fill="#fff"/>`;
+ const d=routeD();return`<defs><mask id="land-m" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">${mask}</mask><mask id="sea-m" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/>${mask.replaceAll('#fff','#000')}</mask></defs>
+ <g id="bridges" mask="url(#sea-m)">${NODES.slice(1).map((_,k)=>bridge(k+2,st(k+2))).join('')}</g>
+ <g id="roads" pointer-events="none" mask="url(#land-m)"><path d="${d}" fill="none" stroke="#050607" stroke-width="34" stroke-linecap="round" opacity=".6"/>
+ <path d="${d}" fill="none" stroke="#2a2e33" stroke-width="24" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#e9dcb8" stroke-opacity=".3" stroke-width="3" stroke-dasharray="20 16"/></g>`}
 // лёгкий слой «Радар»: контуры районов, река, трасса, сетка, координаты (без заливок и фильтров)
 export function radarWorld(open){let g='';for(let x=0;x<=W;x+=200)g+=`M${x} 0V${H}`;for(let y=0;y<=H;y+=200)g+=`M0 ${y}H${W}`;
  const ds=NODES.map(([x,y],i)=>{const on=open.includes(i+1);return`<g class="ri ${on?'on':'lk'}" data-d="${i+1}"><path d="${cellD(i+1)}" class="o" data-d="${i+1}"/>${on?`<circle cx="${x}" cy="${y}" r="60" class="h"/><circle cx="${x}" cy="${y}" r="120" class="h"/><text x="${x+70}" y="${y+120}">${String(i+1).padStart(2,'0')}·${(x/10|0)}.${(y/10|0)}</text>`:''}</g>`}).join('');

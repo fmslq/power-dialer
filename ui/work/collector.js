@@ -1,4 +1,11 @@
-import*as CO from"../../core/collector.js";import{underSvg}from"../under/under.js";import{baseStage}from"../../core/meta.js";const pc=v=>"+"+(Math.round(v*10)/10).toLocaleString("ru")+"%";function colHtml({o,district=1}){const cap=CO.capOf(o),n=o.n|0,{svg,H}=underSvg({o,st:baseStage(district),district,sel:-1,n});return`<div class="col col2">
+// К24: вкладка «Связисты» в окне гаража — вход в КОЛЛЕКТОР. Сама локация (разрез, здания, обучение) — ui/under/under.js.
+// Здесь только карточка: цифры, живая миниатюра разреза и кнопка «Спуститься в коллектор» (data-under; обработчик в addict.js).
+import * as CO from '../../core/collector.js';
+import {underSvg} from '../under/under.js';
+import {baseStage} from '../../core/meta.js';
+const pc=v=>'+'+(Math.round(v*10)/10).toLocaleString('ru')+'%';
+export function colHtml({o,district=1}){const cap=CO.capOf(o),n=o.n|0,{svg,H}=underSvg({o,st:baseStage(district),district,sel:-1,n});
+ return`<div class="col col2">
   <p class="adw-sub">Под базой есть люк. Под ним — коллектор: кабельные тоннели старой станции «Зари». По медным проводам внизу голос идёт чище, поэтому связисты живут там. Каждый связист навсегда добавляет <b>${pc(CO.COL.perOp)}</b> к XP и деньгам. Внизу можно строить здания, нанимать и обучать связистов.</p>
   <div class="col-kpi"><span><small>Связистов</small><b>${n}<i>/${cap}</i></b></span><span><small>Прибавка</small><b>${pc(CO.opsBonus({ops:o}))}</b></span><span><small>Участков</small><b>${o.plot|0}<i>/${CO.COL.plots.length}</i></b></span></div>
-  <button class="col-go" data-under aria-label="Спуститься в коллектор"><svg class="col-mini" viewBox="0 0 1200 ${H}" preserveAspectRatio="xMidYMin slice" aria-hidden="true">${svg}</svg><span class="col-cta">Спуститься в коллектор <b>↓</b></span></button></div>`}export{colHtml};
+  <button class="col-go" data-under aria-label="Спуститься в коллектор"><svg class="col-mini" viewBox="0 0 1200 ${H}" preserveAspectRatio="xMidYMin slice" aria-hidden="true">${svg}</svg><span class="col-cta">Спуститься в коллектор <b>↓</b></span></button></div>`}

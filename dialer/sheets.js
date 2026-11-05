@@ -62,7 +62,7 @@ export class SheetsSync{
    const l=t.L[i];let ch=0;
    if(x.res!==null&&x.res!==undefined){const nv=x.res.trim().toLowerCase()=="not called"?"":x.res,old=t.res(l);
     if(nv.trim()!==old.trim()){t.put(l,"Result",nv);ch=1}
-    if(x.dt!=null&&(x.dt===""||/^\d{4}-\d{2}-\d{2}$/.test(x.dt))&&x.dt!==t.get(l,"Date Engaged")){if(t.put(l,"Date Engaged",x.dt))ch=1}}
+    if(x.dt!=null&&(x.dt===""||/^\d{4}-\d{2}-\d{2}( \d{1,2}:\d{2} [AP]M( [A-Z]{2,5})?)?$/.test(x.dt))&&x.dt!==t.get(l,"Date Engaged")){if(t.put(l,"Date Engaged",x.dt))ch=1}}
    if(x.nt!=null&&this.mergeField(l,"Notes",x.nt,"n0"))ch=1;
    if(x.cb!=null&&this.mergeField(l,"Callback?",x.cb,"c0"))ch=1;
    if(ch){n++;touched.push(l)}}

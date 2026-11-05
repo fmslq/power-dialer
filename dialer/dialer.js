@@ -10,6 +10,8 @@ import {HangupGuard} from './hangup.js';
 import {BUTTONS,PRIM,WIN,sheetValue,statusIndex,statusColor,SHEET_VALUES} from './statuses.js';
 import {tempo} from './tempo.js';
 import {localTime,lstate} from './geo.js';
+// Date Engaged (кусок 26в, просьба пользователя): дата и время звонка по часам того, кому звонишь — «2026-11-05 3:40 PM CST». Пояс неизвестен — только дата.
+export const engaged=(t,l,d)=>{const lt=localTime(t,l,d);return today(d)+(lt?' '+lt.time+' '+lt.tz:'')};
 import {getAppsScript} from './apps-script.js';
 const J=(st,k,d)=>{try{return JSON.parse(st.getItem(k)||"null")??d}catch(e){return d}};
 export {BUTTONS,PRIM,WIN,SHEET_VALUES,parseSheetUrl};
@@ -79,7 +81,7 @@ export class Dialer{
  setStatus(k,waitFn,opt={}){const t=this.t,l=this.cur;if(!l)return null;const had=t.res(l),v=sheetValue(k,this.P.map);
   if(had==v){this.clearStatus(l);return{cleared:true}}
   if(this.env.canStatus){const c=this.env.canStatus(k,{phone:t.ph(l)},opt);if(c&&!c.ok){const r={refused:c.why,dur:c.dur,min:c.min,index:k};this.emit('statusRefused',r);return r}}
-  const back=this.env.backAt?this.env.backAt(t.ph(l)):null;t.put(l,"Result",v);t.put(l,"Date Engaged",today(new Date(back||this.env.now())));this.q.touch(l);const wasCalling=this.calling;this.calling=false;
+  const back=this.env.backAt?this.env.backAt(t.ph(l)):null;t.put(l,"Result",v);t.put(l,"Date Engaged",engaged(t,l,new Date(back||this.env.now())));this.q.touch(l);const wasCalling=this.calling;this.calling=false;
   this.persist();this.sheets.sync(l,1);const hang=wasCalling||this.call&&this.call.ended==null?this._autoHang('status'):'none';
   const ms=had?null:this.tally(l),meta={index:k,name:BUTTONS[k].name,value:v,changed:!!had,prev:had,win:WIN.includes(k),milestone:ms,lead:{biz:t.get(l,"Business"),state:lstate(t,l),phone:t.ph(l)},hangup:hang,back};
   this.emit('statusSet',meta);

@@ -17,7 +17,7 @@ const P={
   <ellipse cx="0" cy="-40" rx="36" ry="44" fill="#c08a64" ${L(4)}/><path d="M-38-50q0-44 40-46q40 2 36 30q-30-10-46 6q-14-8-30 10z" fill="#3a2a24" ${L(4)}/>
   <rect x="-40" y="-82" width="80" height="20" rx="9" fill="#2b3a40" ${L(4)}/><circle cx="-18" cy="-72" r="9" fill="#ffb26b" ${L(3)}/><circle cx="18" cy="-72" r="9" fill="#ffb26b" ${L(3)}/>
   <rect x="-44" y="-50" width="12" height="20" rx="5" fill="#ffc400" ${L(3)}/>${eyes(m)}<path d="M8-30l10 4" stroke="#7a4e36" stroke-width="3"/>${mouth(m)}`,
- // Пятак: первый Слышащий. Кепка, веснушки, монета на шнурке, оттопыренные уши
+ // Пятак: первый связист. Кепка, веснушки, монета на шнурке, оттопыренные уши
  pyatak:m=>`${bust('#3d4f7a','#d8a882')}<path d="M-20 6q20 26 40 0" fill="none" stroke="#c8a040" stroke-width="3"/><circle cx="0" cy="34" r="12" fill="#e2b640" ${L(3)}/><text x="0" y="39" font-size="12" font-weight="700" text-anchor="middle" fill="#6a4a10">5</text>
   <ellipse cx="-38" cy="-40" rx="9" ry="13" fill="#d8a882" ${L(3)}/><ellipse cx="38" cy="-40" rx="9" ry="13" fill="#d8a882" ${L(3)}/><ellipse cx="0" cy="-40" rx="34" ry="42" fill="#d8a882" ${L(4)}/>
   <path d="M-38-60q4-34 38-36q34 2 38 36z" fill="#59606a" ${L(4)}/><path d="M-6-62q40-6 60 6l-4 6q-24-6-56-2z" fill="#4a5058" ${L(3)}/>
@@ -30,7 +30,7 @@ const P={
  pauza:m=>`${bust('#5a3a10','#c48e62')}<ellipse cx="0" cy="-40" rx="33" ry="42" fill="#c48e62" ${L(4)}/>
   <path d="M-36-50q-6-70 36-74q42 4 36 74q-10-34-36-38q-26 4-36 38z" fill="#2a1a12" ${L(4)}/><path d="M-30-96q10 8 20 0t20 0t20 0" fill="none" stroke="#ffb400" stroke-width="4"/>
   <circle cx="-34" cy="-20" r="6" fill="#ffb400" ${L(3)}/><circle cx="34" cy="-20" r="6" fill="#ffb400" ${L(3)}/>${eyes(m,-44,14)}<path d="M-12-14q12 6 24 0" fill="none" stroke="#8a1a2a" stroke-width="5" stroke-linecap="round"/>`,
- // Хор: Слышащие Совета. Капюшон, вместо лица — гладкая маска с тремя решётками динамиков
+ // Хор: связисты Совета. Капюшон, вместо лица — гладкая маска с тремя решётками динамиков
  hor:m=>`${bust('#e8e8ec','#ddd')}<path d="M-60 -30q0-80 60-84q60 4 60 84v40h-120z" fill="#f2f2f6" ${L()}/><ellipse cx="0" cy="-36" rx="34" ry="42" fill="#cfd2d8" ${L(4)}/>
   ${[-16,16].map(x=>`<circle cx="${x}" cy="-46" r="8" fill="#9aa0aa" ${L(2)}/><path d="M${x-5} -46h10M${x} -51v10" stroke="#55606a" stroke-width="2"/>`).join('')}<rect x="-14" y="-24" width="28" height="12" rx="4" fill="#9aa0aa" ${L(2)}/><path d="M-10-18h20" stroke="#55606a" stroke-width="2"/>`,
  // Голос Совета: строгий воротник, вместо головы — громкоговоритель

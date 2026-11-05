@@ -21,21 +21,25 @@ export const SCENES=[{key:'prologue',t:'Пролог',d:0},...DISTRICTS.flatMap(
  ...Object.keys(SHELF).map(d=>({key:'shelf-'+d,t:'Полка '+d,g:'Чёрный Рынок'}))];
 const chap=key=>{const [k,n]=key.split('-'),d=+n;if(k==='prologue')return'ПРОЛОГ';if(k==='sys')return'СИСТЕМЫ · '+((SYS[n]||{}).g||'').toUpperCase();if(k==='shelf')return`ЧЁРНЫЙ РЫНОК · ПОЛКА ${d}`;if(k==='pre')return`РАЙОН ${d} · ЗВОНОК ИЗНУТРИ`;if(k==='finale')return'ФИНАЛ';const arc=ARCS.find(([a,b])=>d>=a&&d<=b);return`РАЙОН ${d} · ${DIST[d-1][0].toUpperCase()}${arc?` · ${arc[2]}`:''}`};
 // панели сцены с фоном: bg = {k:'dist'|'city'|'garage'|'crt'|'wake', d}
+// Кусок 22: фон всегда = текущая локация. Сцены систем, полок и «звонков изнутри» с общим фоном города показываются на фоне района,
+// где сейчас игрок (curD задаёт makeStory через o.district). Гараж и экран Гудка — это база, они остаются.
+let curD=()=>1;const here=p=>p.bg&&p.bg.k==='city'?{...p,bg:{k:'dist',d:Math.max(1,Math.min(12,curD()|0||1))}}:p;
 export function panelsOf(key){const [k,n]=key.split('-'),d=+n,X=DISTRICTS[d-1];
  if(k==='prologue')return PROLOGUE.map((p,i)=>({...p,bg:p.bg||[{k:'city'},{k:'city'},{k:'garage'},{k:'crt'},{k:'city'}][i]||{k:'city'}}));
  if(k==='intro')return X.intro.map(p=>({...p,bg:{k:'dist',d}}));
  if(k==='boss')return[{who:'boss',d,mood:'smug',text:X.boss.line,bg:{k:'dist',d,dark:1}},{who:'guide',mood:'worried',text:X.boss.guide,bg:{k:'dist',d,dark:1}}];
  if(k==='capture')return(X.capture||[]).map(p=>({...p,bg:{k:'dist',d,won:1}}));
  if(k==='finale')return FINALE.map((p,i)=>({...p,d:12,bg:p.bg||[{k:'dist',d:12},{k:'dist',d:12,dark:1},{k:'garage'},{k:'crt'},{k:'crt'},{k:'wake'}][i]}));
- if(k==='sys')return SYS[n]?SYS[n].panels.map(p=>({...p})):[];
- if(k==='shelf')return SHELF[d]?SHELF[d].map(p=>({...p})):[];
- if(k==='pre')return preScene(d);
+ if(k==='sys')return SYS[n]?SYS[n].panels.map(p=>here({...p})):[];
+ if(k==='shelf')return SHELF[d]?SHELF[d].map(p=>here({...p})):[];
+ if(k==='pre')return preScene(d).map(p=>p.bg&&p.bg.k==='city'?{...p,bg:{k:'dist',d}}:p);
  return[]}
 const layersOf=bg=>bg.k==='dist'?districtLayers(bg.d):bg.k==='garage'||bg.k==='crt'?garageLayers():cityLayers(bg.k==='wake');
 const portrait=p=>p.who==='guide'?guideSvg(p.mood||'talking'):p.who==='boss'?`<div class="st-boss">${crest((p.d||1)-1,'boss')}</div>`:p.who==='caller'?caller():p.who==='lom'?lomSvg(p.mood||'welcome'):p.who==='npc'?npcSvg(p.pic,p.mood):'';
 const whoName=p=>p.who==='guide'?'ГУДОК':p.who==='boss'?DIST[(p.d||1)-1][3]:p.who==='caller'?'ТЫ':p.who==='lom'?'ЛОМ':p.who==='npc'?(p.nm||''):'';
 
 export function makeStory(o){ // o: {mount, save, persist, fx:()=>'full'|'off', sfx(name)}
+ if(o.district)curD=o.district;
  let el=null,list=[],pi=0,key='',queue=[],done=null,typer=0,full='',shown=0,jr=null;
  const reduce=()=>RM.matches||o.fx()==='off';
  const root=()=>{const s=o.save;s.story=s.story||{seen:{}};s.story.seen=s.story.seen||{};return s.story};

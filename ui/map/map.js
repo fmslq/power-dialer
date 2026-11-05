@@ -1,8 +1,9 @@
 // КАРТА МИРА (R2, ТЗ §8): полноэкранный мир поверх рабочего экрана. Дайлер и звонок не останавливаются.
 // Слои: большой статичный SVG (фон, маршрут, острова) → туман (canvas, 2 слоя) → маркеры/фигурка (обратный масштаб) → интерфейс.
 // Всё, что анимируется, живёт ВНЕ большого SVG (иначе он перерисовывается каждый кадр): фигурка, кольцо выбора, огоньки, дрейф тумана, развёртка радара.
-import {WORLD,NODES,mapState,markSeen,moveTo,fitScale,LEVEL_MULT,levelOf,clampCam as clamp0,camOn,pathBetween} from '../../core/mapstate.js';
-import {district,districtGround,water,terrain,roads,crest,caller,segD,RIDDLES,radarWorld,cells,cellD} from '../../art/world.js';
+import {WORLD,NODES,mapState,markSeen,moveTo,openBridge,fitScale,LEVEL_MULT,levelOf,clampCam as clamp0,camOn,pathBetween} from '../../core/mapstate.js';
+import {district,districtGround,water,terrain,roads,crest,caller,segD,RIDDLES,radarWorld,cells,cellD,bridge,BRIDGES,midOf} from '../../art/world.js';
+import {keyFor} from '../../core/keys.js';
 import {DIST,SHOP_ITEMS} from '../../core/meta.js';
 import {CONFIG as C,districtThr} from '../../core/config.js';
 import {bossState} from '../../core/engine.js';
@@ -25,7 +26,11 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
  let goal=null,el=null,vp,camEl,fogB,fogD,cl,ring,card,tip,cam={s:1,x:0,y:0},vw=0,vh=0,fit=1,sel=1,ms=null,tw=0,busy=false,mvT=0,drag=null,queue=[],face=1;
  const root=o.save;
  const reduce=()=>RM.matches||o.fx()==='off';
- const S=()=>ms=mapState(root,o.G());
+ // кусок 22: мост к острову d открывается, когда есть проход на этой границе (если он там нужен)
+ const pass=d=>{const k=keyFor(d);return!k||!!(root.keys&&root.keys[k.id]&&root.keys[k.id].got)};
+ const S=()=>ms=mapState(root,o.G(),pass);
+ const vis=d=>d===1||(root.map.seen||[]).includes(d);                 // остров виден (туман снят)
+ const visOpen=()=>ms.open.filter(vis);const nextHid=()=>{for(let d=1;d<=12;d++)if(!vis(d))return d;return 13};
  const maxS=()=>fit*LEVEL_MULT[2]*1.15;
  const lvl=()=>levelOf(cam.s,fit);
  const tlvl=()=>levelOf(goal?goal.s:cam.s,fit); // уровень, к которому камера едет
@@ -36,14 +41,18 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
  const marker=d=>{const i=d-1,s=ms.state(d),[x,y,R]=NODES[i],lk=s==='locked',name=lk?'???':DIST[i][0];
   return`<button class="wm-m st-${s} ${d===ms.cur+1?'next':''}" data-d="${d}" style="left:${x}px;top:${y-R*.62-8}px" aria-label="${esc(lk?'Район '+d+' в тумане':name)}">
    ${crest(i,s)}<b>${esc(name)}</b>${lk?'':`<em>${ms.pct(d)}%</em>`}${d===ms.cur&&bossState(o.G())!=='scenery'?`<span class="wm-boss${laterOn(o.G())?' wait':''}" title="${esc(DIST[i][3])}${laterOn(o.G())?' ждёт боя':' в бою'}">${bossSvg(d,{phase:0})}</span>`:''}</button>`};
- const riddle=()=>{const d=ms.cur+1;if(d>12)return'';const [x,y,R]=NODES[d-1];return`<div class="wm-rd" style="left:${x}px;top:${y+R*.35}px"><i>${esc(RIDDLES[d-1])}</i></div>`};
+ const riddle=()=>{const d=nextHid();if(d>12)return'';const [x,y,R]=NODES[d-1];return`<div class="wm-rd" style="left:${x}px;top:${y+R*.35}px"><i>${esc(RIDDLES[d-1])}</i></div>`};
  const embers=()=>{const r=rng(5);let s='';for(let d=ms.cur+1;d<=12;d++){const [x,y,R]=NODES[d-1];for(let k=0;k<3;k++)s+=`<i class="wm-e" style="left:${Math.round(x+(r()-.5)*R*1.6)}px;top:${Math.round(y+(r()-.5)*R)}px;--dl:${(r()*6).toFixed(1)}s;--du:${(4+r()*4).toFixed(1)}s"></i>`}return s};
- const doneD=()=>{let d='';for(let k=1;k<ms.cur;k++)d+=segD(k,k+1);return d};
- const build=()=>{S();const isl=NODES.map((_,i)=>districtGround(i)).join('')+water()+NODES.map((_,i)=>district(i,ms.pct(i+1),ms.state(i+1)==='locked')).join('');
+ const doneD=()=>{let d='';for(let k=1;k<ms.cur;k++)if(ms.bridge(k+1)==='open')d+=segD(k,k+1);return d};
+ // значки мостов: готов — пульсирующая кнопка «Открыть мост», нет прохода — замок с названием прохода
+ const bmark=d=>{const st=ms.bridge(d),B=BRIDGES[d];if(!B||st==='open'||st==='locked')return'';const [x,y]=midOf(d),k=keyFor(d);
+  return st==='ready'?`<button class="wm-bm ready" data-br="${d}" style="left:${Math.round(x)}px;top:${Math.round(y)}px" title="${esc(B.n)}: ${esc(B.lock)}">${icon('map')}<b>Открыть мост</b><em>${esc(B.n)}</em></button>`
+   :`<div class="wm-bm pass" style="left:${Math.round(x)}px;top:${Math.round(y)}px" title="${esc(B.lock)}">${icon('lock')}<b>${esc(B.n)}</b><em>нужен проход${k?': '+esc(k.n.toLowerCase()):''}</em></div>`};
+ const build=()=>{S();const isl=NODES.map((_,i)=>districtGround(i)).join('')+water()+NODES.map((_,i)=>district(i,ms.pct(i+1),!vis(i+1))).join('');
   el=document.createElement('div');el.className='wm';el.dataset.theme=ms.theme;el.setAttribute('role','dialog');el.setAttribute('aria-label','Карта мира');
   el.innerHTML=`<div class="wm-vp" id="wm-vp"><div class="wm-cam" id="wm-cam">
     <svg class="wm-w" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true">${terrain()}
-     ${isl}${roads()}<path class="wm-rt-done" d="${doneD()}"/><g id="wm-paths" fill="none" stroke="none" visibility="hidden"></g></svg>
+     ${isl}${roads(d=>ms.bridge(d))}<path class="wm-rt-done" d="${doneD()}"/><g id="wm-paths" fill="none" stroke="none" visibility="hidden"></g></svg>
     <svg class="wm-so" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"><path id="wm-so"/></svg>
     <svg class="wm-ink" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
     <svg class="wm-r" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
@@ -51,7 +60,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
     <svg class="wm-tr" viewBox="0 0 ${WORLD.w} ${WORLD.h}" width="${WORLD.w}" height="${WORLD.h}" aria-hidden="true"></svg>
     <canvas class="wm-fog b" width="900" height="600"></canvas><canvas class="wm-fog d" width="900" height="600"></canvas>
     <div class="wm-fx">${embers()}</div>
-    <div class="wm-mk">${NODES.map((_,i)=>marker(i+1)).join('')}${riddle()}</div>
+    <div class="wm-mk">${NODES.map((_,i)=>marker(i+1)).join('')}${riddle()}<div id="wm-bms"></div></div>
     <div class="wm-cl" id="wm-cl">${caller()}</div>
    </div></div>
    <div class="wm-radar" aria-hidden="true"><i class="sw"></i><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>
@@ -77,13 +86,18 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
  const cutCell=(c,d,a=1,blur=16)=>{const P=cells()[d-1];mk.setTransform(1,0,0,1,0,0);mk.globalCompositeOperation='source-over';mk.clearRect(0,0,900,600);
   mk.shadowColor=`rgba(0,0,0,${a})`;mk.shadowBlur=blur;mk.shadowOffsetX=3000;mk.fillStyle='#000';mk.beginPath();P.forEach(([x,y],k)=>k?mk.lineTo(x*FK-3000,y*FK):mk.moveTo(x*FK-3000,y*FK));mk.closePath();mk.fill();
   c.save();c.globalCompositeOperation='destination-out';c.drawImage(MK,0,0);c.restore()};
- const drawFog=(wave)=>{const c=fogB.getContext('2d'),open=ms.open.filter(d=>!wave||d!==wave.d),rd=ms.theme==='radar';c.globalCompositeOperation='source-over';c.clearRect(0,0,900,600);
-  const g=c.createLinearGradient(0,600,900,0);g.addColorStop(0,rd?'rgba(2,16,6,.95)':'rgba(12,16,38,.96)');g.addColorStop(1,rd?'rgba(1,8,3,.96)':'rgba(6,8,22,.97)');c.fillStyle=g;c.fillRect(0,0,900,600);
+ // кусок 22: туман расходится и над мостами (открытыми и готовыми) — видно, что острова связаны
+ const cutBridge=(c,d,a=1,blur=18,w=120)=>{const [x0,y0]=NODES[d-2],[x1,y1]=NODES[d-1],mx=(x0+x1)/2,my=(y0+y1)/2-60;mk.setTransform(1,0,0,1,0,0);mk.globalCompositeOperation='source-over';mk.clearRect(0,0,900,600);
+  mk.shadowColor=`rgba(0,0,0,${a})`;mk.shadowBlur=blur;mk.shadowOffsetX=3000;mk.strokeStyle='#000';mk.lineWidth=w*FK;mk.lineCap='round';mk.beginPath();mk.moveTo(x0*FK-3000,(y0+40)*FK);mk.quadraticCurveTo(mx*FK-3000,my*FK,x1*FK-3000,(y1+40)*FK);mk.stroke();
+  c.save();c.globalCompositeOperation='destination-out';c.drawImage(MK,0,0);c.restore()};
+ const cutBridges=(c,a=1,blur=18)=>{for(let d=2;d<=12;d++){const b=ms.bridge(d);if(vis(d-1)&&(b==='open'||b==='ready'||b==='pass'))cutBridge(c,d,b==='open'?a:a*.7,blur,b==='open'?150:110)}};
+ const drawFog=(wave)=>{const c=fogB.getContext('2d'),open=visOpen().filter(d=>!wave||d!==wave.d),rd=ms.theme==='radar';c.globalCompositeOperation='source-over';c.clearRect(0,0,900,600);
+  const g=c.createLinearGradient(0,600,900,0);g.addColorStop(0,rd?'rgba(2,16,6,.95)':'rgba(12,16,38,.9)');g.addColorStop(1,rd?'rgba(1,8,3,.96)':'rgba(6,8,22,.93)');c.fillStyle=g;c.fillRect(0,0,900,600);
   c.globalCompositeOperation='source-atop';spots(c,11,70,.32,rd);
   // свечение у края открытой земли (Genshin): широкая светлая обводка открытых районов, потом сами районы вырезаются
-  c.save();c.lineJoin='round';c.strokeStyle=rd?'rgba(57,255,20,.10)':'rgba(120,170,255,.10)';for(const w of [44,26,12]){c.lineWidth=w;for(const d of ms.open){const P=cells()[d-1];c.beginPath();P.forEach(([x,y],k)=>k?c.lineTo(x*FK,y*FK):c.moveTo(x*FK,y*FK));c.closePath();c.stroke()}}c.restore();
-  for(const d of open)cutCell(c,d);
-  if(ms.cur<12)cutCell(c,ms.cur+1,.26,30);
+  c.save();c.lineJoin='round';c.strokeStyle=rd?'rgba(57,255,20,.10)':'rgba(120,170,255,.10)';for(const w of [44,26,12]){c.lineWidth=w;for(const d of visOpen()){const P=cells()[d-1];c.beginPath();P.forEach(([x,y],k)=>k?c.lineTo(x*FK,y*FK):c.moveTo(x*FK,y*FK));c.closePath();c.stroke()}}c.restore();
+  for(const d of open)cutCell(c,d);cutBridges(c);
+  if(nextHid()<=12)cutCell(c,nextHid(),.26,30);
   edge(c);
   if(wave){c.save();c.beginPath();c.arc(wave.x*FK,wave.y*FK,wave.r*FK,0,7);c.clip();cutCell(c,wave.d);c.restore();
    const [x,y,R]=NODES[wave.d-1];c.save();c.globalCompositeOperation='source-over';const P=cells()[wave.d-1];c.beginPath();P.forEach(([px,py],k)=>k?c.lineTo(px*FK,py*FK):c.moveTo(px*FK,py*FK));c.closePath();c.clip();
@@ -91,7 +105,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
    w.addColorStop(0,'rgba(160,220,255,0)');w.addColorStop(.75,`rgba(170,225,255,${.45*(1-wave.t)})`);w.addColorStop(1,'rgba(160,220,255,0)');c.fillStyle=w;c.fillRect(0,0,900,600);c.restore()}};
  const edge=c=>{c.save();c.globalCompositeOperation='source-over';for(const [x0,y0,x1,y1] of [[0,0,110,0],[900,0,790,0],[0,0,0,80],[0,600,0,520]]){const g=c.createLinearGradient(x0,y0,x1,y1);const ec=ms.theme==='radar'?'2,10,4':'9,12,30';g.addColorStop(0,`rgba(${ec},1)`);g.addColorStop(1,`rgba(${ec},0)`);c.fillStyle=g;c.fillRect(0,0,900,600)}c.restore()};
  const drawDrift=()=>{const c=fogD.getContext('2d');c.globalCompositeOperation='source-over';c.clearRect(0,0,900,600);spots(c,29,46,.38);
-  for(const d of ms.open)cutCell(c,d,1,40);if(ms.cur<12)cutCell(c,ms.cur+1,.5,40);
+  for(const d of visOpen())cutCell(c,d,1,40);cutBridges(c,1,40);if(nextHid()<=12)cutCell(c,nextHid(),.5,40);
   c.globalCompositeOperation='destination-out';for(const [x0,y0,x1,y1] of [[0,0,120,0],[900,0,780,0],[0,0,0,90],[0,600,0,510]]){const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(0,0,900,600)}};
  // ---------- снимок мира для движения ----------
  // Пока камера едет/тянется/зумится, вместо большого SVG показывается его растровый снимок (одна текстура, браузер не перерисовывает тысячи фигур
@@ -148,7 +162,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
   setTimeout(()=>{el&&el.classList.remove('cap','cap-go');ink.innerHTML='';done()},2900)};
  const reveal=(d,done)=>d>1&&!o.noCapture?capture(d-1,()=>el&&reveal0(d,done)):reveal0(d,done);
  const reveal0=(d,done)=>{const g=$('#dist-'+d);if(g&&g.classList.contains('lk'))g.outerHTML=district(d-1,ms.pct(d),false);const [cx,cy]=cl?[parseFloat(cl.style.left),parseFloat(cl.style.top)]:stand(d-1);const [x,y,R]=NODES[d-1],far=Math.hypot(x-cx,y-cy)+R*1.6;
-  const fin=()=>{markSeen(root,d);o.persist();S();$('.wm-r').innerHTML='';radarFill();renderBmp();drawFog();drawDrift();refresh();o.toast(`Открыт район ${d}: ${DIST[d-1][0]}`);done&&done()};
+  const fin=()=>{markSeen(root,d);o.persist();S();{const rd=$('.wm-rd'),nr=riddle();if(rd)rd.outerHTML=nr;else if(nr)$('.wm-mk').insertAdjacentHTML('beforeend',nr)}$('.wm-r').innerHTML='';radarFill();renderBmp();drawFog();drawDrift();refresh();o.toast(`Открыт район ${d}: ${DIST[d-1][0]}`);done&&done()};
   if(reduce())return fin();busy=true;el.classList.add('busy');focus(d,1,700);const t0=performance.now()+500,dur=1700;
   const step=t=>{if(!el)return;const k=Math.max(0,Math.min(1,(t-t0)/dur));drawFog({d,x:cx,y:cy,r:far*ease(k),t:k});if(k<1)requestAnimationFrame(step);else{busy=false;el.classList.remove('busy');fin()}};requestAnimationFrame(step)};
  const runQueue=()=>{if(!el||busy)return;const d=queue.shift();if(!d)return;
@@ -163,20 +177,29 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
    ${lk?`<p class="wm-rq">«${esc(RIDDLES[i]||'')}»</p>`:`<div class="wm-pb"><div class="r"><span>Прогресс захвата</span><b>${p}%</b></div><div class="bar"><i style="width:${p}%"></i></div><div class="r sm"><span>XP района</span><b>${num(xp)} / ${num(thr)}</b></div></div>`}
    <div class="wm-kv"><span>Сложность</span><b>×${cf[3]} · ${cf[2]} дн. по плану</b></div>
    <div class="wm-kv"><span>Босс</span><b>${lk||!boss&&d===ms.cur&&s==='current'?'???':esc(D[3])}</b></div>${!lk&&(boss)?`<p class="wm-bs">${esc(D[4])}</p>`:''}
+   ${d>1&&!lk&&BRIDGES[d]?`<div class="wm-kv"><span>Мост</span><b>${esc(BRIDGES[d].n)} · ${{open:'открыт',ready:'можно открыть',pass:'нужен проход',locked:'закрыт'}[ms.bridge(d)]}</b></div>${ms.bridge(d)!=='open'?`<p class="wm-bs">${esc(BRIDGES[d].lock)}</p>`:''}`:''}
    <div class="wm-kv"><span>Награда</span><b>${d<12?(lk?'???':'путь в район '+(d+1)):'Вершина'} · предметы базы</b></div>
    <ul class="wm-shop">${items.map(x=>`<li class="${lk?'lk':''}"><i>${lk?icon('lock'):icon('base')}</i><b>${esc(lk?'???':x.name)}</b><span>${esc(x.tier)}</span></li>`).join('')}</ul>
-   <button class="wm-go ${lk?'off':''}" id="wm-go" ${lk||busy?'disabled':''}>${lk?`${icon('lock')}В тумане — захвати район ${ms.cur}`:here?`${icon('map')}Ты здесь · Enter — ближе`:`${icon('map')}Идти сюда<kbd>Enter</kbd>`}</button>`};
+   <button class="wm-go ${lk||!lk&&!ms.reach(d)&&ms.bridge(d)!=='ready'?'off':''}" id="wm-go" ${lk||busy?'disabled':''}>${lk?`${icon('lock')}В тумане — захвати район ${ms.cur}`:!ms.reach(d)?(ms.bridge(d)==='ready'?`${icon('map')}Открыть мост<kbd>Enter</kbd>`:`${icon('lock')}Сначала мост`):here?`${icon('map')}Ты здесь · Enter — ближе`:`${icon('map')}Идти сюда<kbd>Enter</kbd>`}</button>`};
  const goalHtml=()=>{const G=o.G(),d=ms.cur,D=DIST[d-1],thr=districtThr(d),b=bossState(G),left=Math.max(0,thr-G.dxp);
   return`<small>${b==='scenery'?'ТЕКУЩАЯ ЦЕЛЬ':b==='boss'?'ФАЗА БОССА':'ФИНАЛЬНЫЙ УДАР'}</small><b>${b==='scenery'?`Захвати ${esc(D[0])}`:b==='boss'?`${esc(D[3])} вышел из тени`:`Добей ${esc(D[3])}`}</b>
-   <span>${b==='finish'?'Нужен BOOKED или DISCOVERY':`осталось ${num(left)} XP`}</span>${ms.reveal.length?`<em>Новый район открыт!</em>`:''}${laterOn(G)&&o.onFight?`<button class="wm-fight" id="wm-fight">Босс ждёт — начать бой</button>`:''}`};
+   <span>${b==='finish'?'Нужен BOOKED или DISCOVERY':`осталось ${num(left)} XP`}</span>${ms.reveal.length?`<em>Новый район открыт!</em>`:NODES.some((_,i)=>ms.bridge(i+1)==='ready')?`<em>Мост готов — нажми на него</em>`:''}${laterOn(G)&&o.onFight?`<button class="wm-fight" id="wm-fight">Босс ждёт — начать бой</button>`:''}`};
  const listHtml=()=>NODES.map((_,i)=>{const d=i+1,s=ms.state(d),lk=s==='locked';return`<button class="wm-li st-${s} ${d===sel?'on':''}" data-d="${d}">${crest(i,s)}<b>${d}. ${esc(lk?'???':DIST[i][0])}</b><span>${lk?ST[s]:ms.pct(d)+'%'}</span></button>`}).join('');
  const refresh=()=>{if(!el)return;S();const inf=o.info();$('#wm-tot').textContent=`КОНГЛОМЕРАТ · район ${ms.cur} из 12 · вся карта ${total()}%`;
   $('#wm-stats').innerHTML=`<span><small>Уровень</small><b>${esc(inf.lvl)}</b></span><span><small>XP</small><b>${num(inf.xp)}</b></span><span><small>Деньги</small><b class="m">${esc(inf.money)}</b></span>`;
-  $('#wm-goal').innerHTML=goalHtml();card.innerHTML=cardHtml(sel);$('#wm-list').innerHTML=listHtml();placeRing();
+  $('#wm-goal').innerHTML=goalHtml();{const bm=$('#wm-bms');if(bm)bm.innerHTML=NODES.slice(1).map((_,k)=>bmark(k+2)).join('')}card.innerHTML=cardHtml(sel);$('#wm-list').innerHTML=listHtml();placeRing();
   el.querySelectorAll('.wm-m').forEach(m=>m.classList.toggle('on',+m.dataset.d===sel));el.querySelectorAll('[data-th]').forEach(b=>b.classList.toggle('on',b.dataset.th===ms.theme));
   const g=$('#wm-go');if(g)g.onclick=()=>go(sel);const fb=$('#wm-fight');if(fb)fb.onclick=()=>o.onFight()};
  const select=(d,fly)=>{d=Math.max(1,Math.min(Math.min(12,ms.cur+1),d));sel=d;refresh();if(fly)focus(d,Math.max(1,lvl()))};
+ // кусок 22: игрок сам открывает мост — анимация прокладки/разблокировки, потом раскрытие острова (туман, сцена захвата, переход)
+ const openB=d=>{if(busy||!el)return;if(!openBridge(root,o.G(),d,pass))return;o.persist();const g=$('#br-'+d),B=BRIDGES[d];busy=true;el.classList.add('busy');
+  const [x,y]=midOf(d);tween(camAt(x,y-40,Math.max(cam.s,lvS(1))),500);o.sfx&&o.sfx('levelup');
+  setTimeout(()=>{if(!el)return;if(g){g.classList.add('build');const sp=document.createElement('div');sp.className='wm-bsp';sp.style.left=Math.round(x)+'px';sp.style.top=Math.round(y)+'px';
+   let h='';for(let k=0;k<16;k++){const a=k/16*6.283,r=40+Math.random()*70;h+=`<i style="--x:${Math.round(Math.cos(a)*r)}px;--y:${Math.round(Math.sin(a)*r*.6)}px;--d:${(.5+Math.random()*.5).toFixed(2)}s"></i>`}sp.innerHTML=h;$('.wm-fx').append(sp);setTimeout(()=>sp.remove(),1400)}},reduce()?0:450);
+  setTimeout(()=>{if(!el)return;if(g)g.outerHTML=bridge(d,'open');S();$('#wm-bms').innerHTML=NODES.slice(1).map((_,k)=>bmark(k+2)).join('');$('.wm-rt-done').setAttribute('d',doneD());o.toast(`${B.n}: ${B.done}`);busy=false;el.classList.remove('busy');renderBmp();
+   if(ms.reveal.includes(d)&&!queue.includes(d))queue.push(d);runQueue()},reduce()?50:2100)};
  const go=d=>{if(busy)return;const s=ms.state(d);if(s==='locked'){card.classList.remove('no');void card.offsetWidth;card.classList.add('no');return}
+  {const b=ms.bridge(d);if(b==='ready')return openB(d);if(!ms.reach(d)){card.classList.remove('no');void card.offsetWidth;card.classList.add('no');const B=BRIDGES[b==='pass'?d:(()=>{let k=2;while(k<=d&&ms.bridge(k)==='open')k++;return k})()];if(B)o.toast(`${B.n}: ${B.lock}`);return}}
   const p=root.map.pos;if(d===p)return focus(d,Math.min(2,lvl()+1));if(lvl()===0)focus(p,1,420);walk(p,d,()=>{sel=d;refresh()})};
  const radarFill=()=>{const r=$('.wm-r');if(ms.theme==='radar'&&!r.childElementCount)r.innerHTML=radarWorld(ms.open)};
  const theme=t=>{root.map.theme=t;el.dataset.theme=t;o.persist();S();radarFill();drawFog();refresh()};
@@ -192,9 +215,10 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
   vp.addEventListener('pointerdown',e=>{if(e.button!==0)return;cancelAnimationFrame(tw);drag={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y,m:false,id:e.pointerId}});
   vp.addEventListener('pointermove',e=>{if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.m&&Math.hypot(dx,dy)>5){drag.m=true;vp.setPointerCapture(drag.id);el.classList.add('drag');tip.classList.remove('on')}
     if(drag.m&&!busy)setCam({s:cam.s,x:drag.cx+dx,y:drag.cy+dy});return}
+   {const b=e.target.closest('[data-br]');if(b){const d=+b.dataset.br,B=BRIDGES[d],st=ms.bridge(d),r=el.getBoundingClientRect();if(B){tip.innerHTML=`<b>${esc(B.n)}</b><span>${st==='open'?esc(B.done):st==='ready'?'Нажми — открыть мост':esc(B.lock)}</span>`;tip.style.transform=`translate(${Math.round(e.clientX-r.left+16)}px,${Math.round(e.clientY-r.top+18)}px)`;tip.classList.add('on');return}}}
    const m=e.target.closest('.wm-m,.dz,.ri');if(!m){tip.classList.remove('on');return}const d=+m.dataset.d,s=ms.state(d),r=el.getBoundingClientRect();
    tip.innerHTML=`<b>${esc(s==='locked'?'???':DIST[d-1][0])}</b><span>${ST[s]}${s==='locked'?'':' · '+ms.pct(d)+'%'}</span>`;tip.style.transform=`translate(${Math.round(e.clientX-r.left+16)}px,${Math.round(e.clientY-r.top+18)}px)`;tip.classList.add('on')});
-  const up=e=>{if(!drag)return;const was=drag.m;drag=null;el.classList.remove('drag');if(was)return;const m=e.target.closest('.wm-m,.dz,.ri');if(!m)return;const d=+m.dataset.d;
+  const up=e=>{if(!drag)return;const was=drag.m;drag=null;el.classList.remove('drag');if(was)return;{const b=e.target.closest('[data-br]');if(b){const d=+b.dataset.br;if(ms.bridge(d)==='ready')return openB(d);select(d,lvl()>0);const B=BRIDGES[d];if(B&&ms.bridge(d)!=='open')o.toast(`${B.n}: ${B.lock}`);return}}const m=e.target.closest('.wm-m,.dz,.ri');if(!m)return;const d=+m.dataset.d;
    if(d===sel)go(d);else select(d,lvl()>0)};
   vp.addEventListener('pointerup',up);vp.addEventListener('pointercancel',()=>{drag=null;el.classList.remove('drag')});vp.addEventListener('pointerleave',()=>tip.classList.remove('on'));
   vp.addEventListener('dblclick',e=>{const m=e.target.closest('.wm-m,.dz,.ri');if(m)go(+m.dataset.d)})};
@@ -215,7 +239,7 @@ export function makeMap(o){ // o: {save, G(), info()->{lvl,xp,money}, persist(),
  // ---------- открыть / закрыть ----------
  const onResize=()=>{if(el)resize()};
  const open=()=>{if(el)return;build();vw=0;resize();sel=root.map.pos;queue=[...ms.reveal];
-  const start=queue.length?queue[0]-1:sel;const [x,y]=stand(Math.max(1,start));putCaller(...stand(root.map.pos));radarFill();drawFog();drawDrift();refresh();cam=clampCam(camAt(x,y-60,lvS(1)),vw,vh);apply();requestAnimationFrame(()=>el&&el.classList.add('in'));addEventListener('resize',onResize);setTimeout(runQueue,reduce()?0:450);setTimeout(renderBmp,60);if(!queue.length&&o.onOpen)setTimeout(()=>el&&o.onOpen(),500)};
+  const pend=NODES.map((_,i)=>i+1).find(d=>ms.bridge(d)==='ready'),start=queue.length?queue[0]-1:sel;const [x,y]=pend&&!queue.length?(()=>{const m=midOf(pend);return[m[0],m[1]+20]})():stand(Math.max(1,start));putCaller(...stand(root.map.pos));radarFill();drawFog();drawDrift();refresh();cam=clampCam(camAt(x,y-60,lvS(1)),vw,vh);apply();requestAnimationFrame(()=>el&&el.classList.add('in'));addEventListener('resize',onResize);setTimeout(runQueue,reduce()?0:450);setTimeout(renderBmp,60);if(!queue.length&&o.onOpen)setTimeout(()=>el&&o.onOpen(),500)};
  const close=()=>{if(!el)return;cancelAnimationFrame(tw);clearTimeout(mvT);removeEventListener('resize',onResize);
   // незавершённое раскрытие засчитываем, чтобы анимация не повторялась бесконечно
   const n=el;el=null;busy=false;S();for(const d of ms.reveal)if(!queue.includes(d))markSeen(root,d);o.persist();n.classList.remove('in');n.classList.add('out');setTimeout(()=>n.remove(),reduce()?0:220);o.onClose&&o.onClose()};

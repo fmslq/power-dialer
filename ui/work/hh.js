@@ -19,12 +19,13 @@ export function makeHH({now=Date.now,toast=()=>{},sfx=()=>{},lead=()=>null,filte
  const sig=()=>{const L=lead(),t=now();if(!L)return'';const h=A.happy(L.state,t);if(h)return'h'+(h.left<10?Math.ceil(h.left*60):Math.ceil(h.left));const n=A.hhNext(L.state,t);return n?'n'+(n.in<10?Math.ceil(n.in*60):Math.ceil(n.in)):''};
  // полоса суток 6:00–22:00 по их часам: окна часа + метка «сейчас»
  const strip=z=>{const F=360,T=1320,W=T-F,pc=m=>((Math.min(T,Math.max(F,m))-F)/W*100).toFixed(2);const wk=z.wd===0||z.wd===6;
-  return`<div class="hh-strip${wk?' wk':''}">${A.AD.hh.map(h=>`<i class="w" style="left:${pc(h.from)}%;width:${(pc(h.to)-pc(h.from)).toFixed(2)}%"></i>`).join('')}${z.m!=null?`<b style="left:${pc(z.m)}%"></b>`:''}</div>`};
+  return`<div class="hh-strip${wk?' wk':''}">${A.AD.hh.map(h=>`<i class="w k${String(h.k).replace('.','')}" style="left:${pc(h.from)}%;width:${(pc(h.to)-pc(h.from)).toFixed(2)}%"></i>`).join('')}${z.m!=null?`<b style="left:${pc(z.m)}%"></b>`:''}</div>`};
  const hm=m=>{m=Math.round(m);const h=Math.floor(m/60)%24,mm=m%60,ap=h<12?'AM':'PM';return((h%12)||12)+':'+String(mm).padStart(2,'0')+' '+ap};
  const popHtml=()=>{const t=now(),Z=A.hhZones(t),ft=filterTz(),L=lead(),lz=L&&tzOfState(L.state);
   const best=Z.filter(z=>z.on).sort((a,b)=>b.on.left-a.on.left)[0];
   return`<div class="hhp-h">${SUN}<b>Счастливые часы</b><span>по часам того, кому звонишь</span><button class="hhp-x" aria-label="Закрыть"><svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
-  <p class="hhp-lore">Рано утром и под конец рабочего дня владельцы чаще сами берут трубку. В эти часы игра платит больше: <b>7:30–8:30</b> — опыт и деньги ×2, <b>8:30–10:00</b> и <b>15:30–17:30</b> — ×1.5. Сигнал — вдвое. Время считается по часам лида: если у Востока уже утро, а ты звонишь в Центр, где ещё ночь, — бонуса нет.</p>
+  <p class="hhp-lore">Рано утром и под конец рабочего дня владельцы чаще сами берут трубку. В эти часы игра платит больше: <b class="hk2">7:30–8:30</b> — опыт и деньги ×2, <b class="hk15">8:30–10:00</b> и <b class="hk15">15:30–17:30</b> — ×1.5. Сигнал — вдвое. Время считается по часам лида: если у Востока уже утро, а ты звонишь в Центр, где ещё ночь, — бонуса нет.</p>
+  <div class="hhp-lg"><span><i class="k2"></i>×2</span><span><i class="k15"></i>×1.5</span></div>
   <div class="hhp-l">${Z.map(z=>`<div class="hhp-z${z.on?' on':''}${lz===z.tz?' me':''}"><div class="hz-n"><b>${z.tz}</b><span>${ZRU[z.tz]} · ${z.m!=null?hm(z.m):'—'}</span></div>${strip(z)}
    <div class="hz-s">${z.on?`<b>×${z.on.k}</b> ${esc(z.on.name.toLowerCase())} · ещё ${dur(z.on.left)}`:z.next?`${esc(z.next.name.toLowerCase())} через ${dur(z.next.in)}`:'—'}</div>
    ${setTz?(ft===z.tz?`<button class="hz-go on" data-tz="">Снять фильтр</button>`:`<button class="hz-go${z.on?' hot':''}" data-tz="${z.tz}">Звонить сюда</button>`):''}</div>`).join('')}</div>

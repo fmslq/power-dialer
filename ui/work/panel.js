@@ -118,12 +118,12 @@ export function makePanel(o){
    return ready?`<button class="cc-tr ${t.kind} ready" data-claim="t|${esc(k)}" title="Забрать трофей: +${money(m)}">${inner}${veil(t.kind==='gold'?'НОВЫЙ ТРОФЕЙ':'ТРОФЕЙ DISCOVERY',m)}</button>`:`<div class="cc-tr ${t.kind}" title="${esc(t.company)}">${inner}</div>`};
   const trs=[...tr.filter(t=>!isClaimed(o.save,'t',trKey(t))),...tr.filter(t=>isClaimed(o.save,'t',trKey(t))).slice(0,12)];
   const achc=a=>{const g=got[a.id],r=rd(a),m=rewardAch(a),inner=`<i>${g?icon('trophy'):icon('lock')}</i><b>${g?esc(a.n):'???'}</b><span>${esc(a.h)}</span>`;
-   return r===2?`<button class="cc-a r-${a.r} got ready" data-claim="a|${a.id}" title="Забрать: +${money(m)}">${inner}${veil({c:'АЧИВКА',r:'РЕДКАЯ АЧИВКА',l:'ЛЕГЕНДАРНАЯ'}[a.r]||'АЧИВКА',m)}</button>`:
+   return r===2?`<button class="cc-a r-${a.r} got ready" data-claim="a|${a.id}" title="Забрать: +${money(m)}">${inner}${veil({c:'ЛЁГКАЯ АЧИВКА',r:'СРЕДНЯЯ АЧИВКА',l:'СЛОЖНАЯ АЧИВКА'}[a.r]||'АЧИВКА',m)}</button>`:
     `<div class="cc-a r-${a.r} ${g?'got':'lock'}" title="${esc(g?a.n+' — '+a.h+' · забрано +'+money(m):'??? — '+a.h+' · награда +'+money(m))}">${inner}</div>`};
   return banner('trophy','ТРОФЕИ',`Ачивки ${n} из ${ACH.length} · трофеев ${tr.length}`)+`<section class="cc-sec"><button class="cc-hall" data-hall>Открыть ЗАЛ ТРОФЕЕВ</button></section>`+
   (pd.length?`<section class="cc-sec cc-pend"><p class="cc-pend-t"><b>${pd.length}</b> ${pd.length===1?'награда ждёт':'наград ждут'} — нажми на светящуюся карточку · всего +${money(pd.reduce((s,x)=>s+x.money,0))}</p></section>`:'')+
   `<section class="cc-sec"><h4>ТРОФЕИ <em>встречи и discovery</em></h4>${tr.length?`<div class="cc-trs">${trs.map(trc).join('')}</div>${tr.length>trs.length?`<p class="cc-note">и ещё ${tr.length-trs.length}</p>`:''}`:'<p class="cc-note">Первая встреча станет первым трофеем.</p>'}</section>
-  <section class="cc-sec"><h4>АЧИВКИ</h4><div class="cc-ach">${ach.map(achc).join('')}</div></section>`};
+  <section class="cc-sec"><h4>АЧИВКИ</h4><div class="ach-lg"><span class="r-c">лёгкая</span><span class="r-r">средняя</span><span class="r-l">сложная</span></div><div class="cc-ach">${ach.map(achc).join('')}</div></section>`};
  // значок «есть что забрать» на вкладке ТРОФЕИ и на кнопке панели
  const badge=()=>{const k=pending(o.save).length;[el.querySelector('.cc-tab[data-tab="trophy"]'),document.getElementById('b-cc')].forEach(b=>{if(!b)return;let d=b.querySelector('.cc-badge');
   if(!k){d&&d.remove();return}if(!d){d=document.createElement('i');d.className='cc-badge';b.appendChild(d)}d.textContent=k>9?'9+':k})};

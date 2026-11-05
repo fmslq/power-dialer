@@ -135,7 +135,7 @@ export function startWork(root,{save,au,demo=null}={}){
   run:k=>({settings:()=>openSettings(),map:()=>MAP.open(),base:()=>BASE.open(),journal:()=>openJournal(),tutorial:()=>tutOpen(0),debug:()=>openDebug(),export:()=>SM.exportFile(save),
    home:()=>{if(!demo)SM.save(save);location.href=location.pathname}})[k]?.()});
  // сюжет (R5): плеер сцен. Сцены не мешают звонить: во время звонка, серии и Overdrive они ждут в очереди (ТЗ §6)
- const STORY=makeStory({save,persist:persistGame,fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),mode:()=>S.storyMode||'full'});
+ const STORY=makeStory({district:()=>(ses&&ses.G&&ses.G.district)||1,save,persist:persistGame,fx:()=>S.fx||'full',mount:W,sfx:n=>SFX.snd&&SFX.snd(n),mode:()=>S.storyMode||'full'});
  const stMode=()=>S.storyMode||'full';
  // I2: пауза/заморозка, оставшаяся с прошлого раза (вкладку закрыли во время заморозки), не должна держать таймер серии
  if(ses.G.paused!=null&&!(save.ad&&save.ad.frz&&save.ad.frz.on))ses.G.paused=null;
@@ -144,7 +144,7 @@ export function startWork(root,{save,au,demo=null}={}){
  // показать сцены сейчас (если можно) или отложить; mode «Выкл» — сцена сразу считается просмотренной (есть в Журнале)
  const story=(keys,{force=false,cb}={})=>{keys=[].concat(keys).filter(k=>!STORY.seen(k));if(!keys.length){cb&&cb();return}
   if(stMode()==='off'){keys.forEach(STORY.mark);cb&&cb();return}
-  if(!force&&!stSafe()){const q=stQ();for(const k of keys)if(!q.includes(k))q.push(k);persistGame();toast('Сюжетная сцена ждёт конца серии: «Журнал» → «История»');cb&&cb();return}
+  if(!force&&!stSafe()){const q=stQ();for(const k of keys)if(!q.includes(k))q.push(k);persistGame();toast('Сцена подождёт, пока не закончится серия. Потом её можно открыть: «Журнал» → «История»');cb&&cb();return}
   STORY.play(keys,cb)};
  // награды забираются руками (вкладка ТРОФЕИ): завеса → монеты летят в счётчик → сумма прокручивается
  let mLock=false;if(migrateClaims(save))persistGame();
@@ -187,7 +187,7 @@ export function startWork(root,{save,au,demo=null}={}){
  let tutWant=false;const tutOpen=(k=0)=>{if(STORY.isOpen()||ARENA.isOpen())return;MAP.isOpen()&&MAP.close&&MAP.close();BASE.isOpen()&&BASE.close&&BASE.close();if(ov.classList.contains('open')&&ov.dataset.k!=='gate')closeOv();TUT.open(k)};
  const tutMaybe=()=>{if(!tutWant||(save.tutorial&&save.tutorial.done)||TUT.isOpen())return;if(!d.view().lead)return;tutWant=false;setTimeout(()=>tutOpen(0),700)};
  // арена босса (R3): полный экран, статусы ставятся как обычно — арена показывает удары
- const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState,onClose:()=>{clearTimeout(arT);setTimeout(()=>{DW.sync();DW.enter&&DW.enter();if(!save.tutorial||!save.tutorial.bossHint){(save.tutorial=save.tutorial||{}).bossHint=1;persistGame();toast('Босс теперь в окне района. Звони: каждый статус бьёт по нему, разговоры и встречи — сильнее всего','gold')}},320)}});
+ const ARENA=makeArena({mount:W,fx:()=>S.fx||'full',sfx:n=>SFX.snd&&SFX.snd(n),G:()=>ses.G,hp:bossHp,state:bossState,onClose:()=>{clearTimeout(arT);setTimeout(()=>{DW.sync();DW.enter&&DW.enter();if(!save.tutorial||!save.tutorial.bossHint){(save.tutorial=save.tutorial||{}).bossHint=1;persistGame();toast('Босс теперь в окне острова. Просто звони: каждый статус бьёт по нему, а разговоры и встречи — сильнее всего','gold')}},320)}});
  // ---------- музыка из своей папки (handle в IndexedDB «ct_music»; темы, босс, районы, Overdrive, стингеры) ----------
  const MUS=new Music(gbus),MTH={industrial:'industrial',neon:'neon',chrome:'neon',blackgold:'blackgold',orbital:'blackgold'};let musPrev=.3;
  const musCtx=()=>{const G=ses.G;return{paused:!!G.paused,world:BASE.isOpen()||MAP.isOpen(),od:!!G.od,boss:bossState(G)!=='scenery',step:G.step||0,ulta:G.ulta,theme:MTH[(DIST[(G.district||1)-1]||[])[2]]||'industrial',dist:G.district||1}};
@@ -438,11 +438,11 @@ export function startWork(root,{save,au,demo=null}={}){
   if(meta.milestone){const M=meta.milestone;setTimeout(()=>SFX.snd(M.kind==='hundred'?'fanfare':'levelup'),500);setTimeout(()=>{if(M.kind==='hundred')J.free(M.n+' CALLS','#ffc400');sprintFx(M)},meta.win?1200:500)}
   if(out.blocked){toast(out.blocked==='none'||out.blocked==='broken'?'Игра не начисляет: таблица не подтверждена':'Игра не начислила за этот статус','bad')}
   const e=out.ev;if(e){gain(e.x,e.m);if(!e.captured)DW.hit(e.cls);if(MUS.lib){if(e.captured)MUS.stinger('capture');else if(e.cls==='BOOKED')MUS.stinger('booked');else if(e.cls==='DISCOVERY')MUS.stinger('discovery')}if(ARENA.isOpen()){if(e.captured)ARENA.defeat();else ARENA.hit(e.cls)}if(!e.captured)bossCheck();if(e.spam)toast(`Слишком быстро: ${((e.spamGap||0)/1000).toFixed(1)} с после прошлого статуса (нужно от ${C.antispamSec} с, а Zoom звонка не видно) — награды нет`,'bad');if(e.pen==='drop')toast('Окно сгорело: жар на ступень ниже','bad');if(e.pen==='reset')toast('Перерыв больше 40 мин: серия с нуля','bad');
-   if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('РАЙОН ЗАХВАЧЕН','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
+   if(e.odStart){toast(`OVERDRIVE ${C.od.sec/60} мин: $ x${C.od.money}, XP x${C.od.xp}`,'gold')}if(e.captured)toast('ОСТРОВ ЗАХВАЧЕН · открой карту: мост на следующий остров ждёт тебя','gold');if(e.settle&&e.settle.bonus&&e.settle.bonus.x)setTimeout(()=>gain(e.settle.bonus.x,e.settle.bonus.m),700)}
   if(out.meta&&out.meta.winUnverified)toast('Без данных Zoom встреча идёт «на проверку»: в таблицу записано, игра считает как разговор','bad');
   (out.achv||[]).forEach(a=>reward('Ачивка · забери в ТРОФЕЯХ',a.n||a.name,a.h,a.r||'c'));(out.missions||[]).forEach(m=>reward('Задание выполнено',m.name,'+'+money(m.money),'r'));if(out.trophy)reward('Трофей · забери в ТРОФЕЯХ',out.trophy.company,'','l');
   if(out.levelUp!=null)reward('Новый уровень '+(out.levelUp+1),(LEVELS[out.levelUp]||[])[1]||'','','r');if(out.rankUp!=null)reward('Новый ранг',(RANKS[out.rankUp]||[])[1]||'','','l');
-  AX.onStatus(out);if(out.held&&!keyTold){keyTold=1;toast('Граница: прогресс района копится, пока нет прохода. Нажми 🔒 в полосе сверху','bad')}
+  AX.onStatus(out);if(out.held&&!keyTold){keyTold=1;toast('Мост закрыт: прогресс копится, пока нет пропуска. Нажми 🔒 в полосе сверху, там видно, что нужно','bad')}
   if(e&&!out.blocked){flowPop(e);const c=e.cls,often=(S.chat||'often')==='often';
    if(c==='BOOKED'||c==='DISCOVERY')COMMS.say({who:'guide',mood:'happy',text:pick(LINES.booked)},'booked',240000);
    else if(often&&c==='TALK'&&Math.random()<.4)COMMS.say({who:'guide',mood:'talking',text:pick(LINES.talk)},'talk',300000);
@@ -494,7 +494,7 @@ export function startWork(root,{save,au,demo=null}={}){
    // повтор анимации раскрытия текущего района: прогресс не трогаем, фигурка просто встаёт на соседний район
    if(b.dataset.b==='arena'){closeOv();ARENA.open(ses.G.district||1,{intro:true});ARENA.demo();return}
    if(b.dataset.b.startsWith('st-')){const c=ses.G.district||1,k={'st-pro':'prologue','st-cur':'intro-'+c,'st-boss':'boss-'+c,'st-cap':'capture-'+Math.min(11,Math.max(1,c>1?c-1:1)),'st-fin':'finale'}[b.dataset.b];closeOv();if(b.dataset.b==='st-jr')STORY.openJournal();else STORY.play(k,null,true);return}
-   if(b.dataset.b==='mapdemo'){const c=ses.G.district;closeOv();if(c<2){toast('Раскрывать нечего: открыт только первый район');return}const m=save.map||(save.map={});m.seen=(m.seen||[]).filter(x=>x!==c);m.pos=c-1;MAP.open()}});
+   if(b.dataset.b==='mapdemo'){const c=ses.G.district;closeOv();if(c<2){toast('Раскрывать нечего: открыт только первый район');return}const m=save.map||(save.map={});m.seen=(m.seen||[]).filter(x=>x!==c);m.br=(m.br||[]).filter(x=>x!==c);m.pos=c-1;MAP.open()}});
   w.querySelectorAll('[data-c]').forEach(i=>i.onchange=()=>{dbgCalc[i.dataset.c]=Math.max(0,+i.value||0);openDebug('bal');const f=ov.querySelector(`[data-c="${i.dataset.c}"]`);if(f)f.focus()})};
  const openJournal=()=>{openOv('jr',journalHtml(save,now()));ov.querySelector('.wk-win').classList.add('dbg-w');$('#jr-x').onclick=closeOv;$('#jr-story').onclick=()=>{closeOv();STORY.openJournal()}};
  const closeOv=()=>{ov.classList.remove('open');ov.dataset.k='';ov.innerHTML=''};

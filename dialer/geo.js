@@ -7,7 +7,7 @@ export const TZ={};
 const SPLIT=[["TN",[373,374,376,377,378,379],"America/New_York"],["KY",[420,421,422,423,424,427],"America/Chicago"],["FL",[324,325],"America/Chicago"],["TX",[798,799,885],"America/Denver"],["IN",[463,464,476,477],"America/Chicago"]];
 export const TZN={"America/New_York":"Eastern","America/Chicago":"Central","America/Denver":"Mountain","America/Phoenix":"Mountain","America/Los_Angeles":"Pacific"};
 export function zone(t,l){if(l.zc!==undefined)return l.zc;const a=t.get(l,"Adress")||t.get(l,"Address"),m=a.match(/\b([A-Z]{2})\s+(\d{5})\b/);
- const st=m&&TZ[m[1]]?m[1]:t.get(l,"State").trim().toUpperCase();let z=TZ[st];if(!z)return l.zc=null;
+ const explicit=t.get(l,"State").trim().toUpperCase(),st=TZ[explicit]?explicit:m&&TZ[m[1]]?m[1]:explicit;let z=TZ[st];if(!z)return l.zc=null;
  if(m&&m[1]==st){const z3=+m[2].slice(0,3),o=SPLIT.find(c=>c[0]==st&&c[1].includes(z3));if(o)z=o[2]}
  return l.zc={z,st}}
 export const lstate=(t,l)=>{const z=zone(t,l);return z?z.st:t.get(l,"State").trim().toUpperCase()};

@@ -1,4 +1,11 @@
-function openManualWin({open,close,lead,left,apply}){const l=lead();if(!l)return;open("manualwin",`<div class="wk-wh"><h3>СТАТУС БЕЗ ZOOM</h3><button class="wk-x" id="mw-close" aria-label="Закрыть">×</button></div>
- <div class="wk-manual"><p class="wk-kv">Для лида <b>${(s=>String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]))(l.biz||"Без названия")}</b>. Используй, если разговор был, но Zoom не сохранил подтверждение после выхода или перезагрузки.</p>
+// Ручное подтверждение встречи после потери данных Zoom. Явный выбор для текущего лида.
+export function openManualWin({open,close,lead,left,apply}){
+ const l=lead();if(!l)return;
+ const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ open('manualwin',`<div class="wk-wh"><h3>СТАТУС БЕЗ ZOOM</h3><button class="wk-x" id="mw-close" aria-label="Закрыть">×</button></div>
+ <div class="wk-manual"><p class="wk-kv">Для лида <b>${esc(l.biz||'Без названия')}</b>. Используй, если разговор был, но Zoom не сохранил подтверждение после выхода или перезагрузки.</p>
  <p class="wk-kv">Осталось сегодня: <b>${left()} из 5</b>. Выбранный статус запишется в таблицу и зачтётся в игре как неподтверждённый. Бонус за длительность не начисляется. Лимит обновляется в 10:00 по часам ноутбука.</p>
- <div class="wk-btns"><button class="wk-btn pri" data-manual="4" ${!left()||l.resultIndex===4?"disabled":""}>CALL BOOKED</button><button class="wk-btn pri" data-manual="14" ${!left()||l.resultIndex===14?"disabled":""}>CONDUCTED DISCOVERY CALL</button><button class="wk-btn" id="mw-cancel">Отмена</button></div></div>`,1),document.querySelector("#mw-close").onclick=close,document.querySelector("#mw-cancel").onclick=close,document.querySelectorAll("[data-manual]").forEach(b=>b.onclick=()=>{const cur=lead();if(!cur||cur.phone!==l.phone){close();return}const k=+b.dataset.manual;close(),apply(k)})}export{openManualWin};
+ <div class="wk-btns"><button class="wk-btn pri" data-manual="4" ${!left()||l.resultIndex===4?'disabled':''}>CALL BOOKED</button><button class="wk-btn pri" data-manual="14" ${!left()||l.resultIndex===14?'disabled':''}>CONDUCTED DISCOVERY CALL</button><button class="wk-btn" id="mw-cancel">Отмена</button></div></div>`,1);
+ document.querySelector('#mw-close').onclick=close;document.querySelector('#mw-cancel').onclick=close;
+ document.querySelectorAll('[data-manual]').forEach(b=>b.onclick=()=>{const cur=lead();if(!cur||cur.phone!==l.phone){close();return}const k=+b.dataset.manual;close();apply(k)});
+}

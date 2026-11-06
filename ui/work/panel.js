@@ -61,7 +61,7 @@ const CUP=(c,lock)=>`<svg viewBox="0 0 120 120" aria-hidden="true"><g class="ach
  ${lock?'<g transform="translate(60 48)"><rect x="-9" y="-3" width="18" height="14" rx="2" fill="#7d8a95"/><path d="M-5 -3v-4a5 5 0 0 1 10 0v4" fill="none" stroke="#7d8a95" stroke-width="3"/></g>':''}</svg>`;
 function achModal(a,got,m,claimed){const [rn,rc]=RAR[a.r]||RAR.c,g=!!got,el=document.createElement('div');el.className='achm-wrap';el.setAttribute('role','dialog');el.setAttribute('aria-label','Ачивка');
  el.innerHTML=`<div class="achm${g?' got':''}" style="--rc:${rc}"><button class="achm-x" aria-label="Закрыть"><svg viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-  <div class="achm-cup">${CUP(rc,!g)}</div><small class="achm-r">${rn} ачивка</small><h3>${g?esc(a.n):'Пока закрыта'}</h3><p class="achm-h">${esc(a.h)}</p>
+  <div class="achm-cup">${CUP(rc,!g)}</div><small class="achm-r">${rn} ачивка</small><h3>${g?esc(a.n):'Пока закрыта'}</h3><p class="achm-h">${esc(g||!a.hid?a.h:'Секрет. Откроется сам, в нужный момент. Просто звони.')}</p>
   <div class="achm-rw"><span>Награда</span><b>+${money(m)}</b><em>${g?(claimed?'уже забрана':'ждёт тебя'):'дадут, когда откроешь'}</em></div>
   ${g&&typeof got==='number'&&got>1e9?`<p class="achm-d">Открыта ${new Date(got).toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric'})}</p>`:''}</div>`;
  const close=()=>{el.classList.remove('in');removeEventListener('keydown',kd,true);setTimeout(()=>el.remove(),200)};const kd=e=>{if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();e.stopPropagation();close()}};
@@ -132,9 +132,9 @@ export function makePanel(o){
   const trc=t=>{const k=trKey(t),ready=!isClaimed(o.save,'t',k),m=rewardTr(t,o.G().district),inner=`<i>${icon('trophy')}</i><b>${esc(t.company)}</b><span>${t.kind==='gold'?'CALL BOOKED':'DISCOVERY CALL'} · ${new Date(t.t).toLocaleDateString('ru',{day:'numeric',month:'short'})}${t.state?' · '+esc(t.state):''}</span>`;
    return ready?`<button class="cc-tr ${t.kind} ready" data-claim="t|${esc(k)}" title="Забрать трофей: +${money(m)}">${inner}${veil(t.kind==='gold'?'НОВЫЙ ТРОФЕЙ':'ТРОФЕЙ DISCOVERY',m)}</button>`:`<div class="cc-tr ${t.kind}" title="${esc(t.company)}">${inner}</div>`};
   const trs=[...tr.filter(t=>!isClaimed(o.save,'t',trKey(t))),...tr.filter(t=>isClaimed(o.save,'t',trKey(t))).slice(0,12)];
-  const achc=a=>{const g=got[a.id],r=rd(a),m=rewardAch(a,o.G().district),inner=`<i>${g?icon('trophy'):icon('lock')}</i><b>${g?esc(a.n):'???'}</b><span>${esc(a.h)}</span>`;
+  const achc=a=>{const g=got[a.id],r=rd(a),m=rewardAch(a,o.G().district),inner=`<i>${g?icon('trophy'):icon('lock')}</i><b>${g?esc(a.n):'???'}</b><span>${esc(g||!a.hid?a.h:'секрет')}</span>`;
    return r===2?`<button class="cc-a r-${a.r} got ready" data-claim="a|${a.id}" title="Забрать: +${money(m)}">${inner}${veil({c:'ЛЁГКАЯ АЧИВКА',r:'СРЕДНЯЯ АЧИВКА',l:'СЛОЖНАЯ АЧИВКА'}[a.r]||'АЧИВКА',m)}</button>`:
-    `<button type="button" class="cc-a r-${a.r} ${g?'got':'lock'}" data-ach="${a.id}" aria-label="${esc((g?a.n:'Закрытая ачивка')+': '+a.h)}">${inner}</button>`};
+    `<button type="button" class="cc-a r-${a.r} ${g?'got':'lock'}" data-ach="${a.id}" aria-label="${esc((g?a.n:'Закрытая ачивка')+': '+(g||!a.hid?a.h:'секрет'))}">${inner}</button>`};
   return banner('trophy','ТРОФЕИ',`Ачивки ${n} из ${ACH.length} · трофеев ${tr.length}`)+`<section class="cc-sec"><button class="cc-hall" data-hall>Открыть ЗАЛ ТРОФЕЕВ</button></section>`+
   (pd.length?`<section class="cc-sec cc-pend"><p class="cc-pend-t"><b>${pd.length}</b> ${pd.length===1?'награда ждёт':'наград ждут'} — нажми на светящуюся карточку · всего +${money(pd.reduce((s,x)=>s+x.money,0))}</p></section>`:'')+
   `<section class="cc-sec"><h4>ТРОФЕИ <em>встречи и discovery</em></h4>${tr.length?`<div class="cc-trs">${trs.map(trc).join('')}</div>${tr.length>trs.length?`<p class="cc-note">и ещё ${tr.length-trs.length}</p>`:''}`:'<p class="cc-note">Первая встреча станет первым трофеем.</p>'}</section>

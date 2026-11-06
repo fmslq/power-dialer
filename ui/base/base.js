@@ -1,6 +1,7 @@
 // БАЗА И ЧЁРНЫЙ РЫНОК (R4, ТЗ §10–11). Полноэкранная сцена базы 2400×1000 (панорама: тянуть / колесо / стрелки),
 // 4 стадии по району, купленные предметы на своих слотах (новые падают сверху), Гудок, люк на рынок, рычаг «К работе».
 // Рынок: продавец Лом, вкладки районов 1–12 + косметика, карточки в духе Inscryption (арт, тир, лор, где встанет).
+import {icon} from '../../art/icons.js';
 import {priceFor} from '../../core/allies.js';
 import {DIST,SHOP_ITEMS,COSMETICS,buy,baseStage,equip,equipped} from '../../core/meta.js';
 import {ITEM_LORE,COSMETIC_LORE} from '../../story/items.js';
@@ -50,7 +51,7 @@ export function makeBase(o){
    <div class="hq-bub" id="hq-bub" style="left:${GK_X+40}px;top:${gy-230}px"></div></div></div>
    <i class="hq-edge l"></i><i class="hq-edge r"></i>
    <header class="hq-top"><div class="hq-ttl"><small>БАЗА · стадия ${st+1} из 4</small><b>${esc(S[0])}</b><span>${esc(S[1])}</span></div>
-    <div class="hq-money"><small>деньги</small><b id="hq-money">${$m(G().money)}</b><span>${ALL.filter(x=>owned(x.id)).length} из ${ALL.length} предметов</span>${(()=>{const t=itemTotals(meta().owned,99,12),p=[];if(t.xAll)p.push('XP +'+t.xAll+'%');if(t.mAll)p.push('$ +'+t.mAll+'%');if(t.fast)p.push('окно +'+t.fast+' с');const c=Object.keys(t.x).length+Object.keys(t.m).length;if(c)p.push(c+' бонус'+(c===1?'':c<5?'а':'ов')+' к статусам');return p.length?`<em class="hq-buffs" title="Бонусы купленных предметов">⚡ ${p.join(' · ')}</em>`:''})()}</div>
+    <div class="hq-money"><small>деньги</small><b id="hq-money">${$m(G().money)}</b><span>${ALL.filter(x=>owned(x.id)).length} из ${ALL.length} предметов</span>${(()=>{const t=itemTotals(meta().owned,99,12),p=[];if(t.xAll)p.push('XP +'+t.xAll+'%');if(t.mAll)p.push('$ +'+t.mAll+'%');if(t.fast)p.push('окно +'+t.fast+' с');const c=Object.keys(t.x).length+Object.keys(t.m).length;if(c)p.push(c+' бонус'+(c===1?'':c<5?'а':'ов')+' к статусам');return p.length?`<em class="hq-buffs" title="Бонусы купленных предметов">⚡︎ ${p.join(' · ')}</em>`:''})()}</div>
     <nav class="hq-nav"><button data-k="shop" class="hq-b mk">Чёрный Рынок <kbd>M</kbd></button><button data-k="ins" class="hq-b">Осмотр <kbd>I</kbd></button><button data-k="go" class="hq-b go">К работе <kbd>Esc</kbd></button></nav></header>
    <p class="hq-hint">Тяни, крути колесо или жми ← →. Нажми на предмет — прочитать.</p>
    <div class="hq-tip" id="hq-tip"></div>${dark?`<div class="hq-darkmsg">Свет отключили. Ты снова <b>Nobody</b>. Позвони — и лампа вернётся.</div>`:''}`};
@@ -75,7 +76,7 @@ export function makeBase(o){
    <div class="crd-art"><svg class="crd-svg" viewBox="-200 -400 400 420"><g class="crd-g">${itemSprite(it.id)}</g></svg>${lk?'<i class="crd-q">?</i>':''}${cl==='t2'&&!lk?'<i class="crd-shine"></i>':''}</div>
    <div class="crd-tier"><span>${esc(tierName(it))}</span>${it.district?`<span>${esc(DIST[it.district-1][0])}</span>`:''}</div>
    <p class="crd-lore">${lk?'Лом держит это под брезентом. Захвати район — покажет.':esc(L.lore||it.description||'')}</p>
-   ${buffText(it.id)?`<p class="crd-buff"><i>⚡</i><span>${esc(buffText(it.id))}</span></p>`:''}<p class="crd-where">${lk?'':esc(where(it))}</p><footer>${btn}</footer>${st==='own'||st==='sold'?'<i class="crd-stamp">КУПЛЕНО</i>':''}</div></article>`};
+   ${buffText(it.id)?`<p class="crd-buff"><i>⚡︎</i><span>${esc(buffText(it.id))}</span></p>`:''}<p class="crd-where">${lk?'':esc(where(it))}</p><footer>${btn}</footer>${st==='own'||st==='sold'?'<i class="crd-stamp">КУПЛЕНО</i>':''}</div></article>`};
  const fit=root=>root.querySelectorAll('.crd-svg').forEach(s=>{try{const b=s.querySelector('.crd-g').getBBox();if(!b.width)return;const p=Math.max(b.width,b.height)*.08;
   s.setAttribute('viewBox',`${b.x-p} ${b.y-p} ${b.width+2*p} ${b.height+2*p}`)}catch(e){}});
  const showCard=id=>{const it=byId(id);if(!it)return;const w=document.createElement('div');w.className='hq-card';
@@ -85,14 +86,14 @@ export function makeBase(o){
  const lom=(mood,t)=>{if(!bm)return;bm.querySelector('#bm-lom').innerHTML=lomSvg(mood);const b=bm.querySelector('#bm-say');b.textContent=t;b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');
   clearTimeout(lomT);if(mood!=='welcome')lomT=setTimeout(()=>bm&&(bm.querySelector('#bm-lom').innerHTML=lomSvg('welcome')),2600)};
  const tabs=()=>{const d=G().district||1;return Array.from({length:12},(_,i)=>{const n=i+1,lk=n>d,all=SHOP_ITEMS.filter(x=>x.district===n),k=all.filter(x=>owned(x.id)).length;
-  return`<button class="bm-tab${tab===n?' on':''}${lk?' lk':''}" data-tab="${n}" title="${esc(DIST[i][0])}"><b>${n}</b><span>${lk?'🔒':k+'/3'}</span></button>`}).join('')+
+  return`<button class="bm-tab${tab===n?' on':''}${lk?' lk':''}" data-tab="${n}" title="${esc(DIST[i][0])}"><b>${n}</b><span>${lk?icon('lock','ic-in'):k+'/3'}</span></button>`}).join('')+
   `<button class="bm-tab cos${tab==='cos'?' on':''}" data-tab="cos"><b>КОСМ</b><span>${COSMETICS.filter(x=>owned(x.id)).length}/${COSMETICS.length}</span></button>`+
-  (o.dev&&o.dev.on()?(()=>{const S=o.dev.stock();return`<button class="bm-tab dev${tab==='dev'?' on':''}${S.open?' hot':''}" data-tab="dev" title="Девайсы для связистов (D)"><b>ДЕВ</b><span>${S.open?S.items.filter(x=>!x.sold).length+' шт':'🔒'}</span></button>`})():'')};
+  (o.dev&&o.dev.on()?(()=>{const S=o.dev.stock();return`<button class="bm-tab dev${tab==='dev'?' on':''}${S.open?' hot':''}" data-tab="dev" title="Девайсы для связистов (D)"><b>ДЕВ</b><span>${S.open?S.items.filter(x=>!x.sold).length+' шт':icon('lock','ic-in')}</span></button>`})():'')};
  const list=()=>tab==='cos'?COSMETICS:tab==='dev'?[]:SHOP_ITEMS.filter(x=>x.district===tab);
  // I4: девайсы для связистов — Лом приносит ящик только в день с 50+ звонками; один девайс в день каждого вида
  const devGrid=()=>{const S=o.dev.stock();return`<div class="bm-sub"><b>Девайсы для связистов</b><span>${S.open?'Сегодняшний ящик. Каждый — один раз. Надеть — в Коллекторе, одному связисту.':`Ящик закрыт. «Девайс — не сувенир. Отработай полсотни звонков — спущусь». Сегодня ещё ${S.need}.`}</span></div>
   <div class="bm-grid bm-devs">${S.items.map(d=>`<div class="bm-dev${S.open?'':' lk'}${d.sold?' sold':''}" style="--dc:${o.dev.tc(d.r)}"><i class="dvi"></i><b>${S.open?esc(d.n):'???'}</b><span>${S.open?esc(d.t):'Лом держит ящик закрытым.'}</span><em>${S.open?'+'+d.b+'% одному связисту':''}</em>
-   ${d.sold?'<button disabled>куплено</button>':S.open?`<button data-dev="${d.id}" ${G().money<d.cost?'class="short"':''}>${$m(d.cost)}</button>`:'<button disabled>🔒</button>'}</div>`).join('')}</div>`};
+   ${d.sold?'<button disabled>куплено</button>':S.open?`<button data-dev="${d.id}" ${G().money<d.cost?'class="short"':''}>${$m(d.cost)}</button>`:'<button disabled aria-label="Закрыто">'+icon('lock','ic-in')+'</button>'}</div>`).join('')}</div>`};
  const grid=()=>{if(tab==='dev'&&o.dev)return devGrid();const L=list(),lk=tab!=='cos'&&tab>(G().district||1);
   return`<div class="bm-sub">${tab==='cos'?'<b>Косметика</b><span>След фигурки на карте и материал печати статуса. Надето — одно из каждого вида.</span>':`<b>${tab}. ${esc(DIST[tab-1][0])}</b><span>${lk?'Район ещё не твой — только силуэты.':'Три вещи района: дешёвая, средняя, showpiece.'}</span>`}</div>
    <div class="bm-grid">${L.map(it=>card(it,stOf(it))).join('')}</div>`};

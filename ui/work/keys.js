@@ -1,11 +1,12 @@
 // E4: окно прохода на границе — сцена (реплики по одной), условия с прогрессом, действие (купить / забрать / обменять).
+import {icon} from '../../art/icons.js';
 import {needKey,keyReqs,takeKey,keyState} from '../../core/keys.js';
 import {SHOP_ITEMS} from '../../core/meta.js';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $m=v=>'$'+Math.round(v).toLocaleString('ru');
 export function makeKeys({save,G,persist,toast,sfx=()=>{},onGot=()=>{}}){let w=null,step=0,pick=null,cs=null;
  const chip=()=>{const k=needKey(save,G());if(!k)return'';const q=keyReqs(save,G(),k),n=q.list.filter(x=>x.v>=x.n).length,h=Math.round(G().keyHold||0);
-  return`<button class="adx-c key${q.ok?' ready':''}" data-key title="Граница: нужен проход «${esc(k.n)}». Прогресс района (${h} XP) копится и засчитается, когда проход будет">🔒 ${esc(k.n)} <b>${n}/${q.list.length}</b>${h?`<i>+${h} ждёт</i>`:''}</button>`};
+  return`<button class="adx-c key${q.ok?' ready':''}" data-key title="Граница: нужен проход «${esc(k.n)}». Прогресс района (${h} XP) копится и засчитается, когда проход будет">${icon('lock','ic-in')} ${esc(k.n)} <b>${n}/${q.list.length}</b>${h?`<i>+${h} ждёт</i>`:''}</button>`};
  const body=()=>{const k=needKey(save,G());if(!k)return'';const q=keyReqs(save,G(),k),sc=k.sc,shown=sc.slice(0,Math.min(sc.length-1,step+1)),more=step+1<sc.length-1;
   const sw=q.list.find(x=>x.swap);if(sw&&sw.swap.length&&!pick)pick=sw.swap[0];
   return`<div class="kw" role="dialog" aria-label="Проход"><header><em>ГРАНИЦА · РАЙОН ${k.d} · ${esc(k.kind||'')}</em><b>${esc(k.n)}</b><span>${esc(k.why)}</span></header>

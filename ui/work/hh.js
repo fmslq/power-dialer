@@ -41,10 +41,10 @@ export function makeHH({now=Date.now,toast=()=>{},sfx=()=>{},lead=()=>null,filte
  const live=()=>{const t=now(),Z=A.hhZones(t),L=lead(),mine=new Set([L&&tzOfState(L.state),filterTz()].filter(Boolean));
   const cur={};Z.forEach(z=>cur[z.tz]=z.on?z.on.name:'');
   if(prev&&active()&&document.visibilityState!=='hidden'){Z.forEach(z=>{const was=prev[z.tz],is=cur[z.tz];const key=z.tz+'|'+(is||was)+'|'+Math.floor(t/864e5);
-   if(is&&!was){toast(`☀ Счастливый час ${ZIN[z.tz]}: опыт и деньги ×${z.on.k}`,'gold');sfx('chime')}
-   if(is&&was&&is!==was&&mine.has(z.tz))toast(`☀ ${ZIN[z.tz]} пик прошёл: до ${hm(z.m+z.on.left)} опыт и деньги ×${z.on.k}`);
-   if(is&&mine.has(z.tz)&&z.on.left<=5&&!warned[key]){warned[key]=1;toast(`☀ Счастливый час ${ZIN[z.tz]}: осталось 5 минут`)}
-   if(was&&!is&&mine.has(z.tz)){const n=Z.filter(x=>x.on).sort((a,b)=>b.on.left-a.on.left)[0];toast(`Счастливый час ${ZIN[z.tz]} закончился.`+(n?` Он ещё идёт ${ZIN[n.tz]} — ${dur(n.on.left)}. Нажми ☀ и «Звонить сюда»`:''))}})}
+   if(is&&!was){toast(`☀︎ Счастливый час ${ZIN[z.tz]}: опыт и деньги ×${z.on.k}`,'gold');sfx('chime')}
+   if(is&&was&&is!==was&&mine.has(z.tz))toast(`☀︎ ${ZIN[z.tz]} пик прошёл: до ${hm(z.m+z.on.left)} опыт и деньги ×${z.on.k}`);
+   if(is&&mine.has(z.tz)&&z.on.left<=5&&!warned[key]){warned[key]=1;toast(`☀︎ Счастливый час ${ZIN[z.tz]}: осталось 5 минут`)}
+   if(was&&!is&&mine.has(z.tz)){const n=Z.filter(x=>x.on).sort((a,b)=>b.on.left-a.on.left)[0];toast(`Счастливый час ${ZIN[z.tz]} закончился.`+(n?` Он ещё идёт ${ZIN[n.tz]} — ${dur(n.on.left)}. Нажми ☀︎ и «Звонить сюда»`:''))}})}
   prev=cur;if(pop)draw()};
  setInterval(live,1000);
  return{chip,sig,open,close,live,isOpen:()=>!!pop}}

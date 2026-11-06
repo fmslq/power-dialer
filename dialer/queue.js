@@ -26,12 +26,12 @@ export class Queue{
   this.start=Math.max(0,Math.min(this.start,this.t.L.length-1))}
 }
 // Данные окна «Выбрать лида» (mlist): чипы фильтров (топ-10 по частоте), строки, «Показать выше/ниже». M={q,type,state,tz,hide,off,n}
-export function pickerData(t,q,M,curL,map,now=Date.now()){const ltc={},lt=l=>{const z=zone(t,l);if(!z)return null;if(!(z.z in ltc))ltc[z.z]=localTime(t,l,new Date(now));return ltc[z.z]};const all=[];t.L.forEach((l,i)=>{if(t.ph(l))all.push(i)});
+export function pickerData(t,q,M,curL,map,now=Date.now()){const ltc={},lt=l=>{const z=zone(t,l);if(!z)return null;if(!(z.z in ltc))ltc[z.z]=localTime(t,l,new Date(now));return ltc[z.z]};const all=[];t.L.forEach((l,i)=>{if(l.v.some(x=>String(x||'').trim()))all.push(i)});
  const cnt=f=>{const m={};all.forEach(i=>{const v=f(t.L[i]);if(v)m[v]=(m[v]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0])};
  const s=String(M.q||'').toLowerCase(),filtered=!!(M.q||M.type||M.state||M.tz||M.hide);
  const rs=all.filter(i=>{const l=t.L[i];return(!M.hide||!t.res(l))&&match(t,l,M)&&(!s||[t.get(l,"Business"),t.get(l,"Phone"),t.get(l,"Type of company"),t.get(l,"Notes"),t.get(l,"Result"),t.get(l,"Prep")].join(" ").toLowerCase().includes(s))});
  const cur=t.L.indexOf(curL);if(M.first){M.first=0;const p=rs.indexOf(cur);if(p>0)M.off=Math.max(0,p-120)}const off=M.off||0,n=M.n||400;
- const rows=rs.slice(off,off+n).map((i,k)=>{const l=t.L[i];return{i,biz:t.get(l,"Business"),type:t.get(l,"Type of company"),state:lstate(t,l),
+ const rows=rs.slice(off,off+n).map((i,k)=>{const l=t.L[i];return{i,dialable:!!t.ph(l),biz:t.get(l,"Business"),type:t.get(l,"Type of company"),state:lstate(t,l),
   result:t.res(l),notes:t.get(l,"Notes").trim().replace(/\s+/g," "),prep:t.prep(l).replace(/\s+/g," "),done:!!t.res(l),now:i==cur,first:filtered&&!k&&!off,color:t.res(l)?statusColor(t.res(l),map):null,tz:tzk(t,l),local:lt(l),date:t.get(l,"Date Engaged")}});
  return{chips:{tz:TZ_ORDER.filter(v=>all.some(i=>tzk(t,t.L[i])==v)),state:cnt(l=>lstate(t,l)),type:cnt(l=>t.get(l,"Type of company").trim())},
   rows,total:rs.length,up:off>0,down:rs.length>off+n,filtered,hasFilter:!!(M.type||M.state||M.tz),curPos:rs.indexOf(cur)}}

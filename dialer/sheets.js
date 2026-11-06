@@ -6,7 +6,7 @@ export function human(r,op){const e=String(r&&r.err||""),who=op?" («"+(op.biz||
  if(r&&(r.code=="validation"||/проверк\S* данных|data validation/i.test(e)))return["Ошибка: Статус в дайлере не совпадает с выпадающим списком в таблице"+who,"Открой Настройки → Дайлер → «Какие значения уходят в таблицу» и впиши значение точно как в списке таблицы."];
  if(r&&r.code=="secret")return["Неверное секретное слово","Слово в дайлере и в скрипте должно совпадать. Если менял слово в скрипте, создай новую версию развёртывания."];
  if(r&&r.code=="tab")return["Не нашёл вкладку в таблице","Впиши название вкладки вручную: Настройки → Дайлер → «Вкладка»."];
- if(r&&r.code=="row")return["Этого номера нет в таблице"+who,"Эта запись пропущена. Проверь, что номер есть в колонке Phone этой вкладки."];
+ if(r&&r.code=="row")return["Этого номера нет в таблице"+who,"Запись сохранена в очереди. Проверь номер в колонке Phone этой вкладки."];
  return["Ошибка Google Sheets: "+e.slice(0,120),"Открой Настройки → Дайлер и нажми «Проверить связь»."]}
 export const parseSheetUrl=u=>{const m=String(u).match(/\/spreadsheets\/d\/([\w-]+)/);if(!m)return null;const g=String(u).match(/[#&?]gid=(\d+)/);return{id:m[1],gid:g?g[1]:""}};
 const J=(st,k,d)=>{try{return JSON.parse(st.getItem(k)||"null")??d}catch(e){return d}};
@@ -14,7 +14,7 @@ const J=(st,k,d)=>{try{return JSON.parse(st.getItem(k)||"null")??d}catch(e){retu
 export class SheetsSync{
  // o: {table, cfg:()=>P.sheets, fileTab:()=>вкладка для файла, store, fetch, setTimeout, clearTimeout, now, isEditing(l,field), confirm, emit(type,data), busyLocal:()=>bool, kv}
  constructor(o){Object.assign(this,o);this.SQ=J(o.store,"pd2q",[]);this.SA=J(o.store,"pd2a",[]);this.busy=0;this.err="";this.T=0;this.blind=0;this.fail=0;this.msg=null;this.info=null;
-  this.syBusy=0;this.syOld=0;this.syLast=0;this.recSkip=null}
+  this.syBusy=0;this.syOld=0;this.syLast=0;this.recSkip=null;this.revision=0}
  sqSave(){try{this.store.setItem("pd2q",JSON.stringify(this.SQ))}catch(e){}}
  saSave(){try{this.store.setItem("pd2a",JSON.stringify(this.SA))}catch(e){}}
  get on(){const c=this.cfg();return !!(c.on&&c.url)}
@@ -26,31 +26,30 @@ export class SheetsSync{
   if(withRes){s.Result=t.get(l,"Result");s["Date Engaged"]=t.get(l,"Date Engaged")}
   if(t.get(l,"Notes")!==l.n0)s.Notes=t.get(l,"Notes");if(t.get(l,"Callback?")!==l.c0)s["Callback?"]=t.get(l,"Callback?");
   if(!Object.keys(s).length)return;
-  const file=this.tabHint(),phone=t.ph(l),o=this.SQ.find(x=>x.file==file&&x.phone==phone);
-  if(o)Object.assign(o.set,s);else this.SQ.push({file,phone,biz:t.get(l,"Business"),row:l.r||t.L.indexOf(l)+2,set:s,...(t.src?{sid:t.src.id,gid:t.src.gid}:{})});
-  this.sqSave();this.pump();this.changed()}
+  const file=this.tabHint(),phone=t.ph(l),row=l.r||t.L.indexOf(l)+2,o=this.SQ.find(x=>x.file==file&&x.phone==phone&&x.row==row);
+  if(o)Object.assign(o.set,s);else this.SQ.push({file,phone,biz:t.get(l,"Business"),row,set:s,...(t.src?{sid:t.src.id,gid:t.src.gid}:{})});
+  this.revision++;this.sqSave();this.pump();this.changed()}
  async post(obj){const c=this.cfg(),ac=new AbortController(),tm=this.setTimeout(()=>ac.abort(),25000),o={method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({secret:c.token,...obj}),signal:ac.signal};
-  try{try{const r=await this.fetch(c.url,o);return await r.json()}
-   catch(e){if(!(e instanceof TypeError))throw e;await this.fetch(c.url,{...o,mode:"no-cors"});return{ok:true,blind:1}}}
+  try{const r=await this.fetch(c.url,o);return await r.json()}
   finally{this.clearTimeout(tm)}}
  async pump(){if(this.busy||!this.SQ.length||!this.on)return;this.busy=1;
-  while(this.SQ.length){const op=this.SQ[0];
-   try{const r=await this.post(op);
-    if(r.ok){if(r.blind)this.blind=1;else this.info=r;this.SQ.shift();this.sqSave();this.err="";if(this.msg&&this.msg[2]=="tr")this.msg=null}
-    else if(r.perm||r.code=="validation"||/проверк\S* данных|data validation/i.test(String(r.err||""))){this.SQ.shift();this.sqSave();this.fail++;this.msg=human(r,op)}
+  while(this.SQ.length){const op=this.SQ[0],sent={...op,set:{...op.set}};
+   try{const r=await this.post(sent);
+    if(r.ok&&!r.blind){this.info=r;for(const [k,v] of Object.entries(sent.set))if(op.set[k]===v)delete op.set[k];if(!Object.keys(op.set).length)this.SQ.shift();this.sqSave();this.err="";this.fail=0;if(this.msg)this.msg=null}
+    else if(r.perm||r.code=="validation"||/проверк\S* данных|data validation/i.test(String(r.err||""))){this.err=r.code||'ошибка';this.fail=1;this.msg=human(r,op);break}
     else{this.err=r.code=="secret"?"secret":(r.err||"ошибка");this.msg=[...human(r,op),"tr"];break}}
    catch(e){this.err="нет связи";break}
    this.changed()}
-  this.busy=0;this.changed();this.clearTimeout(this.T);if(this.SQ.length)this.T=this.setTimeout(()=>this.pump(),this.err=="secret"?60000:8000)}
+  this.busy=0;this.changed();this.clearTimeout(this.T);if(this.SQ.length)this.T=this.setTimeout(()=>this.pump(),this.err=="secret"||this.fail?60000:8000);else if(!this.err)this.setTimeout(()=>this.pull(),500)}
  retry(){this.err="";this.pump()}
  // чтение правок из таблицы: раз в 45 с и при возврате во вкладку (если прошло > 8 с)
  async pull(manual){const t=this.table;if(!this.on||!t.L.length||this.syBusy)return;if(this.syOld&&!manual)return;
   if(this.SQ.length||this.busyLocal()||this.busy){if(manual)this.emit('toast',"Сначала дождись отправки в таблицу");return}
-  this.syBusy=1;this.syLast=this.now();
+  this.syBusy=1;this.syLast=this.now();const revision=this.revision;
   try{const r=await this.post(t.src?{sid:t.src.id,gid:t.src.gid,file:"x",read:1,full:1}:{file:this.tabHint(),read:1});
    if(r.blind)return;
    if(t.src?!r.head:!r.rows){if(r.ok||r.code=="row"){this.syOld=1;this.msg=["В таблице старая версия скрипта","Вставь новый код (Настройки → Дайлер → Apps Script) и создай новую версию развёртывания. Тогда правки из таблицы будут попадать в дайлер."];this.changed()}else if(manual)this.emit('toast',human(r)[0]);return}
-   this.syOld=0;if(this.SQ.length||this.busyLocal())return;
+   this.syOld=0;if(this.SQ.length||this.busyLocal()||this.revision!==revision)return;
    const n=t.src?this.reconcile(r):this.applyPull(r.rows);if(manual)this.emit('toast',n?"Из таблицы обновлено: "+n:"В таблице ничего нового")}
   catch(e){if(manual)this.emit('toast',"Нет связи с таблицей")}
   finally{this.syBusy=0}}

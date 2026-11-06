@@ -9,7 +9,7 @@ import {ZoomBridge} from './zoom.js';
 import {HangupGuard} from './hangup.js';
 import {BUTTONS,PRIM,WIN,sheetValue,statusIndex,statusColor,SHEET_VALUES} from './statuses.js';
 import {tempo} from './tempo.js';
-import {localTime,lstate} from './geo.js';
+import {localTime,lstate,zone} from './geo.js';
 // Date Engaged (кусок 26в, просьба пользователя): дата и время звонка по часам того, кому звонишь — «2026-11-05 3:40 PM CST». Пояс неизвестен — только дата.
 export const engaged=(t,l,d)=>{const lt=localTime(t,l,d);return today(d)+(lt?' '+lt.time+' '+lt.tz:'')};
 import {getAppsScript} from './apps-script.js';
@@ -41,7 +41,7 @@ export class Dialer{
  view(){const t=this.t,l=this.cur,n=this.q.next(),r=l?t.res(l):"";
   return{loaded:t.loaded,name:t.name,source:t.src?'sheet':this.FH?'file':t.loaded?'memory':'none',lead:l?{biz:t.get(l,"Business"),type:t.get(l,"Type of company"),state:lstate(t,l),phone:t.ph(l),rawPhone:t.get(l,"Phone"),
     site:t.get(l,"Website"),map:t.get(l,"Google Maps link"),reviews:t.get(l,"Reviews"),address:t.get(l,"Adress")||t.get(l,"Address"),verification:t.get(l,"Verification"),email:t.get(l,"Email"),other:t.get(l,"Other"),
-    notes:t.get(l,"Notes"),callback:t.get(l,"Callback?"),prep:t.prep(l),result:r,resultIndex:statusIndex(r,this.P.map),resultColor:r?statusColor(r,this.P.map):null,local:localTime(t,l,new Date(this.env.now()))}:null,
+    notes:t.get(l,"Notes"),callback:t.get(l,"Callback?"),prep:t.prep(l),result:r,resultIndex:statusIndex(r,this.P.map),resultColor:r?statusColor(r,this.P.map):null,local:localTime(t,l,new Date(this.env.now())),zone:(zone(t,l)||{}).z||null}:null,
    next:n?t.get(n,"Business"):null,remaining:this.q.remaining(),calling:this.calling,callSec:this.calling?Math.floor((this.env.now()-this.t0)/1000):0,paused:this.paused,auto:this.auto,only:this.q.only,
    canBack:this.q.hc>0,hasPrep:t.hasPrep(),filter:{...this.q.f},suggest:this.zoom.sug,saved:this.saved,saveErr:this.saveErr,exhausted:t.loaded&&!l}}
  tempo(){return tempo(this.ses.times.map(x=>x.t),this.env.now(),this.ses.tFirst)}       // UI зовёт раз в 5 с
@@ -86,10 +86,12 @@ export class Dialer{
   const ms=had?null:this.tally(l),meta={index:k,name:BUTTONS[k].name,value:v,changed:!!had,prev:had,win:WIN.includes(k),milestone:ms,lead:{biz:t.get(l,"Business"),state:lstate(t,l),phone:t.ph(l)},hangup:hang,back};
   this.emit('statusSet',meta);
   const fresh=this.q.advance(),wait=waitFn?waitFn(meta):(ms&&ms.kind=='hundred')?2800:meta.win?1000:0,tgt=this.cur;this.emit('leadChanged',this.view());
-  if(fresh&&this.auto&&!this.paused&&tgt){if(wait)this.env.setTimeout(()=>{if(this.cur===tgt&&!this.paused&&!this.calling)this.dial()},wait);else this.dial()}
+  if(fresh&&this.auto&&!this.paused&&tgt){const go=()=>{if(this.cur!==tgt||this.paused||this.calling)return;if(this.held){this.pend=tgt;return}this.dial()};if(wait)this.env.setTimeout(go,wait);else go()}
   return meta}
  clearStatus(l=this.cur){const t=this.t;if(!l||!t.res(l))return false;const prev=t.res(l);t.put(l,"Result","");t.put(l,"Date Engaged","");this.persist();this.sheets.sync(l,1);
   const p=t.ph(l);if(this.ses.dset.has(p))this.untally(p);this.emit('statusCleared',{lead:t.get(l,"Business"),phone:p,prev});this.emit('toast',"Статус убран");this.emit('leadChanged',this.view());return true}
+ // кусок 28: игра держит автонабор, пока открыто окно находки (Шум, сундук, выбор усиления); release() — закрыли окно → звоним
+ hold(on){if(on){this.held=true;return}this.held=false;const t=this.pend;this.pend=null;if(t&&this.cur===t&&this.auto&&!this.paused&&!this.calling)this.dial()}
  skip(){const l=this.cur;if(!l)return false;if(this.calling||this.call&&this.call.ended==null)this._autoHang('skip');this.calling=false;this.q.touch(l);this.persist();this.sheets.sync(l,0);this.q.advance();this.emit('leadChanged',this.view());return true}
  back(){if(!this.q.back()){this.emit('toast',"Это первый лид сессии");return false}this.calling=false;this.emit('leadChanged',this.view());return true}
  pause(){this.paused=!this.paused;this.pauseAt=this.paused?this.env.now():0;this.emit('pauseChanged',{paused:this.paused,at:this.pauseAt});this.emit('leadChanged',this.view());
